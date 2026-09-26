@@ -1,14 +1,12 @@
 import AppKit
 import NanopicCore
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct LayerPanel: View {
     let state: AppState
     @Bindable var editor: Editor
     @State private var renamingID: UUID?
-    @State private var renameText = ""
-    @State private var dropTarget: (id: UUID, into: Bool)?
+    @State private var drag = LayerDragState()
 
     var body: some View {
         let _ = editor.revision
@@ -18,10 +16,16 @@ struct LayerPanel: View {
             Divider()
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    ForEach(editor.doc.flattenedForDisplay(), id: \.node.id) { item in
-                        row(item.node, depth: item.depth)
+                    ForEach(rowModels(), id: \.id) { model in
+                        LayerRowView(model: model,
+                                     actions: LayerRowActions(editor: editor, renamingID: $renamingID, drag: drag))
+                            .equatable()
                     }
                 }
+                .coordinateSpace(name: LayerDragState.space)
+                .onPreferenceChange(LayerRowFramesKey.self) { drag.rowFrames = $0 }
+                // ドラッグ中の表示はこのオーバーレイだけが更新される（行は再描画しない）
+                .overlay(alignment: .topLeading) { LayerDropIndicator(drag: drag) }
             }
             Divider()
             actionBar
@@ -97,115 +101,12 @@ struct LayerPanel: View {
 
     // MARK: 行
 
-    private func row(_ node: LayerNode, depth: Int) -> some View {
-        let active = node.id == editor.doc.activeLayerID
-        return HStack(spacing: 4) {
-            Button {
-                editor.setLayerProperty(node.id, label: "表示切替") { $0.visible.toggle() }
-            } label: {
-                Image(systemName: node.visible ? "eye" : "eye.slash")
-                    .foregroundStyle(node.visible ? .primary : .tertiary)
-                    .frame(width: 20)
-            }
-            .buttonStyle(.plain)
-
-            if depth > 0 {
-                Spacer().frame(width: CGFloat(depth) * 14)
-            }
-            if node.clipping {
-                Rectangle().fill(Color.red.opacity(0.8)).frame(width: 3, height: 30)
-            }
-            if node.isFolder {
-                Button {
-                    editor.setLayerUIState(node.id) { $0.expanded.toggle() }
-                } label: {
-                    Image(systemName: node.expanded ? "chevron.down" : "chevron.right")
-                        .font(.caption)
-                        .frame(width: 14)
-                }
-                .buttonStyle(.plain)
-                Image(systemName: node.expanded ? "folder" : "folder.fill")
-                    .frame(width: 40, height: 32)
-            } else {
-                thumbnail(node)
-            }
-            VStack(alignment: .leading, spacing: 1) {
-                if renamingID == node.id {
-                    TextField("", text: $renameText, onCommit: {
-                        let name = renameText
-                        renamingID = nil
-                        NSApp.keyWindow?.makeFirstResponder(nil)
-                        if !name.isEmpty && name != node.name {
-                            editor.setLayerProperty(node.id, label: "名前の変更") { $0.name = name }
-                        }
-                    })
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
-                } else {
-                    Text(node.name)
-                        .font(.callout)
-                        .lineLimit(1)
-                }
-                HStack(spacing: 4) {
-                    Text("\(Int((node.opacity * 100).rounded()))% \(node.blendMode.displayName)")
-                    if node.lockAlpha { Image(systemName: "checkerboard.rectangle") }
-                    if node.locked { Image(systemName: "lock.fill") }
-                    if node.isReference { Image(systemName: "scope") }
-                }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
+    private func rowModels() -> [LayerRowModel] {
+        let activeID = editor.doc.activeLayerID
+        return editor.doc.flattenedForDisplay().map { node, depth in
+            LayerRowModel(node: node, depth: depth, active: node.id == activeID, renaming: node.id == renamingID,
+                          thumbnail: node.isFolder ? nil : state.thumbnail(for: node))
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(active ? Color.accentColor.opacity(0.28) : Color.clear)
-        .overlay(alignment: .top) {
-            if dropTarget?.id == node.id && dropTarget?.into == false {
-                Rectangle().fill(Color.accentColor).frame(height: 2)
-            }
-        }
-        .overlay {
-            if dropTarget?.id == node.id && dropTarget?.into == true {
-                RoundedRectangle(cornerRadius: 3).stroke(Color.accentColor, lineWidth: 2)
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
-            renameText = node.name
-            renamingID = node.id
-        }
-        .simultaneousGesture(TapGesture().onEnded { editor.setActiveLayer(node.id) })
-        .draggable(node.id.uuidString)
-        .dropDestination(for: String.self) { items, _ in
-            defer { dropTarget = nil }
-            guard let s = items.first, let id = UUID(uuidString: s) else { return false }
-            editor.moveLayer(id, relativeTo: node.id, intoFolder: node.isFolder)
-            return true
-        } isTargeted: { t in
-            if t { dropTarget = (node.id, node.isFolder) } else if dropTarget?.id == node.id { dropTarget = nil }
-        }
-        .contextMenu {
-            Button("複製") { editor.setActiveLayer(node.id); editor.duplicateActiveLayer() }
-            Button("下のレイヤーに結合") { editor.setActiveLayer(node.id); editor.mergeDown() }
-            Button("フォルダーを作成して挿入") { editor.setActiveLayer(node.id); editor.groupActiveLayer() }
-            Divider()
-            Button("削除") { editor.setActiveLayer(node.id); editor.deleteActiveLayer() }
-        }
-    }
-
-    private func thumbnail(_ node: LayerNode) -> some View {
-        ZStack {
-            CheckerboardView()
-            if let img = state.thumbnail(for: node) {
-                Image(nsImage: img)
-                    .resizable()
-                    .interpolation(.medium)
-                    .aspectRatio(contentMode: .fit)
-            }
-        }
-        .frame(width: 40, height: 32)
-        .overlay(Rectangle().stroke(Color.gray.opacity(0.5), lineWidth: 0.5))
     }
 
     // MARK: アクション
@@ -233,15 +134,297 @@ struct LayerPanel: View {
 }
 
 struct CheckerboardView: View {
+    /// 10x10 の市松模様（5px マス）を 1 度だけ作ってタイル表示する
+    private static let tile: NSImage = {
+        let img = NSImage(size: NSSize(width: 10, height: 10))
+        img.lockFocus()
+        NSColor.white.setFill()
+        NSRect(x: 0, y: 0, width: 10, height: 10).fill()
+        NSColor(white: 0.85, alpha: 1).setFill()
+        NSRect(x: 5, y: 0, width: 5, height: 5).fill()
+        NSRect(x: 0, y: 5, width: 5, height: 5).fill()
+        img.unlockFocus()
+        return img
+    }()
+
     var body: some View {
-        Canvas { ctx, size in
-            let s: CGFloat = 5
-            for y in stride(from: 0, to: size.height, by: s) {
-                for x in stride(from: 0, to: size.width, by: s) {
-                    let even = (Int(x / s) + Int(y / s)) % 2 == 0
-                    ctx.fill(Path(CGRect(x: x, y: y, width: s, height: s)), with: .color(even ? .white : Color(white: 0.85)))
+        Image(nsImage: Self.tile).resizable(resizingMode: .tile)
+    }
+}
+
+// MARK: - レイヤー行
+
+/// 行の表示に必要な値だけを持つモデル。等しければ SwiftUI は行を再描画しない。
+struct LayerRowModel: Equatable {
+    let id: UUID
+    let name: String
+    let isFolder: Bool
+    let expanded: Bool
+    let visible: Bool
+    let clipping: Bool
+    let lockAlpha: Bool
+    let locked: Bool
+    let isReference: Bool
+    let opacity: Float
+    let blendMode: NanopicCore.BlendMode
+    let depth: Int
+    let active: Bool
+    let renaming: Bool
+    let thumbnail: NSImage?
+
+    init(node: LayerNode, depth: Int, active: Bool, renaming: Bool, thumbnail: NSImage?) {
+        id = node.id
+        name = node.name
+        isFolder = node.isFolder
+        expanded = node.expanded
+        visible = node.visible
+        clipping = node.clipping
+        lockAlpha = node.lockAlpha
+        locked = node.locked
+        isReference = node.isReference
+        opacity = node.opacity
+        blendMode = node.blendMode
+        self.depth = depth
+        self.active = active
+        self.renaming = renaming
+        self.thumbnail = thumbnail
+    }
+
+    static func == (a: LayerRowModel, b: LayerRowModel) -> Bool {
+        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.expanded == b.expanded
+            && a.visible == b.visible && a.clipping == b.clipping && a.lockAlpha == b.lockAlpha
+            && a.locked == b.locked && a.isReference == b.isReference && a.opacity == b.opacity
+            && a.blendMode == b.blendMode && a.depth == b.depth && a.active == b.active
+            && a.renaming == b.renaming && a.thumbnail === b.thumbnail
+    }
+}
+
+/// 行から呼ぶ操作（比較対象外）
+struct LayerRowActions {
+    let editor: Editor
+    let renamingID: Binding<UUID?>
+    let drag: LayerDragState
+}
+
+// MARK: - ドラッグ&ドロップ
+
+struct LayerRowFrame: Equatable {
+    let id: UUID
+    let isFolder: Bool
+    let name: String
+    let frame: CGRect
+}
+
+struct LayerRowFramesKey: PreferenceKey {
+    static let defaultValue: [LayerRowFrame] = []
+    static func reduce(value: inout [LayerRowFrame], nextValue: () -> [LayerRowFrame]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+/// リスト内で完結するドラッグ。NSItemProvider を介さないので軽く、即座に反応する。
+@Observable
+final class LayerDragState {
+    static let space = "layerList"
+
+    struct Target: Equatable {
+        let id: UUID
+        let placement: Editor.DropPlacement
+        let frame: CGRect
+    }
+
+    @ObservationIgnored var rowFrames: [LayerRowFrame] = []
+    private(set) var draggingID: UUID?
+    private(set) var draggingName = ""
+    private(set) var location: CGPoint = .zero
+    private(set) var target: Target?
+
+    func update(dragging id: UUID, location p: CGPoint) {
+        if draggingID != id {
+            draggingID = id
+            draggingName = rowFrames.first { $0.id == id }?.name ?? ""
+        }
+        location = p
+        let t = computeTarget(p, dragging: id)
+        if t != target { target = t }
+    }
+
+    private func computeTarget(_ p: CGPoint, dragging id: UUID) -> Target? {
+        let sorted = rowFrames.sorted { $0.frame.minY < $1.frame.minY }
+        guard let first = sorted.first, let last = sorted.last else { return nil }
+        // リストの上下にはみ出したら先頭の上 / 末尾の下
+        let row: LayerRowFrame
+        if p.y < first.frame.minY {
+            row = first
+        } else if p.y >= last.frame.maxY {
+            row = last
+        } else if let r = sorted.first(where: { p.y >= $0.frame.minY && p.y < $0.frame.maxY }) {
+            row = r
+        } else {
+            return nil
+        }
+        if row.id == id { return nil }
+        let f = row.frame
+        let rel = (p.y - f.minY) / max(f.height, 1)
+        let placement: Editor.DropPlacement
+        if row.isFolder && rel > 0.25 && rel < 0.75 {
+            placement = .into
+        } else {
+            placement = rel < 0.5 ? .above : .below
+        }
+        return Target(id: row.id, placement: placement, frame: f)
+    }
+
+    func finish(editor: Editor) {
+        defer {
+            draggingID = nil
+            target = nil
+        }
+        guard let id = draggingID, let t = target else { return }
+        editor.moveLayer(id, relativeTo: t.id, placement: t.placement)
+    }
+}
+
+struct LayerDropIndicator: View {
+    let drag: LayerDragState
+
+    var body: some View {
+        if drag.draggingID != nil {
+            ZStack(alignment: .topLeading) {
+                if let t = drag.target {
+                    switch t.placement {
+                    case .into:
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.accentColor, lineWidth: 2)
+                            .frame(width: t.frame.width, height: t.frame.height)
+                            .offset(x: t.frame.minX, y: t.frame.minY)
+                    case .above, .below:
+                        Rectangle()
+                            .fill(Color.accentColor)
+                            .frame(width: t.frame.width, height: 2)
+                            .offset(x: t.frame.minX, y: (t.placement == .above ? t.frame.minY : t.frame.maxY) - 1)
+                    }
                 }
+                Text(drag.draggingName)
+                    .font(.callout)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
+                    .offset(x: drag.location.x + 8, y: drag.location.y - 10)
             }
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+struct LayerRowView: View, Equatable {
+    let model: LayerRowModel
+    let actions: LayerRowActions
+    @State private var renameText = ""
+
+    static func == (a: LayerRowView, b: LayerRowView) -> Bool { a.model == b.model }
+
+    private var editor: Editor { actions.editor }
+
+    var body: some View {
+        let m = model
+        HStack(spacing: 4) {
+            Button {
+                editor.setLayerProperty(m.id, label: "表示切替") { $0.visible.toggle() }
+            } label: {
+                Image(systemName: m.visible ? "eye" : "eye.slash")
+                    .foregroundStyle(m.visible ? .primary : .tertiary)
+                    .frame(width: 20)
+            }
+            .buttonStyle(.plain)
+
+            if m.depth > 0 {
+                Spacer().frame(width: CGFloat(m.depth) * 14)
+            }
+            if m.clipping {
+                Rectangle().fill(Color.red.opacity(0.8)).frame(width: 3, height: 30)
+            }
+            if m.isFolder {
+                Button {
+                    editor.setLayerUIState(m.id) { $0.expanded.toggle() }
+                } label: {
+                    Image(systemName: m.expanded ? "chevron.down" : "chevron.right")
+                        .font(.caption)
+                        .frame(width: 14)
+                }
+                .buttonStyle(.plain)
+                Image(systemName: m.expanded ? "folder" : "folder.fill")
+                    .frame(width: 40, height: 32)
+            } else {
+                ZStack {
+                    CheckerboardView()
+                    if let img = m.thumbnail {
+                        Image(nsImage: img)
+                            .resizable()
+                            .interpolation(.medium)
+                            .aspectRatio(contentMode: .fit)
+                    }
+                }
+                .frame(width: 40, height: 32)
+                .overlay(Rectangle().stroke(Color.gray.opacity(0.5), lineWidth: 0.5))
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                if m.renaming {
+                    TextField("", text: $renameText, onCommit: commitRename)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .onAppear { renameText = m.name }
+                } else {
+                    Text(m.name)
+                        .font(.callout)
+                        .lineLimit(1)
+                }
+                HStack(spacing: 4) {
+                    Text("\(Int((m.opacity * 100).rounded()))% \(m.blendMode.displayName)")
+                    if m.lockAlpha { Image(systemName: "checkerboard.rectangle") }
+                    if m.locked { Image(systemName: "lock.fill") }
+                    if m.isReference { Image(systemName: "scope") }
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(m.active ? Color.accentColor.opacity(0.28) : Color.clear)
+        .background(GeometryReader { geo in
+            Color.clear.preference(key: LayerRowFramesKey.self,
+                                   value: [LayerRowFrame(id: m.id, isFolder: m.isFolder, name: m.name,
+                                                         frame: geo.frame(in: .named(LayerDragState.space)))])
+        })
+        .contentShape(Rectangle())
+        // ダブルクリック判定の待ちを避けるため、単一のタップでクリック回数を見る
+        .onTapGesture {
+            if NSApp.currentEvent?.clickCount == 2 {
+                actions.renamingID.wrappedValue = m.id
+            } else {
+                editor.setActiveLayer(m.id)
+            }
+        }
+        .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .named(LayerDragState.space))
+            .onChanged { v in actions.drag.update(dragging: m.id, location: v.location) }
+            .onEnded { _ in actions.drag.finish(editor: editor) })
+        .contextMenu {
+            Button("複製") { editor.setActiveLayer(m.id); editor.duplicateActiveLayer() }
+            Button("下のレイヤーに結合") { editor.setActiveLayer(m.id); editor.mergeDown() }
+            Button("フォルダーを作成して挿入") { editor.setActiveLayer(m.id); editor.groupActiveLayer() }
+            Divider()
+            Button("削除") { editor.setActiveLayer(m.id); editor.deleteActiveLayer() }
+        }
+    }
+
+    private func commitRename() {
+        let name = renameText
+        actions.renamingID.wrappedValue = nil
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        if !name.isEmpty && name != model.name {
+            editor.setLayerProperty(model.id, label: "名前の変更") { $0.name = name }
         }
     }
 }

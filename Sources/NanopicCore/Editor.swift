@@ -230,6 +230,25 @@ public final class Editor {
         return r
     }
 
+    /// ノード（フォルダーなら子孫すべて）のタイルが占める範囲
+    private func tileBounds(_ node: LayerNode) -> IntRect {
+        var r = IntRect.zero
+        for key in node.tiles.keys { r = r.union(key.rect) }
+        for c in node.children { r = r.union(tileBounds(c)) }
+        return r
+    }
+
+    /// 並べ替え後の再描画。見た目が変わり得るのは、移動したレイヤーの範囲と
+    /// クリッピング関係が変わるクリッピングレイヤーの範囲だけなので、全体を再合成しない。
+    private func reorderChanged(_ moved: LayerNode) {
+        revision += 1
+        var r = tileBounds(moved)
+        doc.forEachNode { n in
+            if n.clipping { r = r.union(tileBounds(n)) }
+        }
+        markDirty(r.intersection(doc.bounds))
+    }
+
     private func structureChanged() {
         revision += 1
         markAllDirty()
@@ -794,25 +813,48 @@ public final class Editor {
                 doc.insert(node, parentPath: parent, index: idx)
             }
         }
-        structureChanged()
+        reorderChanged(node)
     }
 
-    /// ドラッグ&ドロップ: id を target の上（intoFolder なら target フォルダーの一番上）へ
-    public func moveLayer(_ id: UUID, relativeTo target: UUID, intoFolder: Bool) {
+    public enum DropPlacement: Sendable {
+        /// 表示上で target の上（同じ親の中）
+        case above
+        /// 表示上で target の下
+        case below
+        /// target フォルダーの一番上
+        case into
+    }
+
+    /// ドラッグ&ドロップ: id を target の上 / 下 / フォルダーの中へ
+    public func moveLayer(_ id: UUID, relativeTo target: UUID, placement: DropPlacement) {
         commitTransform()
         guard id != target, let node = doc.node(id) else { return }
-        // 自分の子孫には移動できない
+        // 自分自身の子孫には移動できない
         if let tp = doc.indexPath(of: target), let sp = doc.indexPath(of: id), tp.starts(with: sp) { return }
+        guard let tnode0 = doc.node(target) else { return }
+        if placement == .into && !tnode0.isFolder { return }
+        // 移動しても位置が変わらない場合は履歴に残さない
+        if let sp = doc.indexPath(of: id), let tp = doc.indexPath(of: target), sp.dropLast() == tp.dropLast() {
+            let si = sp.last!, ti = tp.last!
+            if (placement == .above && si == ti + 1) || (placement == .below && si == ti - 1) { return }
+        }
         checkpoint("レイヤーの移動")
         doc.remove(id)
         guard let tp = doc.indexPath(of: target), let tnode = doc.node(target) else { return }
-        if intoFolder && tnode.isFolder {
+        switch placement {
+        case .into:
             doc.insert(node, parentPath: tp, index: tnode.children.count)
-        } else {
+        case .above:
             doc.insert(node, parentPath: Array(tp.dropLast()), index: tp.last! + 1)
+        case .below:
+            doc.insert(node, parentPath: Array(tp.dropLast()), index: tp.last!)
         }
         doc.activeLayerID = id
-        structureChanged()
+        reorderChanged(node)
+    }
+
+    public func moveLayer(_ id: UUID, relativeTo target: UUID, intoFolder: Bool) {
+        moveLayer(id, relativeTo: target, placement: intoFolder ? .into : .above)
     }
 
     /// 画像を新規レイヤーとして追加

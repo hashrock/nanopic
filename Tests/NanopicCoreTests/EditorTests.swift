@@ -259,4 +259,58 @@ final class EditorTests: XCTestCase {
         }
         XCTAssertGreaterThan(radii.max()!, 18)
     }
+
+    /// 並べ替え後に dirty 範囲だけ再合成した結果が、全体を合成し直した結果と一致すること
+    func testReorderDirtyRectIsSufficient() {
+        let w = 400, h = 300
+        let ed = Editor(width: w, height: h)
+        var doc = ed.doc
+        let a = layer("a", w: w, h: h, rect: IntRect(x: 20, y: 20, width: 100, height: 100), rgba: (255, 0, 0, 255))
+        var b = layer("b", w: w, h: h, rect: IntRect(x: 60, y: 60, width: 200, height: 100), rgba: (0, 0, 255, 255))
+        b.blendMode = .multiply
+        var c = layer("c", w: w, h: h, rect: IntRect(x: 0, y: 0, width: 400, height: 300), rgba: (0, 128, 0, 128))
+        c.clipping = true
+        var folder = LayerNode(name: "f", kind: .folder)
+        folder.children = [layer("d", w: w, h: h, rect: IntRect(x: 250, y: 150, width: 100, height: 100), rgba: (10, 200, 10, 255))]
+        doc.layers = [doc.layers[0], a, b, c, folder]
+        doc.activeLayerID = b.id
+        ed.load(doc, url: nil)
+        var buf = Compositor.compositeFull(ed.doc)
+        _ = ed.takeDirtyRect()
+        func check(_ what: String) {
+            let r = ed.takeDirtyRect()
+            buf.withUnsafeMutableBufferPointer { p in
+                Compositor.composite(ed.doc, rect: r, into: p.baseAddress!, bufferWidth: w)
+            }
+            XCTAssertEqual(buf, Compositor.compositeFull(ed.doc), what)
+        }
+        ed.moveActiveLayer(up: false); check("b を下へ")
+        ed.moveActiveLayer(up: true); check("b を上へ")
+        ed.moveLayer(a.id, relativeTo: folder.id, intoFolder: true); check("a をフォルダーへ")
+        ed.moveLayer(folder.id, relativeTo: ed.doc.layers[0].id, intoFolder: false); check("フォルダーを下へ")
+        ed.undo(); check("undo")
+    }
+
+    func testDropPlacement() {
+        let ed = Editor(width: 64, height: 64)
+        let l1 = ed.doc.activeLayerID!
+        ed.addLayer(); let l2 = ed.doc.activeLayerID!
+        ed.addLayer(); let l3 = ed.doc.activeLayerID!
+        ed.addFolder(); let f = ed.doc.activeLayerID!
+        // 下から: 用紙, l1, l2, l3, f
+        func order() -> [UUID] { ed.doc.layers.map(\.id) }
+        ed.moveLayer(l3, relativeTo: l1, placement: .below)
+        XCTAssertEqual(Array(order().dropFirst()), [l3, l1, l2, f])
+        ed.moveLayer(l3, relativeTo: l2, placement: .above)
+        XCTAssertEqual(Array(order().dropFirst()), [l1, l2, l3, f])
+        ed.moveLayer(l1, relativeTo: f, placement: .into)
+        XCTAssertEqual(ed.doc.node(f)!.children.map(\.id), [l1])
+        // 位置が変わらない移動は履歴に積まない
+        let before = ed.undoLabel
+        ed.moveLayer(l3, relativeTo: l2, placement: .above)
+        XCTAssertEqual(ed.undoLabel, before)
+        // フォルダーでないレイヤーの中には入れない
+        ed.moveLayer(l2, relativeTo: l3, placement: .into)
+        XCTAssertEqual(Array(order().dropFirst()), [l2, l3, f])
+    }
 }
