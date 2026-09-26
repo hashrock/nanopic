@@ -195,13 +195,13 @@ struct AppCommands: Commands {
             Button("新規ラスターレイヤー") { editor.addLayer() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("新規レイヤーフォルダー") { editor.addFolder() }
-            Button("フォルダーを作成してレイヤーを挿入") { editor.groupActiveLayer() }
+            Button("フォルダーを作成してレイヤーを挿入") { editor.groupSelectedLayers() }
                 .keyboardShortcut("g")
             Button("レイヤーを複製") { editor.duplicateActiveLayer() }
                 .keyboardShortcut("j")
             Button("下のレイヤーに結合") { editor.mergeDown() }
                 .keyboardShortcut("e")
-            Button("レイヤーを削除") { editor.deleteActiveLayer() }
+            Button("レイヤーを削除") { editor.deleteSelectedLayers() }
             Divider()
             Button("下のレイヤーでクリッピング") {
                 if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "クリッピング") { $0.clipping.toggle() } }

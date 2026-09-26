@@ -5,7 +5,7 @@ import SwiftUI
 struct LayerPanel: View {
     let state: AppState
     @Bindable var editor: Editor
-    @State private var renamingID: UUID?
+    @State private var rename = LayerRenameState()
     @State private var drag = LayerDragState()
 
     var body: some View {
@@ -18,7 +18,7 @@ struct LayerPanel: View {
                 LazyVStack(spacing: 0) {
                     ForEach(rowModels(), id: \.id) { model in
                         LayerRowView(model: model,
-                                     actions: LayerRowActions(editor: editor, renamingID: $renamingID, drag: drag))
+                                     actions: LayerRowActions(editor: editor, rename: rename, drag: drag))
                             .equatable()
                     }
                 }
@@ -27,6 +27,8 @@ struct LayerPanel: View {
                 // ドラッグ中の表示はこのオーバーレイだけが更新される（行は再描画しない）
                 .overlay(alignment: .topLeading) { LayerDropIndicator(drag: drag) }
             }
+            // 編集レイヤーが変わったら名前の編集を確定する
+            .onChange(of: editor.doc.activeLayerID) { _, _ in rename.commit(editor) }
             Divider()
             actionBar
                 .padding(6)
@@ -104,7 +106,8 @@ struct LayerPanel: View {
     private func rowModels() -> [LayerRowModel] {
         let activeID = editor.doc.activeLayerID
         return editor.doc.flattenedForDisplay().map { node, depth in
-            LayerRowModel(node: node, depth: depth, active: node.id == activeID, renaming: node.id == renamingID,
+            LayerRowModel(node: node, depth: depth, active: node.id == activeID,
+                          selected: editor.selectedLayerIDs.contains(node.id), renaming: node.id == rename.id,
                           thumbnail: node.isFolder ? nil : state.thumbnail(for: node))
         }
     }
@@ -120,7 +123,7 @@ struct LayerPanel: View {
             Spacer()
             iconButton("arrow.up", "上へ移動") { editor.moveActiveLayer(up: true) }
             iconButton("arrow.down", "下へ移動") { editor.moveActiveLayer(up: false) }
-            iconButton("trash", "レイヤーを削除") { editor.deleteActiveLayer() }
+            iconButton("trash", "レイヤーを削除") { editor.deleteSelectedLayers() }
         }
     }
 
@@ -169,10 +172,11 @@ struct LayerRowModel: Equatable {
     let blendMode: NanopicCore.BlendMode
     let depth: Int
     let active: Bool
+    let selected: Bool
     let renaming: Bool
     let thumbnail: NSImage?
 
-    init(node: LayerNode, depth: Int, active: Bool, renaming: Bool, thumbnail: NSImage?) {
+    init(node: LayerNode, depth: Int, active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
         id = node.id
         name = node.name
         isFolder = node.isFolder
@@ -186,6 +190,7 @@ struct LayerRowModel: Equatable {
         blendMode = node.blendMode
         self.depth = depth
         self.active = active
+        self.selected = selected
         self.renaming = renaming
         self.thumbnail = thumbnail
     }
@@ -194,7 +199,7 @@ struct LayerRowModel: Equatable {
         a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.expanded == b.expanded
             && a.visible == b.visible && a.clipping == b.clipping && a.lockAlpha == b.lockAlpha
             && a.locked == b.locked && a.isReference == b.isReference && a.opacity == b.opacity
-            && a.blendMode == b.blendMode && a.depth == b.depth && a.active == b.active
+            && a.blendMode == b.blendMode && a.depth == b.depth && a.active == b.active && a.selected == b.selected
             && a.renaming == b.renaming && a.thumbnail === b.thumbnail
     }
 }
@@ -202,7 +207,7 @@ struct LayerRowModel: Equatable {
 /// 行から呼ぶ操作（比較対象外）
 struct LayerRowActions {
     let editor: Editor
-    let renamingID: Binding<UUID?>
+    let rename: LayerRenameState
     let drag: LayerDragState
 }
 
@@ -281,7 +286,12 @@ final class LayerDragState {
             target = nil
         }
         guard let id = draggingID, let t = target else { return }
-        editor.moveLayer(id, relativeTo: t.id, placement: t.placement)
+        // 選択中のレイヤーをつかんだら、選択中のものをまとめて動かす
+        if editor.isLayerSelected(id) {
+            editor.moveSelectedLayers(relativeTo: t.id, placement: t.placement)
+        } else {
+            editor.moveLayer(id, relativeTo: t.id, placement: t.placement)
+        }
     }
 }
 
@@ -320,111 +330,183 @@ struct LayerDropIndicator: View {
 struct LayerRowView: View, Equatable {
     let model: LayerRowModel
     let actions: LayerRowActions
-    @State private var renameText = ""
+    @FocusState private var renameFocused: Bool
 
     static func == (a: LayerRowView, b: LayerRowView) -> Bool { a.model == b.model }
 
     private var editor: Editor { actions.editor }
+    private var rename: LayerRenameState { actions.rename }
+    static let height: CGFloat = 44
 
     var body: some View {
         let m = model
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
+            // 表示・非表示
             Button {
+                rename.commit(editor)
                 editor.setLayerProperty(m.id, label: "表示切替") { $0.visible.toggle() }
             } label: {
                 Image(systemName: m.visible ? "eye" : "eye.slash")
                     .foregroundStyle(m.visible ? .primary : .tertiary)
-                    .frame(width: 20)
+                    .frame(width: 26, height: Self.height)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-
-            if m.depth > 0 {
-                Spacer().frame(width: CGFloat(m.depth) * 14)
-            }
-            if m.clipping {
-                Rectangle().fill(Color.red.opacity(0.8)).frame(width: 3, height: 30)
-            }
-            if m.isFolder {
-                Button {
-                    editor.setLayerUIState(m.id) { $0.expanded.toggle() }
-                } label: {
-                    Image(systemName: m.expanded ? "chevron.down" : "chevron.right")
-                        .font(.caption)
-                        .frame(width: 14)
-                }
-                .buttonStyle(.plain)
-                Image(systemName: m.expanded ? "folder" : "folder.fill")
-                    .frame(width: 40, height: 32)
-            } else {
-                ZStack {
-                    CheckerboardView()
-                    if let img = m.thumbnail {
-                        Image(nsImage: img)
-                            .resizable()
-                            .interpolation(.medium)
-                            .aspectRatio(contentMode: .fit)
+            .help("表示・非表示")
+            Divider()
+            // 複数選択（編集レイヤーはペンのマーク）
+            Button {
+                rename.commit(editor)
+                editor.toggleLayerSelection(m.id)
+            } label: {
+                Group {
+                    if m.active {
+                        Image(systemName: "pencil")
+                    } else if m.selected {
+                        Image(systemName: "checkmark")
+                    } else {
+                        Color.clear
                     }
                 }
-                .frame(width: 40, height: 32)
-                .overlay(Rectangle().stroke(Color.gray.opacity(0.5), lineWidth: 0.5))
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 22, height: Self.height)
+                .background(m.selected || m.active ? Color.accentColor.opacity(0.35) : Color.clear)
+                .contentShape(Rectangle())
             }
-            VStack(alignment: .leading, spacing: 1) {
-                if m.renaming {
-                    TextField("", text: $renameText, onCommit: commitRename)
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .onAppear { renameText = m.name }
+            .buttonStyle(.plain)
+            .help("レイヤーを選択に追加・除外")
+            Divider()
+
+            HStack(spacing: 4) {
+                if m.depth > 0 {
+                    Spacer().frame(width: CGFloat(m.depth) * 14)
+                }
+                if m.clipping {
+                    Rectangle().fill(Color.red.opacity(0.8)).frame(width: 3, height: 34)
+                }
+                if m.isFolder {
+                    Button {
+                        editor.setLayerUIState(m.id) { $0.expanded.toggle() }
+                    } label: {
+                        Image(systemName: m.expanded ? "chevron.down" : "chevron.right")
+                            .font(.caption)
+                            .frame(width: 14)
+                    }
+                    .buttonStyle(.plain)
+                    Image(systemName: m.expanded ? "folder" : "folder.fill")
+                        .frame(width: 20)
                 } else {
-                    Text(m.name)
-                        .font(.callout)
-                        .lineLimit(1)
+                    ZStack {
+                        CheckerboardView()
+                        if let img = m.thumbnail {
+                            Image(nsImage: img)
+                                .resizable()
+                                .interpolation(.medium)
+                                .aspectRatio(contentMode: .fit)
+                        }
+                    }
+                    .frame(width: 44, height: 36)
+                    .overlay(Rectangle().stroke(Color.gray.opacity(0.5), lineWidth: 0.5))
                 }
-                HStack(spacing: 4) {
-                    Text("\(Int((m.opacity * 100).rounded()))% \(m.blendMode.displayName)")
-                    if m.lockAlpha { Image(systemName: "checkerboard.rectangle") }
-                    if m.locked { Image(systemName: "lock.fill") }
-                    if m.isReference { Image(systemName: "scope") }
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 4) {
+                        Text("\(Int((m.opacity * 100).rounded()))% \(m.blendMode.displayName)")
+                        if m.lockAlpha { Image(systemName: "checkerboard.rectangle") }
+                        if m.locked { Image(systemName: "lock.fill") }
+                        if m.isReference { Image(systemName: "scope") }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    if m.renaming {
+                        TextField("", text: Bindable(rename).text)
+                            .textFieldStyle(.roundedBorder)
+                            .controlSize(.small)
+                            .focused($renameFocused)
+                            .onSubmit { rename.commit(editor) }
+                            .onExitCommand { rename.cancel() }
+                            .onAppear { renameFocused = true }
+                            .onChange(of: renameFocused) { _, focused in
+                                if !focused { rename.commit(editor) }
+                            }
+                    } else {
+                        Text(m.name)
+                            .font(.callout)
+                            .lineLimit(1)
+                    }
                 }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 4)
+            .frame(height: Self.height)
+            .contentShape(Rectangle())
+            // ダブルクリック判定の待ちを避けるため、単一のタップでクリック回数を見る
+            .onTapGesture { tap() }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(m.active ? Color.accentColor.opacity(0.28) : Color.clear)
+        .background(m.active ? Color.accentColor.opacity(0.28) : m.selected ? Color.accentColor.opacity(0.14) : Color.clear)
+        .overlay(alignment: .bottom) { Divider() }
         .background(GeometryReader { geo in
             Color.clear.preference(key: LayerRowFramesKey.self,
                                    value: [LayerRowFrame(id: m.id, isFolder: m.isFolder, name: m.name,
                                                          frame: geo.frame(in: .named(LayerDragState.space)))])
         })
-        .contentShape(Rectangle())
-        // ダブルクリック判定の待ちを避けるため、単一のタップでクリック回数を見る
-        .onTapGesture {
-            if NSApp.currentEvent?.clickCount == 2 {
-                actions.renamingID.wrappedValue = m.id
-            } else {
-                editor.setActiveLayer(m.id)
-            }
-        }
         .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .named(LayerDragState.space))
             .onChanged { v in actions.drag.update(dragging: m.id, location: v.location) }
             .onEnded { _ in actions.drag.finish(editor: editor) })
         .contextMenu {
             Button("複製") { editor.setActiveLayer(m.id); editor.duplicateActiveLayer() }
             Button("下のレイヤーに結合") { editor.setActiveLayer(m.id); editor.mergeDown() }
-            Button("フォルダーを作成して挿入") { editor.setActiveLayer(m.id); editor.groupActiveLayer() }
+            Button("フォルダーを作成して挿入") { targetThis(); editor.groupSelectedLayers() }
             Divider()
-            Button("削除") { editor.setActiveLayer(m.id); editor.deleteActiveLayer() }
+            Button("削除") { targetThis(); editor.deleteSelectedLayers() }
         }
     }
 
-    private func commitRename() {
-        let name = renameText
-        actions.renamingID.wrappedValue = nil
-        NSApp.keyWindow?.makeFirstResponder(nil)
-        if !name.isEmpty && name != model.name {
-            editor.setLayerProperty(model.id, label: "名前の変更") { $0.name = name }
+    private func tap() {
+        let event = NSApp.currentEvent
+        if event?.clickCount == 2 {
+            rename.begin(model.id, name: model.name)
+            return
         }
+        rename.commit(editor)
+        let flags = event?.modifierFlags ?? []
+        if flags.contains(.command) {
+            editor.toggleLayerSelection(model.id)
+        } else if flags.contains(.shift) {
+            editor.selectLayerRange(to: model.id)
+        } else {
+            editor.setActiveLayer(model.id)
+        }
+    }
+
+    /// 右クリックしたレイヤーが選択外なら、そのレイヤーだけを対象にする
+    private func targetThis() {
+        if !editor.isLayerSelected(model.id) { editor.setActiveLayer(model.id) }
+    }
+}
+
+/// レイヤー名のインライン編集。別のレイヤーを選ぶ・フォーカスが外れると確定する
+@Observable
+final class LayerRenameState {
+    private(set) var id: UUID?
+    var text = ""
+
+    func begin(_ id: UUID, name: String) {
+        text = name
+        self.id = id
+    }
+
+    func commit(_ editor: Editor) {
+        guard let id else { return }
+        self.id = nil
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        let name = text
+        if !name.isEmpty, let node = editor.doc.node(id), node.name != name {
+            editor.setLayerProperty(id, label: "名前の変更") { $0.name = name }
+        }
+    }
+
+    func cancel() {
+        id = nil
+        NSApp.keyWindow?.makeFirstResponder(nil)
     }
 }

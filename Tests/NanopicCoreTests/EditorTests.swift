@@ -335,6 +335,39 @@ final class EditorTests: XCTestCase {
         XCTAssertEqual(Array(order().dropFirst()), [l2, l3, f])
     }
 
+    func testMultipleLayerSelection() {
+        let ed = Editor(width: 64, height: 64)
+        let paper = ed.doc.layers[0].id
+        let l1 = ed.doc.activeLayerID!
+        ed.addLayer(); let l2 = ed.doc.activeLayerID!
+        ed.addLayer(); let l3 = ed.doc.activeLayerID!
+        ed.addLayer(); let l4 = ed.doc.activeLayerID!
+        func order() -> [UUID] { ed.doc.layers.map(\.id) }
+        // l4 を編集中に l1, l3 を追加で選択 → 下から順に並ぶ
+        ed.toggleLayerSelection(l1)
+        ed.toggleLayerSelection(l3)
+        XCTAssertEqual(ed.targetLayerIDs, [l1, l3, l4])
+        // まとめて用紙の下へ（並び順は保つ）
+        ed.moveSelectedLayers(relativeTo: paper, placement: .below)
+        XCTAssertEqual(order(), [l1, l3, l4, paper, l2])
+        ed.undo()
+        XCTAssertEqual(order(), [paper, l1, l2, l3, l4])
+        // フォルダーにまとめる: 一番上（l4）の位置に作られる
+        ed.groupSelectedLayers()
+        XCTAssertEqual(order().prefix(2), [paper, l2])
+        XCTAssertEqual(ed.doc.layers[2].children.map(\.id), [l1, l3, l4])
+        ed.undo()
+        // 範囲選択と削除
+        ed.setActiveLayer(l2)
+        XCTAssertTrue(ed.selectedLayerIDs.isEmpty)
+        ed.selectLayerRange(to: l4)
+        XCTAssertEqual(ed.targetLayerIDs, [l2, l3, l4])
+        ed.deleteSelectedLayers()
+        XCTAssertEqual(order(), [paper, l1])
+        XCTAssertEqual(ed.doc.activeLayerID, l1)
+        XCTAssertTrue(ed.selectedLayerIDs.isEmpty)
+    }
+
     /// 選択範囲の移動を繰り返しても、移動先にあった画素を巻き込まない
     func testRepeatedMoveKeepsFloating() {
         let w = 300, h = 100

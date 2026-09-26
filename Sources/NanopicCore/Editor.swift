@@ -122,6 +122,7 @@ public final class Editor {
         cancelTransform()
         gen += 1
         doc = Editor.makeNewDocument(width: width, height: height, gen: gen)
+        selectedLayerIDs = []
         resetHistory()
         fileURL = nil
         isDirty = false
@@ -140,6 +141,7 @@ public final class Editor {
         if doc.activeLayerID == nil || doc.node(doc.activeLayerID) == nil {
             doc.activeLayerID = firstRasterID(doc.layers.reversed())
         }
+        selectedLayerIDs = []
         resetHistory()
         fileURL = url
         isDirty = false
@@ -213,6 +215,7 @@ public final class Editor {
         doc = state
         // アクティブレイヤーはなるべく維持
         if let activeID, doc.node(activeID) != nil { doc.activeLayerID = activeID }
+        selectedLayerIDs = selectedLayerIDs.filter { doc.node($0) != nil && $0 != doc.activeLayerID }
         isDirty = true
         updateHistoryFlags()
         structureChanged()
@@ -252,9 +255,9 @@ public final class Editor {
 
     /// 並べ替え後の再描画。見た目が変わり得るのは、移動したレイヤーの範囲と
     /// クリッピング関係が変わるクリッピングレイヤーの範囲だけなので、全体を再合成しない。
-    private func reorderChanged(_ moved: LayerNode) {
+    private func reorderChanged(_ moved: [LayerNode]) {
         revision += 1
-        var r = tileBounds(moved)
+        var r = moved.reduce(IntRect.zero) { $0.union(tileBounds($1)) }
         doc.forEachNode { n in
             if n.clipping { r = r.union(tileBounds(n)) }
         }
@@ -696,11 +699,61 @@ public final class Editor {
 
     public var activeLayerID: UUID? { doc.activeLayerID }
 
+    /// 編集レイヤーを切り替える（複数選択は解除）
     public func setActiveLayer(_ id: UUID) {
-        guard doc.activeLayerID != id else { return }
+        guard doc.activeLayerID != id || !selectedLayerIDs.isEmpty else { return }
         commitTransform()
         doc.activeLayerID = id
+        selectedLayerIDs = []
         revision += 1
+    }
+
+    // MARK: - レイヤーの複数選択
+
+    /// 編集レイヤーに加えて選択しているレイヤー（編集レイヤー自身は含まない）
+    public private(set) var selectedLayerIDs: Set<UUID> = []
+
+    public func isLayerSelected(_ id: UUID) -> Bool {
+        id == doc.activeLayerID || selectedLayerIDs.contains(id)
+    }
+
+    /// 選択に追加・除外する（編集レイヤーは外せない）
+    public func toggleLayerSelection(_ id: UUID) {
+        guard id != doc.activeLayerID, doc.node(id) != nil else { return }
+        if selectedLayerIDs.contains(id) {
+            selectedLayerIDs.remove(id)
+        } else {
+            selectedLayerIDs.insert(id)
+        }
+        revision += 1
+    }
+
+    /// 編集レイヤーから id まで（表示順）を選択する
+    public func selectLayerRange(to id: UUID) {
+        let list = doc.flattenedForDisplay().map(\.node.id)
+        guard let a = list.firstIndex(where: { $0 == doc.activeLayerID }), let b = list.firstIndex(of: id) else {
+            setActiveLayer(id)
+            return
+        }
+        selectedLayerIDs = Set(list[min(a, b)...max(a, b)])
+        selectedLayerIDs.remove(list[a])
+        revision += 1
+    }
+
+    /// 操作対象のレイヤー（編集レイヤー＋選択中）を下から順に。選択したフォルダーの中身は除く
+    public var targetLayerIDs: [UUID] {
+        var out: [UUID] = []
+        func rec(_ nodes: [LayerNode]) {
+            for n in nodes {
+                if isLayerSelected(n.id) {
+                    out.append(n.id)
+                } else if n.isFolder {
+                    rec(n.children)
+                }
+            }
+        }
+        rec(doc.layers)
+        return out
     }
 
     private func nextLayerName(prefix: String) -> String {
@@ -724,6 +777,7 @@ public final class Editor {
         let (parent, index) = insertionPoint()
         doc.insert(node, parentPath: parent, index: index)
         doc.activeLayerID = node.id
+        selectedLayerIDs = []
         structureChanged()
     }
 
@@ -734,42 +788,50 @@ public final class Editor {
         let (parent, index) = insertionPoint()
         doc.insert(node, parentPath: parent, index: index)
         doc.activeLayerID = node.id
+        selectedLayerIDs = []
         structureChanged()
     }
 
-    /// アクティブレイヤーを新しいフォルダーに入れる
-    public func groupActiveLayer() {
+    /// 選択中のレイヤーを新しいフォルダーに入れる（一番上のレイヤーの位置に作る）
+    public func groupSelectedLayers() {
         commitTransform()
-        guard let id = doc.activeLayerID, let path = doc.indexPath(of: id), let node = doc.node(id) else { return }
+        let ids = targetLayerIDs
+        guard let top = ids.last, let topPath = doc.indexPath(of: top) else { return }
         checkpoint("フォルダーを作成して挿入")
         var folder = LayerNode(name: nextLayerName(prefix: "フォルダー"), kind: .folder)
-        doc.remove(id)
-        var child = node
-        child.clipping = false
-        folder.children = [child]
-        doc.insert(folder, parentPath: Array(path.dropLast()), index: path.last!)
+        let folderID = folder.id
+        doc.insert(folder, parentPath: Array(topPath.dropLast()), index: topPath.last! + 1)
+        folder.children = ids.compactMap { doc.remove($0) }
+        // フォルダーの一番下はクリッピングできない
+        if !folder.children.isEmpty { folder.children[0].clipping = false }
+        doc.modify(folderID) { $0.children = folder.children }
         structureChanged()
     }
 
-    public func deleteActiveLayer() {
+    /// 選択中のレイヤーを削除
+    public func deleteSelectedLayers() {
         commitTransform()
-        guard let id = doc.activeLayerID, let path = doc.indexPath(of: id) else { return }
+        let ids = targetLayerIDs
+        guard !ids.isEmpty else { return }
+        var removed = Set<UUID>()
+        for id in ids { doc.node(id).map { collectIDs($0, into: &removed) } }
         var count = 0
         doc.forEachNode { _ in count += 1 }
-        guard count > 1 else { return }
+        guard count > removed.count else { return }
         checkpoint("レイヤーを削除")
-        doc.remove(id)
-        // 近くのレイヤーを選択
-        let parent = Array(path.dropLast())
-        let siblings = parent.isEmpty ? doc.layers : (doc.node(at: parent)?.children ?? [])
-        if !siblings.isEmpty {
-            doc.activeLayerID = siblings[max(0, min(path.last! - 1, siblings.count - 1))].id
-        } else if !parent.isEmpty {
-            doc.activeLayerID = doc.node(at: parent)?.id
-        } else {
-            doc.activeLayerID = doc.layers.last?.id
-        }
+        // 削除した一番上のレイヤーがあった位置の、表示上すぐ下のレイヤーを選ぶ
+        let before = doc.flattenedForDisplay().map(\.node.id)
+        let first = before.firstIndex { removed.contains($0) } ?? 0
+        for id in ids { doc.remove(id) }
+        let after = doc.flattenedForDisplay().map(\.node.id)
+        doc.activeLayerID = after.isEmpty ? nil : after[min(first, after.count - 1)]
+        selectedLayerIDs = []
         structureChanged()
+    }
+
+    private func collectIDs(_ n: LayerNode, into set: inout Set<UUID>) {
+        set.insert(n.id)
+        for c in n.children { collectIDs(c, into: &set) }
     }
 
     public func duplicateActiveLayer() {
@@ -786,6 +848,7 @@ public final class Editor {
         copy.name = node.name + " のコピー"
         doc.insert(copy, parentPath: Array(path.dropLast()), index: path.last! + 1)
         doc.activeLayerID = copy.id
+        selectedLayerIDs = []
         structureChanged()
     }
 
@@ -815,6 +878,7 @@ public final class Editor {
             $0.contentVersion = v
         }
         doc.activeLayerID = lower.id
+        selectedLayerIDs = []
         structureChanged()
     }
 
@@ -868,7 +932,7 @@ public final class Editor {
                 doc.insert(node, parentPath: parent, index: idx)
             }
         }
-        reorderChanged(node)
+        reorderChanged([node])
     }
 
     public enum DropPlacement: Sendable {
@@ -882,30 +946,38 @@ public final class Editor {
 
     /// ドラッグ&ドロップ: id を target の上 / 下 / フォルダーの中へ
     public func moveLayer(_ id: UUID, relativeTo target: UUID, placement: DropPlacement) {
+        guard doc.node(id) != nil else { return }
+        doc.activeLayerID = id
+        selectedLayerIDs = []
+        moveSelectedLayers(relativeTo: target, placement: placement)
+    }
+
+    /// 選択中のレイヤーをまとめて target の上 / 下 / フォルダーの中へ（並び順は保つ）
+    public func moveSelectedLayers(relativeTo target: UUID, placement: DropPlacement) {
         commitTransform()
-        guard id != target, let node = doc.node(id) else { return }
-        // 自分自身の子孫には移動できない
-        if let tp = doc.indexPath(of: target), let sp = doc.indexPath(of: id), tp.starts(with: sp) { return }
-        guard let tnode0 = doc.node(target) else { return }
+        let ids = targetLayerIDs
+        guard !ids.isEmpty, let tp0 = doc.indexPath(of: target), let tnode0 = doc.node(target) else { return }
+        // 自分自身やその子孫には移動できない
+        for id in ids {
+            if let sp = doc.indexPath(of: id), tp0.starts(with: sp) { return }
+        }
         if placement == .into && !tnode0.isFolder { return }
         // 移動しても位置が変わらない場合は履歴に残さない
-        if let sp = doc.indexPath(of: id), let tp = doc.indexPath(of: target), sp.dropLast() == tp.dropLast() {
-            let si = sp.last!, ti = tp.last!
+        if ids.count == 1, let sp = doc.indexPath(of: ids[0]), sp.dropLast() == tp0.dropLast() {
+            let si = sp.last!, ti = tp0.last!
             if (placement == .above && si == ti + 1) || (placement == .below && si == ti - 1) { return }
         }
         checkpoint("レイヤーの移動")
-        doc.remove(id)
+        let nodes = ids.compactMap { doc.remove($0) }
         guard let tp = doc.indexPath(of: target), let tnode = doc.node(target) else { return }
+        let (parent, index): ([Int], Int)
         switch placement {
-        case .into:
-            doc.insert(node, parentPath: tp, index: tnode.children.count)
-        case .above:
-            doc.insert(node, parentPath: Array(tp.dropLast()), index: tp.last! + 1)
-        case .below:
-            doc.insert(node, parentPath: Array(tp.dropLast()), index: tp.last!)
+        case .into: (parent, index) = (tp, tnode.children.count)
+        case .above: (parent, index) = (Array(tp.dropLast()), tp.last! + 1)
+        case .below: (parent, index) = (Array(tp.dropLast()), tp.last!)
         }
-        doc.activeLayerID = id
-        reorderChanged(node)
+        for (i, n) in nodes.enumerated() { doc.insert(n, parentPath: parent, index: index + i) }
+        reorderChanged(nodes)
     }
 
     public func moveLayer(_ id: UUID, relativeTo target: UUID, intoFolder: Bool) {
@@ -934,6 +1006,7 @@ public final class Editor {
         let (parent, index) = insertionPoint()
         doc.insert(node, parentPath: parent, index: index)
         doc.activeLayerID = node.id
+        selectedLayerIDs = []
         structureChanged()
     }
 
