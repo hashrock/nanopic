@@ -179,8 +179,13 @@ public final class Editor {
     public var redoLabel: String? { redoStack.last?.label }
 
     public func undo() {
-        if floating != nil {
-            cancelTransform()
+        if let f = floating {
+            // フローティング中は移動・変形を 1 操作ずつ戻し、最初まで戻ったら持ち上げ自体を取り消す
+            if let prev = f.history.popLast() {
+                updateTransform(prev)
+            } else {
+                cancelTransform()
+            }
             return
         }
         if isStroking { endStroke() }
@@ -332,7 +337,9 @@ public final class Editor {
 
     @discardableResult
     public func beginStroke(_ input: StrokeInput, usePressure: Bool, zoom: Double) -> Bool {
-        guard floating == nil, canPaintOnActiveLayer, let layer = doc.activeLayer else { return false }
+        // 移動・変形中なら確定してから描く
+        commitTransform()
+        guard canPaintOnActiveLayer, let layer = doc.activeLayer else { return false }
         let brush = currentBrush
         strokeBrush = brush
         strokeTip = tip(brush.tipID)
@@ -470,7 +477,8 @@ public final class Editor {
     }
 
     public func fill(atX x: Int, y: Int) {
-        guard floating == nil, canPaintOnActiveLayer, let layer = doc.activeLayer, doc.bounds.contains(x, y) else { return }
+        commitTransform()
+        guard canPaintOnActiveLayer, let layer = doc.activeLayer, doc.bounds.contains(x, y) else { return }
         let (mask, bounds) = regionMask(at: x, y, settings: fillSettings)
         if bounds.isEmpty { return }
         paintMask(mask, bounds: bounds, layerID: layer.id, label: "塗りつぶし")
@@ -516,13 +524,15 @@ public final class Editor {
 
     /// 選択範囲（なければ全体）を描画色で塗る
     public func fillSelection() {
-        guard floating == nil, canPaintOnActiveLayer, let layer = doc.activeLayer else { return }
+        commitTransform()
+        guard canPaintOnActiveLayer, let layer = doc.activeLayer else { return }
         let mask = [UInt8](repeating: 255, count: doc.width * doc.height)
         paintMask(mask, bounds: doc.selection?.bounds ?? doc.bounds, layerID: layer.id, label: "塗りつぶし")
     }
 
     public func wandSelect(atX x: Int, y: Int, op: SelectionOp) {
         guard doc.bounds.contains(x, y) else { return }
+        commitTransform()
         let (mask, bounds) = regionMask(at: x, y, settings: wandSettings)
         let new = SelectionMask(width: doc.width, height: doc.height, data: bounds.isEmpty ? [UInt8](repeating: 0, count: doc.width * doc.height) : mask)
         setSelection(SelectionMask.combine(doc.selection, new, op: op), label: "自動選択")
@@ -564,7 +574,11 @@ public final class Editor {
 
     /// 選択範囲（なければレイヤー全体）を消去
     public func clearSelectionContent() {
-        guard floating == nil, canPaintOnActiveLayer, let layer = doc.activeLayer else { return }
+        if floating != nil {
+            deleteFloatingContent()
+            return
+        }
+        guard canPaintOnActiveLayer, let layer = doc.activeLayer else { return }
         checkpoint("消去")
         let g = gen
         let sel = doc.selection
@@ -604,6 +618,24 @@ public final class Editor {
         floating = f
         markDirty(f.sourceRect)
         return true
+    }
+
+    /// 移動・変形のドラッグ開始時に呼ぶ（フローティング中の Undo 用に現在の状態を記録）
+    public func recordTransformStep() {
+        guard let f = floating else { return }
+        if f.history.last != f.params { f.history.append(f.params) }
+    }
+
+    /// 持ち上げた画素を消去して確定する
+    public func deleteFloatingContent() {
+        guard let f = floating else { return }
+        floating = nil
+        checkpoint("消去")
+        doc.modify(f.layerID) { $0.tiles = f.baseTiles }
+        if f.originalSelection != nil {
+            doc.selection = f.transformedSelection
+        }
+        contentChanged(f.layerID, rect: f.sourceRect.union(f.destBounds))
     }
 
     public func updateTransform(_ params: TransformParams) {

@@ -88,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return nil
         case 123, 124, 125, 126: // 矢印: 変形中なら 1px 移動
             if let f = editor.floating {
+                editor.recordTransformStep()
                 var p = f.params
                 let d: Double = flags.contains(.shift) ? 10 : 1
                 switch e.keyCode {

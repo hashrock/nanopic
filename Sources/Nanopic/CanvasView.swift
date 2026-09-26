@@ -251,8 +251,10 @@ final class CanvasView: NSView {
             lassoPoints = [cp]
             drag = .lasso(op: selectionOp(flags))
         case .move:
-            if editor.beginTransform() {
-                drag = .move(startCanvas: cp, startParams: editor.floating!.params)
+            // 既に持ち上げていればそのまま続けて動かす（確定は選択解除・Return・他ツールの使用時）
+            if editor.floating != nil || editor.beginTransform(), let f = editor.floating {
+                editor.recordTransformStep()
+                drag = .move(startCanvas: cp, startParams: f.params)
             } else {
                 NSSound.beep()
             }
@@ -262,6 +264,7 @@ final class CanvasView: NSView {
                 return
             }
             guard let f = editor.floating else { return }
+            editor.recordTransformStep()
             drag = .transform(handle: hitHandle(vp, f), startCanvas: cp, startParams: f.params)
         case .eyedropper:
             pick(at: cp, flags: flags)
@@ -304,9 +307,10 @@ final class CanvasView: NSView {
                 lassoPoints.append(cp)
             }
         case let .move(startCanvas, startParams):
+            // 移動は整数ピクセル単位（再サンプリングでぼけないように）
             var p = startParams
-            p.tx += Double(cp.x - startCanvas.x)
-            p.ty += Double(cp.y - startCanvas.y)
+            p.tx = (startParams.tx + Double(cp.x - startCanvas.x)).rounded()
+            p.ty = (startParams.ty + Double(cp.y - startCanvas.y)).rounded()
             editor.updateTransform(p)
         case let .transform(handle, startCanvas, startParams):
             dragTransform(handle: handle, startCanvas: startCanvas, startParams: startParams, cp: cp, shift: e.modifierFlags.contains(.shift))
@@ -347,8 +351,6 @@ final class CanvasView: NSView {
                 editor.deselect()
             }
             lassoPoints = []
-        case .move:
-            editor.commitTransform()
         default:
             break
         }
@@ -591,7 +593,12 @@ final class OverlayView: NSView {
         }
 
         // 選択範囲
-        if let sel = doc.selection, editor.floating == nil {
+        if let f = editor.floating {
+            if let sel = f.originalSelection {
+                var tt = f.matrix.concatenating(t)
+                if let path = sel.outline.copy(using: &tt) { drawAnts(ctx, path) }
+            }
+        } else if let sel = doc.selection {
             var tt = t
             if let path = sel.outline.copy(using: &tt) {
                 drawAnts(ctx, path)
@@ -611,7 +618,7 @@ final class OverlayView: NSView {
         }
 
         // 変形ハンドル
-        if let f = editor.floating {
+        if let f = editor.floating, editor.tool == .transform {
             let corners = f.corners.map { $0.applying(t) }
             let path = CGMutablePath()
             path.addLines(between: corners)

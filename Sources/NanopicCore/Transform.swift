@@ -21,6 +21,8 @@ public final class FloatingTransform: @unchecked Sendable {
     let baseTiles: TileMap
     public let originalSelection: SelectionMask?
     public var params = TransformParams()
+    /// フローティング中の移動・変形の履歴（Undo 用）
+    public var history: [TransformParams] = []
     let docWidth: Int
     let docHeight: Int
 

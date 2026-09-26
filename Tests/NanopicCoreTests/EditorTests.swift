@@ -313,4 +313,77 @@ final class EditorTests: XCTestCase {
         ed.moveLayer(l2, relativeTo: l3, placement: .into)
         XCTAssertEqual(Array(order().dropFirst()), [l2, l3, f])
     }
+
+    /// 選択範囲の移動を繰り返しても、移動先にあった画素を巻き込まない
+    func testRepeatedMoveKeepsFloating() {
+        let w = 300, h = 100
+        let ed = Editor(width: w, height: h)
+        var doc = ed.doc
+        var l = layer("l", w: w, h: h, rect: IntRect(x: 0, y: 0, width: 50, height: 50), rgba: (255, 0, 0, 255))
+        let blue = layer("b", w: w, h: h, rect: IntRect(x: 100, y: 0, width: 50, height: 50), rgba: (0, 0, 255, 255))
+        for key in blue.tiles.keys {
+            // 同じレイヤーに青い四角も置く
+            let t = l.tiles.mutableTile(key, gen: 0)
+            let src = blue.tiles[key]!
+            for i in 0..<(kTilePixelCount * 4) where src.data[i] != 0 { t.data[i] = src.data[i] }
+        }
+        doc.layers = [l]
+        doc.activeLayerID = l.id
+        ed.load(doc, url: nil)
+        ed.select(path: CGPath(rect: CGRect(x: 0, y: 0, width: 50, height: 50), transform: nil), op: .replace)
+
+        // 1 回目の移動: 青の上へ
+        XCTAssertTrue(ed.beginTransform())
+        ed.recordTransformStep()
+        var p = TransformParams(); p.tx = 100
+        ed.updateTransform(p)
+        // 2 回目の移動: さらに右へ（確定していないので青は持ち上がらない）
+        XCTAssertTrue(ed.beginTransform())
+        ed.recordTransformStep()
+        p.tx = 200
+        ed.updateTransform(p)
+        XCTAssertEqual(ed.doc.node(l.id)!.tiles.pixel(25, 25).3, 255, "確定前はレイヤーは変更されない")
+
+        // Undo はフローティング内で 1 回分戻る
+        ed.undo()
+        XCTAssertNotNil(ed.floating)
+        XCTAssertEqual(ed.floating!.params.tx, 100)
+        p.tx = 200
+        ed.updateTransform(p)
+
+        ed.deselect()  // 選択解除で確定
+        XCTAssertNil(ed.floating)
+        let t = ed.doc.node(l.id)!.tiles
+        XCTAssertEqual(t.pixel(25, 25).3, 0)
+        XCTAssertEqual(t.pixel(125, 25).2, 255, "青は元の位置に残る")
+        XCTAssertEqual(t.pixel(225, 25).0, 255, "赤は移動先に")
+        XCTAssertEqual(t.pixel(225, 25).2, 0, "青を巻き込んでいない")
+    }
+
+    func testDrawingCommitsFloatingAndDeleteClearsIt() {
+        let w = 200, h = 100
+        let ed = Editor(width: w, height: h)
+        var doc = ed.doc
+        let l = layer("l", w: w, h: h, rect: IntRect(x: 0, y: 0, width: 50, height: 50), rgba: (255, 0, 0, 255))
+        doc.layers = [l]
+        doc.activeLayerID = l.id
+        ed.load(doc, url: nil)
+        ed.select(path: CGPath(rect: CGRect(x: 0, y: 0, width: 50, height: 50), transform: nil), op: .replace)
+        ed.beginTransform()
+        var p = TransformParams(); p.tx = 100
+        ed.updateTransform(p)
+        ed.clearSelectionContent()  // Delete: 持ち上げた画素を消す
+        XCTAssertNil(ed.floating)
+        XCTAssertEqual(ed.doc.node(l.id)!.tiles.pixel(25, 25).3, 0)
+        XCTAssertEqual(ed.doc.node(l.id)!.tiles.pixel(125, 25).3, 0)
+        ed.undo()
+        XCTAssertEqual(ed.doc.node(l.id)!.tiles.pixel(25, 25).3, 255)
+
+        ed.beginTransform()
+        ed.updateTransform(p)
+        ed.beginStroke(StrokeInput(x: 10, y: 90, pressure: 1, time: 0), usePressure: false, zoom: 1)
+        ed.endStroke()
+        XCTAssertNil(ed.floating, "描き始めると確定される")
+        XCTAssertEqual(ed.doc.node(l.id)!.tiles.pixel(125, 25).3, 255)
+    }
 }
