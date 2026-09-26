@@ -106,8 +106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         switch key {
         case "b", "p": setTool(.brush)
-        case "e": setTool(.eraser)
-        case "g": setTool(.fill)
+        case "e": setTool(flags.contains(.shift) ? .lassoErase : .eraser)
+        case "g": setTool(flags.contains(.shift) ? .lassoFill : .fill)
         case "m": setTool(flags.contains(.shift) ? .selectEllipse : .selectRect)
         case "l": setTool(.lasso)
         case "w": setTool(.wand)

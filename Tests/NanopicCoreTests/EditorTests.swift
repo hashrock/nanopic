@@ -102,6 +102,27 @@ final class EditorTests: XCTestCase {
         XCTAssertEqual(ed.doc.node(lid)!.tiles.pixel(150, 50).3, 0)
     }
 
+    func testLassoFillAndErase() {
+        let ed = Editor(width: 200, height: 200)
+        let lid = ed.doc.activeLayerID!
+        ed.mainColor = SIMD3(1, 0, 0)
+        let tri = CGMutablePath()
+        tri.addLines(between: [CGPoint(x: 10, y: 10), CGPoint(x: 190, y: 10), CGPoint(x: 10, y: 190)])
+        tri.closeSubpath()
+        ed.lassoFill(path: tri)
+        let t = ed.doc.node(lid)!.tiles
+        XCTAssertEqual(t.pixel(30, 30).0, 255)
+        XCTAssertEqual(t.pixel(30, 30).3, 255)
+        XCTAssertEqual(t.pixel(170, 170).3, 0)   // 斜辺の外側
+        // 選択範囲で制限された消去
+        ed.select(path: CGPath(rect: CGRect(x: 0, y: 0, width: 50, height: 200), transform: nil), op: .replace)
+        ed.lassoFill(path: CGPath(rect: CGRect(x: 0, y: 0, width: 200, height: 200), transform: nil), erase: true)
+        XCTAssertEqual(ed.doc.node(lid)!.tiles.pixel(30, 30).3, 0)
+        XCTAssertEqual(ed.doc.node(lid)!.tiles.pixel(80, 30).3, 255)
+        ed.undo()
+        XCTAssertEqual(ed.doc.node(lid)!.tiles.pixel(30, 30).3, 255)
+    }
+
     func testFillReferenceModes() {
         let ed = Editor(width: 200, height: 200)
         // 線画レイヤー: 中央に縦線

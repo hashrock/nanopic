@@ -3,13 +3,15 @@ import Foundation
 import Observation
 
 public enum Tool: String, CaseIterable, Codable, Sendable {
-    case brush, eraser, fill, selectRect, selectEllipse, lasso, wand, move, transform, eyedropper, hand, zoom
+    case brush, eraser, fill, lassoFill, lassoErase, selectRect, selectEllipse, lasso, wand, move, transform, eyedropper, hand, zoom
 
     public var displayName: String {
         switch self {
         case .brush: return "ブラシ (B)"
         case .eraser: return "消しゴム (E)"
         case .fill: return "塗りつぶし (G)"
+        case .lassoFill: return "投げなわ塗り (Shift+G)"
+        case .lassoErase: return "投げなわ消しゴム (Shift+E)"
         case .selectRect: return "矩形選択 (M)"
         case .selectEllipse: return "楕円選択 (Shift+M)"
         case .lasso: return "投げなわ選択 (L)"
@@ -27,6 +29,8 @@ public enum Tool: String, CaseIterable, Codable, Sendable {
         case .brush: return "paintbrush.pointed"
         case .eraser: return "eraser"
         case .fill: return "drop"
+        case .lassoFill: return "lasso.and.sparkles"
+        case .lassoErase: return "eraser.line.dashed"
         case .selectRect: return "rectangle.dashed"
         case .selectEllipse: return "circle.dashed"
         case .lasso: return "lasso"
@@ -65,6 +69,7 @@ public final class Editor {
     public var fillSettings = FillSettings()
     public var wandSettings = FillSettings()
     public var selectionAntialias = true
+    public var lassoFillAntialias = true
     public var grid = GridSettings()
     public private(set) var tips: [BrushTip] = BrushTip.builtins()
     public private(set) var floating: FloatingTransform?
@@ -482,8 +487,17 @@ public final class Editor {
         paintMask(mask, bounds: bounds, layerID: layer.id, label: "塗りつぶし")
     }
 
-    /// マスク（0...255）の範囲を描画色で塗る。選択範囲があればさらに制限。
-    private func paintMask(_ mask: [UInt8], bounds: IntRect, layerID: UUID, label: String) {
+    /// 閉じたパスの内側を描画色で塗る（erase: true なら消す）。選択範囲があればさらに制限。
+    public func lassoFill(path: CGPath, erase: Bool = false) {
+        commitTransform()
+        guard canPaintOnActiveLayer, let layer = doc.activeLayer else { return }
+        let m = SelectionMask.fromPath(path, width: doc.width, height: doc.height, antialias: lassoFillAntialias)
+        if m.isEmpty { return }
+        paintMask(m.data, bounds: m.bounds, layerID: layer.id, label: erase ? "投げなわ消しゴム" : "投げなわ塗り", erase: erase)
+    }
+
+    /// マスク（0...255）の範囲を描画色で塗る（erase: true なら消す）。選択範囲があればさらに制限。
+    private func paintMask(_ mask: [UInt8], bounds: IntRect, layerID: UUID, label: String, erase: Bool = false) {
         guard let layer = doc.node(layerID) else { return }
         checkpoint(label)
         let g = gen
@@ -493,7 +507,7 @@ public final class Editor {
         let w = doc.width
         doc.modify(layerID) { l in
             for key in bounds.tileKeys {
-                if lockAlpha && l.tiles[key] == nil { continue }
+                if (lockAlpha || erase) && l.tiles[key] == nil { continue }
                 let t = l.tiles.mutableTile(key, gen: g)
                 let tr = key.rect.intersection(bounds)
                 for y in tr.minY..<tr.maxY {
@@ -502,6 +516,10 @@ public final class Editor {
                         if let sel { a *= Float(sel.value(x, y)) / 255 }
                         if a <= 0 { continue }
                         let o = t.data + ((y - key.y * kTileSize) * kTileSize + (x - key.x * kTileSize)) * 4
+                        if erase {
+                            for c in 0..<4 { o[c] = Compositor.toByte(Float(o[c]) / 255 * (1 - a)) }
+                            continue
+                        }
                         let d = RGBA(Float(o[0]), Float(o[1]), Float(o[2]), Float(o[3])) / 255
                         var r: RGBA
                         if lockAlpha {

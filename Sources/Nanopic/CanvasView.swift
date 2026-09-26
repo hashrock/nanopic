@@ -33,6 +33,7 @@ final class CanvasView: NSView {
         case brushSize(start: CGPoint, startSize: Float)
         case selectShape(start: CGPoint, ellipse: Bool, op: SelectionOp)
         case lasso(op: SelectionOp)
+        case lassoFill(erase: Bool)
         case transform(handle: TransformHandle, startCanvas: CGPoint, startParams: TransformParams)
         case move(startCanvas: CGPoint, startParams: TransformParams)
         case eyedropper
@@ -215,7 +216,7 @@ final class CanvasView: NSView {
     func effectiveTool(_ flags: NSEvent.ModifierFlags) -> Tool {
         if spaceHeld { return flags.contains(.command) ? .zoom : .hand }
         let t = editor.tool
-        if flags.contains(.option) && !flags.contains(.command) && [.brush, .eraser, .fill].contains(t) { return .eyedropper }
+        if flags.contains(.option) && !flags.contains(.command) && [.brush, .eraser, .fill, .lassoFill].contains(t) { return .eyedropper }
         return t
     }
 
@@ -251,6 +252,14 @@ final class CanvasView: NSView {
             editor.commitTransform()
             lassoPoints = [cp]
             drag = .lasso(op: selectionOp(flags))
+        case .lassoFill, .lassoErase:
+            editor.commitTransform()
+            guard editor.canPaintOnActiveLayer else {
+                NSSound.beep()
+                return
+            }
+            lassoPoints = [cp]
+            drag = .lassoFill(erase: tool == .lassoErase)
         case .move:
             // 既に持ち上げていればそのまま続けて動かす（確定は選択解除・Return・他ツールの使用時）
             if editor.floating != nil || editor.beginTransform(), let f = editor.floating {
@@ -303,7 +312,7 @@ final class CanvasView: NSView {
                 r = CGRect(x: cp.x < start.x ? start.x - s : start.x, y: cp.y < start.y ? start.y - s : start.y, width: s, height: s)
             }
             shapePreview = (r, ellipse)
-        case .lasso:
+        case .lasso, .lassoFill:
             if let last = lassoPoints.last, hypot(last.x - cp.x, last.y - cp.y) * zoom > 1.5 {
                 lassoPoints.append(cp)
             }
@@ -352,6 +361,14 @@ final class CanvasView: NSView {
                 editor.deselect()
             }
             lassoPoints = []
+        case let .lassoFill(erase):
+            if lassoPoints.count > 2 {
+                let path = CGMutablePath()
+                path.addLines(between: lassoPoints)
+                path.closeSubpath()
+                editor.lassoFill(path: path, erase: erase)
+            }
+            lassoPoints = []
         default:
             break
         }
@@ -388,7 +405,7 @@ final class CanvasView: NSView {
     func updateCursor(_ flags: NSEvent.ModifierFlags) {
         switch effectiveTool(flags) {
         case .hand: NSCursor.openHand.set()
-        case .brush, .eraser, .fill, .eyedropper: NSCursor.crosshair.set()
+        case .brush, .eraser, .fill, .lassoFill, .lassoErase, .eyedropper: NSCursor.crosshair.set()
         case .move: NSCursor.openHand.set()
         default: NSCursor.arrow.set()
         }
@@ -644,6 +661,14 @@ final class OverlayView: NSView {
         if canvas.lassoPoints.count > 1 {
             let path = CGMutablePath()
             path.addLines(between: canvas.lassoPoints.map { $0.applying(t) })
+            // 投げなわ塗りは塗られる範囲を描画色で予告する
+            if editor.tool == .lassoFill {
+                let c = editor.mainColor
+                ctx.addPath(path)
+                ctx.closePath()
+                ctx.setFillColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), alpha: 0.4)
+                ctx.fillPath()
+            }
             drawAnts(ctx, path)
         }
 

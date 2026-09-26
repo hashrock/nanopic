@@ -7,7 +7,7 @@ struct ToolBarView: View {
     @Bindable var editor: Editor
 
     private let groups: [[Tool]] = [
-        [.brush, .eraser, .fill, .eyedropper],
+        [.brush, .eraser, .fill, .lassoFill, .lassoErase, .eyedropper],
         [.selectRect, .selectEllipse, .lasso, .wand],
         [.move, .transform],
         [.hand, .zoom],
@@ -109,6 +109,10 @@ struct ToolOptionsView: View {
                 case .wand:
                     FillOptionsView(settings: $editor.wandSettings, showExpand: true)
                     selectionHelp
+                case .lassoFill, .lassoErase:
+                    Toggle("アンチエイリアス", isOn: $editor.lassoFillAntialias).font(.caption)
+                    Text(editor.tool == .lassoFill ? "囲んだ範囲を描画色で塗る" : "囲んだ範囲を消す")
+                        .font(.caption).foregroundStyle(.secondary)
                 case .selectRect, .selectEllipse, .lasso:
                     Toggle("アンチエイリアス", isOn: $editor.selectionAntialias).font(.caption)
                     selectionHelp
