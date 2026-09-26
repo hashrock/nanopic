@@ -76,4 +76,18 @@ final class BrushRenderTests: XCTestCase {
         stroke(ed, from: (40, 620), to: (400, 640), duration: 0.3, pressure: { _ in 1 })
         save(ed, "strokes.png")
     }
+
+    func testSizeJitter() {
+        let ed = Editor(width: 700, height: 460)
+        ed.activeBrushIndex = 0
+        var y = 50.0
+        for (jitter, spacing) in [(0.0, 0.08), (0.3, 0.08), (0.6, 0.08), (0.6, 0.2), (0.9, 0.25)] as [(Float, Float)] {
+            var b = ed.currentBrush
+            b.size = 30; b.sizeJitter = jitter; b.spacing = spacing
+            ed.currentBrush = b
+            stroke(ed, from: (40, y), to: (660, y), curve: 20, pressure: { u in min(1, u * 6) * min(1, (1 - u) * 6) })
+            y += 85
+        }
+        save(ed, "jitter.png")
+    }
 }

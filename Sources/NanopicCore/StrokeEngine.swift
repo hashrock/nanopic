@@ -323,7 +323,13 @@ public final class StrokeEngine {
             jitterSeed &+= 1
             angle += Double(pixelHash(jitterSeed, 17) - 0.5) * 2 * .pi * Double(brush.angleJitter)
         }
-        let dab = Dab(x: Float(x), y: Float(y), radius: Float(currentRadius()), alpha: Float(currentAlpha()),
+        var radius = currentRadius()
+        if brush.sizeJitter > 0 {
+            // ダブごとにランダムに小さくする（筆圧の変化制限とは独立）
+            jitterSeed &+= 1
+            radius *= 1 - Double(clamp01(brush.sizeJitter)) * Double(pixelHash(jitterSeed, 101))
+        }
+        let dab = Dab(x: Float(x), y: Float(y), radius: Float(radius), alpha: Float(currentAlpha()),
                       angle: Float(angle))
         dabCount += 1
         emit(dab)

@@ -386,4 +386,17 @@ final class EditorTests: XCTestCase {
         XCTAssertNil(ed.floating, "描き始めると確定される")
         XCTAssertEqual(ed.doc.node(l.id)!.tiles.pixel(125, 25).3, 255)
     }
+
+    /// 新しい項目が無い古い保存データも読める
+    func testBrushSettingsDecodesOldData() throws {
+        let json = #"[{"name":"古いペン","size":12,"hardness":0.5}]"#
+        let b = try JSONDecoder().decode([BrushSettings].self, from: Data(json.utf8))
+        XCTAssertEqual(b[0].name, "古いペン")
+        XCTAssertEqual(b[0].size, 12)
+        XCTAssertEqual(b[0].sizeJitter, 0)
+        XCTAssertEqual(b[0].spacing, BrushSettings(name: "").spacing)
+        // 往復
+        let again = try JSONDecoder().decode([BrushSettings].self, from: JSONEncoder().encode(b))
+        XCTAssertEqual(again, b)
+    }
 }

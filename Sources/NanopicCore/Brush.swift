@@ -45,9 +45,48 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
     public var colorStretch: Float = 0.6
     /// 散布・ランダム回転
     public var angleJitter: Float = 0
+    /// サイズのランダム（ダブごとに最大この割合だけ小さくする。輪郭がギザギザになる）
+    public var sizeJitter: Float = 0
 
     public init(name: String) {
         self.name = name
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, kind, size, sizePressure, minSizeRatio, opacity, opacityPressure, minOpacityRatio, flow, hardness
+        case spacing, tipID, angle, followDirection, roundness, smoothing, pressureGamma, pressureSlope
+        case mixEnabled, paintAmount, colorStretch, angleJitter, sizeJitter
+    }
+
+    /// 項目が足りない古い保存データも読めるよう、無い項目は既定値にする
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = BrushSettings(name: "")
+        func v<T: Decodable>(_ k: CodingKeys, _ def: T) throws -> T { try c.decodeIfPresent(T.self, forKey: k) ?? def }
+        id = try v(.id, d.id)
+        name = try v(.name, d.name)
+        kind = try v(.kind, d.kind)
+        size = try v(.size, d.size)
+        sizePressure = try v(.sizePressure, d.sizePressure)
+        minSizeRatio = try v(.minSizeRatio, d.minSizeRatio)
+        opacity = try v(.opacity, d.opacity)
+        opacityPressure = try v(.opacityPressure, d.opacityPressure)
+        minOpacityRatio = try v(.minOpacityRatio, d.minOpacityRatio)
+        flow = try v(.flow, d.flow)
+        hardness = try v(.hardness, d.hardness)
+        spacing = try v(.spacing, d.spacing)
+        tipID = try v(.tipID, d.tipID)
+        angle = try v(.angle, d.angle)
+        followDirection = try v(.followDirection, d.followDirection)
+        roundness = try v(.roundness, d.roundness)
+        smoothing = try v(.smoothing, d.smoothing)
+        pressureGamma = try v(.pressureGamma, d.pressureGamma)
+        pressureSlope = try v(.pressureSlope, d.pressureSlope)
+        mixEnabled = try v(.mixEnabled, d.mixEnabled)
+        paintAmount = try v(.paintAmount, d.paintAmount)
+        colorStretch = try v(.colorStretch, d.colorStretch)
+        angleJitter = try v(.angleJitter, d.angleJitter)
+        sizeJitter = try v(.sizeJitter, d.sizeJitter)
     }
 
     public static func == (a: BrushSettings, b: BrushSettings) -> Bool {
@@ -58,7 +97,7 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
             && a.followDirection == b.followDirection && a.roundness == b.roundness && a.smoothing == b.smoothing
             && a.pressureGamma == b.pressureGamma && a.pressureSlope == b.pressureSlope
             && a.mixEnabled == b.mixEnabled && a.paintAmount == b.paintAmount && a.colorStretch == b.colorStretch
-            && a.angleJitter == b.angleJitter
+            && a.angleJitter == b.angleJitter && a.sizeJitter == b.sizeJitter
     }
 
     public static var defaultPresets: [BrushSettings] {

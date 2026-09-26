@@ -159,6 +159,7 @@ struct BrushOptionsView: View {
             presetList
             Divider()
             SizeSlider(size: brush.size)
+            LabeledSlider(label: "サイズのランダム", value: brush.sizeJitter, range: 0...1, scale: 100, suffix: "%")
             LabeledSlider(label: "不透明度", value: brush.opacity, range: 0...1, scale: 100, suffix: "%")
             if !isEraser || true {
                 LabeledSlider(label: "硬さ", value: brush.hardness, range: 0...1, scale: 100, suffix: "%")
