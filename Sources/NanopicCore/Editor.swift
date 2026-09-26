@@ -324,6 +324,13 @@ public final class Editor {
         tips.append(tip)
     }
 
+    /// ツールを切り替える。移動・変形以外に切り替えるときは変形を確定する
+    public func selectTool(_ t: Tool) {
+        if t != .transform && t != .move { commitTransform() }
+        tool = t
+        if t == .transform { beginTransform() }
+    }
+
     public func setBrushSize(_ size: Float) {
         var b = currentBrush
         b.size = min(max(size, 0.5), 2000)

@@ -18,7 +18,7 @@ struct ToolBarView: View {
             ForEach(groups.indices, id: \.self) { gi in
                 ForEach(groups[gi], id: \.self) { tool in
                     Button {
-                        selectTool(tool)
+                        editor.selectTool(tool)
                     } label: {
                         Image(systemName: tool.symbol)
                             .font(.system(size: 15))
@@ -38,11 +38,6 @@ struct ToolBarView: View {
         .frame(width: 44)
     }
 
-    private func selectTool(_ tool: Tool) {
-        if tool != .transform && tool != .move { editor.commitTransform() }
-        editor.tool = tool
-        if tool == .transform { editor.beginTransform() }
-    }
 }
 
 // MARK: - 共通部品

@@ -45,7 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return nil
         }
-        guard e.type == .keyDown else { return e }
+        if e.type == .keyUp {
+            canvas.toolKeyUp(e)
+            return e
+        }
         if flags == [.command, .option] && e.keyCode == 5 { // ⌘⌥G: クリッピング
             if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "クリッピング") { $0.clipping.toggle() } }
             return nil
@@ -69,11 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if flags.contains(.command) || flags.contains(.control) { return e }
         let key = e.charactersIgnoringModifiers?.lowercased() ?? ""
         func setTool(_ t: Tool) {
-            if t != .transform && t != .move { editor.commitTransform() }
-            editor.tool = t
-            if t == .transform { editor.beginTransform() }
-            canvas.updateCursor(e.modifierFlags)
-            canvas.requestDisplay()
+            if !e.isARepeat { canvas.toolKeyDown(e, tool: t) }
         }
         switch e.keyCode {
         case 36, 76: // return
@@ -180,10 +179,7 @@ struct AppCommands: Commands {
             Button("消去") { editor.clearSelectionContent() }
             Button("塗りつぶし（描画色）") { editor.fillSelection() }
                 .keyboardShortcut(.delete, modifiers: [.option])
-            Button("拡大・縮小・回転") {
-                editor.tool = .transform
-                editor.beginTransform()
-            }
+            Button("拡大・縮小・回転") { editor.selectTool(.transform) }
             .keyboardShortcut("t")
             Button("キャンバスサイズ...") { state.showCanvasSizeDialog() }
         }

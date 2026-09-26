@@ -233,6 +233,7 @@ final class CanvasView: NSView {
             drag = .brushSize(start: vp, startSize: editor.currentBrush.size)
             return
         }
+        temporaryTool?.used = true
         let tool = effectiveTool(flags)
         switch tool {
         case .brush, .eraser:
@@ -373,6 +374,7 @@ final class CanvasView: NSView {
             break
         }
         drag = .none
+        endTemporaryToolIfReleased()
         overlay.needsDisplay = true
     }
 
@@ -502,7 +504,50 @@ final class CanvasView: NSView {
         drag = .none
         lassoPoints = []
         shapePreview = nil
+        endTemporaryToolIfReleased()
         overlay.needsDisplay = true
+    }
+
+    // MARK: - ツールの一時切り替え
+
+    /// ツールキーを押している間だけ切り替えたツール
+    private struct TemporaryTool {
+        let keyCode: UInt16
+        let previous: Tool
+        let start: TimeInterval
+        /// キーを押している間にキャンバスを操作したか
+        var used = false
+        /// 操作中にキーを離した（操作が終わったら戻す）
+        var released = false
+    }
+    private var temporaryTool: TemporaryTool?
+
+    /// ツールキーの keyDown。短く押せばそのまま切り替え、押したまま操作するか長押しすると、離したときに元のツールへ戻る
+    func toolKeyDown(_ e: NSEvent, tool: Tool) {
+        let previous = temporaryTool?.previous ?? editor.tool
+        editor.selectTool(tool)
+        temporaryTool = previous == tool ? nil : TemporaryTool(keyCode: e.keyCode, previous: previous, start: e.timestamp)
+        updateCursor(e.modifierFlags)
+        requestDisplay()
+    }
+
+    func toolKeyUp(_ e: NSEvent) {
+        guard var t = temporaryTool, t.keyCode == e.keyCode else { return }
+        guard t.used || e.timestamp - t.start >= 0.4 else {
+            temporaryTool = nil
+            return
+        }
+        t.released = true
+        temporaryTool = t
+        if case .none = drag { endTemporaryToolIfReleased() }
+    }
+
+    private func endTemporaryToolIfReleased() {
+        guard let t = temporaryTool, t.released else { return }
+        temporaryTool = nil
+        editor.selectTool(t.previous)
+        updateCursor(NSEvent.modifierFlags)
+        requestDisplay()
     }
 
     // MARK: - 変形ハンドル
