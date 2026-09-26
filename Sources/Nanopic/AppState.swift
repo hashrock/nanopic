@@ -49,6 +49,12 @@ final class AppState {
         if let d = UserDefaults.standard.data(forKey: brushesKey), let b = try? dec.decode([BrushSettings].self, from: d), !b.isEmpty {
             editor.brushes = b
         }
+        // 後から追加したプリセット（指先ぼかし・ぼかし・ゆがみ）を既存の保存データにも 1 度だけ追加
+        if UserDefaults.standard.integer(forKey: "presets.version") < 2 {
+            let names = Set(editor.brushes.map(\.name))
+            editor.brushes += BrushSettings.effectPresets.filter { !names.contains($0.name) }
+            UserDefaults.standard.set(2, forKey: "presets.version")
+        }
         if let d = UserDefaults.standard.data(forKey: erasersKey), let b = try? dec.decode([BrushSettings].self, from: d), !b.isEmpty {
             editor.erasers = b
         }

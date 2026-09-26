@@ -211,6 +211,18 @@ struct BrushOptionsView: View {
                     }
                     .padding(4)
                 }
+                GroupBox("ぼかし") {
+                    LabeledSlider(label: "ぼかし強さ", value: brush.blurAmount, range: 0...1, scale: 100, suffix: "%")
+                        .padding(4)
+                }
+                GroupBox("ゆがみ") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        LabeledSlider(label: "前方（押し出し）", value: brush.warpPush, range: 0...1, scale: 100, suffix: "%")
+                        LabeledSlider(label: "縮小 ↔ 膨張", value: brush.warpRadial, range: -1...1, scale: 100, suffix: "%")
+                        LabeledSlider(label: "左回転 ↔ 右回転", value: brush.warpTwist, range: -1...1, scale: 100, suffix: "%")
+                    }
+                    .padding(4)
+                }
             }
         }
         .onChange(of: editor.brushes) { _, _ in state.savePreferences() }

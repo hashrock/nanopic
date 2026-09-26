@@ -82,6 +82,11 @@ public final class StrokeEngine {
     private var dabCount = 0
     private var lastDir: Double = 0
     private var jitterSeed: Int = 0
+    /// 設定すると、ペンが止まっていてもこの間隔（秒）でダブを出し続ける（ゆがみの膨張・回転用）
+    public var continuousInterval: Double?
+    private var currentTime: Double = 0
+    private var lastDabTime: Double = -1
+    private var lastDabPos: (Double, Double)?
 
     public init(brush: BrushSettings, usePressure: Bool, zoom: Double = 1) {
         self.brush = brush
@@ -166,6 +171,7 @@ public final class StrokeEngine {
     }
 
     private func pushPoint(_ q: Point) {
+        currentTime = q.t
         guard let last = pts.last else {
             pts.append(q)
             return
@@ -176,6 +182,13 @@ public final class StrokeEngine {
             pts[pts.count - 1].p = q.p
             let dt = q.t - pts[pts.count - 1].t
             pts[pts.count - 1].t = q.t
+            if let iv = continuousInterval, q.t - lastDabTime >= iv {
+                // 止まっていても効果をかけ続ける
+                advancePressure(target: q.p, ds: 0, dt: max(dt, 0))
+                let pos = lastDabPos ?? (last.x, last.y)
+                emitDab(x: pos.0, y: pos.1, dirX: 0, dirY: 0)
+                return
+            }
             if pts.count == 1 && usePressure {
                 // 描き始めで止まっている間も少しずつ太らせる
                 let before = effP
@@ -332,6 +345,8 @@ public final class StrokeEngine {
         let dab = Dab(x: Float(x), y: Float(y), radius: Float(radius), alpha: Float(currentAlpha()),
                       angle: Float(angle))
         dabCount += 1
+        lastDabTime = currentTime
+        lastDabPos = (x, y)
         emit(dab)
     }
 }

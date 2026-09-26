@@ -47,6 +47,18 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
     public var angleJitter: Float = 0
     /// サイズのランダム（ダブごとに最大この割合だけ小さくする。輪郭がギザギザになる）
     public var sizeJitter: Float = 0
+    /// ぼかし 0...1（ブラシの下を周囲の平均に近づける）
+    public var blurAmount: Float = 0
+    /// ゆがみ: 前方（ブラシの進行方向に画素を押し出す）0...1
+    public var warpPush: Float = 0
+    /// ゆがみ: 膨張(+) / 縮小(-) -1...1
+    public var warpRadial: Float = 0
+    /// ゆがみ: 回転 右(+) / 左(-) -1...1
+    public var warpTwist: Float = 0
+
+    public var hasWarp: Bool { warpPush != 0 || warpRadial != 0 || warpTwist != 0 }
+    /// レイヤーに直接作用するブラシ（色混ぜ・ぼかし・ゆがみ）
+    public var isDirect: Bool { kind == .brush && (mixEnabled || blurAmount > 0 || hasWarp) }
 
     public init(name: String) {
         self.name = name
@@ -56,6 +68,7 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
         case id, name, kind, size, sizePressure, minSizeRatio, opacity, opacityPressure, minOpacityRatio, flow, hardness
         case spacing, tipID, angle, followDirection, roundness, smoothing, pressureGamma, pressureSlope
         case mixEnabled, paintAmount, colorStretch, angleJitter, sizeJitter
+        case blurAmount, warpPush, warpRadial, warpTwist
     }
 
     /// 項目が足りない古い保存データも読めるよう、無い項目は既定値にする
@@ -87,6 +100,10 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
         colorStretch = try v(.colorStretch, d.colorStretch)
         angleJitter = try v(.angleJitter, d.angleJitter)
         sizeJitter = try v(.sizeJitter, d.sizeJitter)
+        blurAmount = try v(.blurAmount, d.blurAmount)
+        warpPush = try v(.warpPush, d.warpPush)
+        warpRadial = try v(.warpRadial, d.warpRadial)
+        warpTwist = try v(.warpTwist, d.warpTwist)
     }
 
     public static func == (a: BrushSettings, b: BrushSettings) -> Bool {
@@ -98,6 +115,8 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
             && a.pressureGamma == b.pressureGamma && a.pressureSlope == b.pressureSlope
             && a.mixEnabled == b.mixEnabled && a.paintAmount == b.paintAmount && a.colorStretch == b.colorStretch
             && a.angleJitter == b.angleJitter && a.sizeJitter == b.sizeJitter
+            && a.blurAmount == b.blurAmount && a.warpPush == b.warpPush
+            && a.warpRadial == b.warpRadial && a.warpTwist == b.warpTwist
     }
 
     public static var defaultPresets: [BrushSettings] {
@@ -135,7 +154,26 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
         chalk.size = 24; chalk.tipID = "chalk"; chalk.minSizeRatio = 0.6; chalk.angleJitter = 1
         chalk.spacing = 0.15; chalk.opacityPressure = true; chalk.minOpacityRatio = 0.3
 
-        return [pen, mapping, pencil, airbrush, watercolor, oil, blender, chalk]
+        return [pen, mapping, pencil, airbrush, watercolor, oil, blender, chalk] + effectPresets
+    }
+
+    /// 指先ぼかし・ぼかし・ゆがみ（後から追加したプリセット）
+    public static var effectPresets: [BrushSettings] {
+        var finger = BrushSettings(name: "指先ぼかし")
+        finger.size = 40; finger.hardness = 0.3; finger.sizePressure = true; finger.minSizeRatio = 0.5
+        finger.opacityPressure = true; finger.minOpacityRatio = 0.2
+        finger.mixEnabled = true; finger.paintAmount = 0; finger.colorStretch = 0.75
+        finger.blurAmount = 0.35; finger.smoothing = 0.2
+
+        var blur = BrushSettings(name: "ぼかし")
+        blur.size = 60; blur.hardness = 0; blur.sizePressure = false
+        blur.opacityPressure = true; blur.blurAmount = 0.8; blur.smoothing = 0.1
+
+        var warp = BrushSettings(name: "ゆがみ")
+        warp.size = 100; warp.hardness = 0; warp.sizePressure = false
+        warp.opacityPressure = true; warp.minOpacityRatio = 0.3
+        warp.warpPush = 0.5; warp.spacing = 0.05; warp.smoothing = 0.3
+        return [finger, blur, warp]
     }
 
     public static var defaultErasers: [BrushSettings] {

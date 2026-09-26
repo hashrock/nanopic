@@ -49,8 +49,11 @@ struct DabShape {
     }
 }
 
-/// 色混ぜブラシ用。レイヤーの作業コピー（premultiplied Float）に直接描き、
-/// 前の位置の画素をパッチとして持ち運んで新しい位置に置く（下の絵を引きずる）。
+/// レイヤーに直接作用するブラシ（色混ぜ・ぼかし・ゆがみ）用。
+/// レイヤーの作業コピー（premultiplied Float）に直接描く。各効果は独立したパラメータで、組み合わせられる。
+/// - ゆがみ: ブラシの下の画素を変位させる（前方・膨張/縮小・回転）
+/// - ぼかし: ブラシの下を周囲の平均に近づける
+/// - 色混ぜ: 前の位置の画素をパッチとして持ち運んで新しい位置に置く（下の絵を引きずる）
 public final class MixBuffer: StrokeTarget, @unchecked Sendable {
     public let width: Int
     public let height: Int
@@ -63,6 +66,8 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
     private var carried: [RGBA] = []
     private var carriedGrid = 0
     private var carriedExtent: Float = 0
+    /// 直前のダブ位置（ゆがみの前方向の移動量に使う）
+    private var lastDab: (x: Float, y: Float)?
 
     public init(layer: TileMap, width: Int, height: Int) {
         self.layer = layer
@@ -126,24 +131,146 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
         return top + (bot - top) * ty
     }
 
-    /// 色混ぜダブを描く
-    /// - paintAmount: 絵の具量（ブラシ色の補給、ブラシ直径の移動あたり）
-    /// - colorStretch: 色延び（持ち運んだ色が残る割合。小さいほど下の色に置き換わりやすい）
+    /// ダブを 1 つ描く（ゆがみ → ぼかし → 色混ぜ の順に適用）
     @discardableResult
-    public func render(_ dab: Dab, brushColor: SIMD3<Float>, tip: BrushTip, hardness: Float, roundness: Float,
-                       flow: Float, spacing: Float, paintAmount: Float, colorStretch: Float) -> IntRect {
+    public func render(_ dab: Dab, brush: BrushSettings, brushColor: SIMD3<Float>, tip: BrushTip) -> IntRect {
         guard dab.x.isFinite, dab.y.isFinite, dab.radius.isFinite, dab.alpha.isFinite,
               abs(dab.x) < 1e6, abs(dab.y) < 1e6, dab.radius < 1e5 else { return .zero }
         var radius = dab.radius
-        var strength = dab.alpha * clamp01(flow)
+        var strength = dab.alpha * clamp01(brush.flow)
         if radius < 0.5 {
             strength *= max(0, radius / 0.5) * max(0, radius / 0.5)
             radius = 0.5
         }
         let extent = radius + 1.5
-        let brushP = RGBA(brushColor.x, brushColor.y, brushColor.z, 1)
         // ブラシ直径あたりの割合をダブあたりに換算（1 画素が受けるダブ数 ≒ 1 / 間隔）
-        let e = max(spacing, 0.02)
+        let e = max(brush.spacing, 0.02)
+        let bb = IntRect(minX: Int(floor(dab.x - extent)), minY: Int(floor(dab.y - extent)),
+                         maxX: Int(ceil(dab.x + extent)), maxY: Int(ceil(dab.y + extent)))
+            .intersection(IntRect(x: 0, y: 0, width: width, height: height))
+        let prev = lastDab
+        lastDab = (dab.x, dab.y)
+        if bb.isEmpty || strength <= 0.0005 { return .zero }
+        let shape = DabShape(dab: dab, radius: radius, tip: tip, hardness: brush.hardness, roundness: brush.roundness)
+        touched = touched.union(bb)
+        if brush.hasWarp {
+            warp(dab: dab, shape: shape, bb: bb, strength: strength, e: e, brush: brush,
+                 step: prev.map { (dab.x - $0.x, dab.y - $0.y) } ?? (0, 0))
+        }
+        if brush.blurAmount > 0 {
+            blur(shape: shape, bb: bb, amount: clamp01(brush.blurAmount) * strength, e: e, radius: radius)
+        }
+        if brush.mixEnabled {
+            mix(dab: dab, shape: shape, bb: bb, extent: extent, strength: strength, e: e,
+                brushColor: brushColor, paintAmount: brush.paintAmount, colorStretch: brush.colorStretch)
+        }
+        return bb
+    }
+
+    // MARK: 領域の読み書き
+
+    private func readRegion(_ r: IntRect) -> [RGBA] {
+        var out = [RGBA](repeating: .zero, count: r.area)
+        var i = 0
+        for y in r.minY..<r.maxY {
+            for x in r.minX..<r.maxX {
+                out[i] = pixel(x, y)
+                i += 1
+            }
+        }
+        return out
+    }
+
+    /// (x, y) に value を weight で混ぜる
+    @inline(__always) private func blendPixel(_ x: Int, _ y: Int, _ value: RGBA, _ weight: Float) {
+        let key = TileKey(x: x / kTileSize, y: y / kTileSize)
+        let t = workingTile(key)
+        let i = (y % kTileSize) * kTileSize + (x % kTileSize)
+        t[i] += (value - t[i]) * weight
+    }
+
+    // MARK: ゆがみ
+
+    private func warp(dab: Dab, shape: DabShape, bb: IntRect, strength: Float, e: Float, brush: BrushSettings,
+                      step: (Float, Float)) {
+        let push = brush.warpPush
+        // 膨張・回転はダブ 1 回あたりの量（止まっていても 60 回/秒 で効き続ける）
+        let radialRate = brush.warpRadial * 0.04
+        let twistRate = brush.warpTwist * 0.04
+        let stepLen = (step.0 * step.0 + step.1 * step.1).squareRoot()
+        let maxDisp = stepLen * abs(push) + shape.radius * (abs(radialRate) + abs(twistRate)) + 2
+        let m = Int(ceil(maxDisp))
+        let src = IntRect(minX: bb.minX - m, minY: bb.minY - m, maxX: bb.maxX + m, maxY: bb.maxY + m)
+            .intersection(IntRect(x: 0, y: 0, width: width, height: height))
+        let snap = readRegion(src)
+        let sw = src.width, sh = src.height
+        @inline(__always) func at(_ x: Int, _ y: Int) -> RGBA {
+            let cx = min(max(x - src.minX, 0), sw - 1), cy = min(max(y - src.minY, 0), sh - 1)
+            return snap[cy * sw + cx]
+        }
+        for py in bb.minY..<bb.maxY {
+            for px in bb.minX..<bb.maxX {
+                let sv = shape.value(px, py)
+                if sv <= 0 { continue }
+                let w = sv * strength
+                let rx = Float(px) + 0.5 - dab.x, ry = Float(py) + 0.5 - dab.y
+                let dx = w * (push * step.0 + radialRate * rx - twistRate * ry)
+                let dy = w * (push * step.1 + radialRate * ry + twistRate * rx)
+                if abs(dx) < 0.001 && abs(dy) < 0.001 { continue }
+                // 変位元をバイリニアで取る
+                let fx = Float(px) - dx, fy = Float(py) - dy
+                let x0 = Int(floor(fx)), y0 = Int(floor(fy))
+                let tx = fx - Float(x0), ty = fy - Float(y0)
+                let top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * tx
+                let bot = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * tx
+                blendPixel(px, py, top + (bot - top) * ty, 1)
+            }
+        }
+    }
+
+    // MARK: ぼかし
+
+    private func blur(shape: DabShape, bb: IntRect, amount: Float, e: Float, radius: Float) {
+        // ブラシの大きさに比例した範囲の平均（分離可能なボックスブラー）
+        let r = max(1, Int((radius * 0.4).rounded()))
+        let src = IntRect(minX: bb.minX - r, minY: bb.minY - r, maxX: bb.maxX + r, maxY: bb.maxY + r)
+            .intersection(IntRect(x: 0, y: 0, width: width, height: height))
+        let w = src.width, h = src.height
+        let data = readRegion(src)
+        var horiz = [RGBA](repeating: .zero, count: w * h)
+        for y in 0..<h {
+            var sum = RGBA.zero
+            var count: Float = 0
+            for x in 0..<min(r, w) { sum += data[y * w + x]; count += 1 }
+            for x in 0..<w {
+                if x + r < w { sum += data[y * w + x + r]; count += 1 }
+                if x - r - 1 >= 0 { sum -= data[y * w + x - r - 1]; count -= 1 }
+                horiz[y * w + x] = sum / count
+            }
+        }
+        for px in bb.minX..<bb.maxX {
+            let x = px - src.minX
+            for py in bb.minY..<bb.maxY {
+                let sv = shape.value(px, py)
+                if sv <= 0 { continue }
+                let k = 1 - pow(1 - clamp01(sv * amount), e)
+                let y = py - src.minY
+                var sum = RGBA.zero
+                var count: Float = 0
+                for yy in max(0, y - r)...min(h - 1, y + r) {
+                    sum += horiz[yy * w + x]
+                    count += 1
+                }
+                blendPixel(px, py, sum / count, k)
+            }
+        }
+    }
+
+    // MARK: 色混ぜ
+
+    private func mix(dab: Dab, shape: DabShape, bb: IntRect, extent: Float, strength: Float, e: Float,
+                     brushColor: SIMD3<Float>, paintAmount: Float, colorStretch: Float) {
+        let brushP = RGBA(brushColor.x, brushColor.y, brushColor.z, 1)
         let supply = 1 - pow(1 - clamp01(paintAmount), e)
         // 色延び → 持ち運んだ色が半分入れ替わるまでの距離（ブラシ直径の何倍か）
         let stretch = clamp01(colorStretch)
@@ -178,12 +305,7 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
         carriedExtent = extent
 
         // 持ち運んだ絵の具を置く
-        let bb = IntRect(minX: Int(floor(dab.x - extent)), minY: Int(floor(dab.y - extent)),
-                         maxX: Int(ceil(dab.x + extent)), maxY: Int(ceil(dab.y + extent)))
-            .intersection(IntRect(x: 0, y: 0, width: width, height: height))
-        if !bb.isEmpty && strength > 0.0005 {
-            touched = touched.union(bb)
-            let shape = DabShape(dab: dab, radius: radius, tip: tip, hardness: hardness, roundness: roundness)
+        do {
             for key in bb.tileKeys {
                 let t = workingTile(key)
                 let tr = key.rect.intersection(bb)
@@ -209,7 +331,6 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
             c += (brushP - c) * supply
             carried[i] = c
         }
-        return bb
     }
 
     public func apply(key: TileKey, src: UnsafePointer<UInt8>?, out: UnsafeMutablePointer<UInt8>,

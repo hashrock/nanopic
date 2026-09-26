@@ -122,4 +122,39 @@ final class BrushRenderTests: XCTestCase {
         stroke(ed, from: (40, 430), to: (720, 440), curve: -20, duration: 0.8, pressure: { u in sin(u * .pi) })
         save(ed, "mix.png")
     }
+
+    /// 縞の上で指先ぼかし・ぼかし・ゆがみを試す
+    func testEffects() {
+        let ed = Editor(width: 760, height: 620)
+        ed.activeBrushIndex = 0
+        var pen = ed.currentBrush
+        pen.size = 30; pen.sizePressure = false; pen.smoothing = 0
+        ed.currentBrush = pen
+        let colors: [SIMD3<Float>] = [SIMD3(0.9, 0.15, 0.1), SIMD3(0.95, 0.8, 0.1), SIMD3(0.15, 0.3, 0.9)]
+        for i in 0..<18 {
+            ed.mainColor = colors[i % 3]
+            let x = 40 + Double(i) * 40
+            ed.beginStroke(StrokeInput(x: x, y: 20, pressure: 1, time: 0), usePressure: false, zoom: 1)
+            ed.continueStroke(StrokeInput(x: x, y: 600, pressure: 1, time: 0.2))
+            ed.endStroke()
+        }
+        func index(_ name: String) -> Int { ed.brushes.firstIndex { $0.name == name }! }
+        // 指先ぼかし
+        ed.activeBrushIndex = index("指先ぼかし")
+        stroke(ed, from: (30, 70), to: (730, 70), curve: 0, duration: 0.8, pressure: { _ in 0.9 })
+        // ぼかし
+        ed.activeBrushIndex = index("ぼかし")
+        stroke(ed, from: (30, 170), to: (730, 170), curve: 0, duration: 0.8, pressure: { _ in 1 })
+        // ゆがみ（前方）: 波打つ線で押す
+        ed.activeBrushIndex = index("ゆがみ")
+        stroke(ed, from: (30, 290), to: (730, 290), curve: 60, duration: 0.8, pressure: { _ in 1 })
+        // ゆがみ（膨張 / 縮小 / 回転）: その場で小さく動かす
+        for (x, radial, twist) in [(150.0, 1.0, 0.0), (380.0, -1.0, 0.0), (610.0, 0.0, 1.0)] as [(Double, Float, Float)] {
+            var b = ed.currentBrush; b.warpPush = 0; b.warpRadial = radial; b.warpTwist = twist; b.size = 160
+            ed.currentBrush = b
+            // ほぼ静止したまま 0.5 秒押し続ける
+            stroke(ed, from: (x, 500), to: (x + 0.2, 500), curve: 0, duration: 0.5, pressure: { _ in 1 })
+        }
+        save(ed, "effects.png")
+    }
 }

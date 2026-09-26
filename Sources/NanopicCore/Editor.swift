@@ -351,13 +351,16 @@ public final class Editor {
         } else {
             strokeMode = layer.lockAlpha ? .lockAlpha : .normal
         }
-        if brush.mixEnabled && brush.kind == .brush {
+        if brush.isDirect {
             mixBuffer = MixBuffer(layer: layer.tiles, width: doc.width, height: doc.height)
         } else {
             strokeBuffer = StrokeBuffer(width: doc.width, height: doc.height)
         }
         strokeDabCount = 0
         let e = StrokeEngine(brush: brush, usePressure: usePressure, zoom: zoom)
+        if brush.kind == .brush && (brush.warpRadial != 0 || brush.warpTwist != 0) {
+            e.continuousInterval = 1.0 / 60
+        }
         e.emit = { [unowned self] dab in self.paintDab(dab) }
         engine = e
         e.begin(input)
@@ -404,9 +407,7 @@ public final class Editor {
         guard let brush = strokeBrush, let tip = strokeTip else { return }
         strokeDabCount += 1
         if let mix = mixBuffer {
-            let r = mix.render(dab, brushColor: mainColor, tip: tip, hardness: brush.hardness, roundness: brush.roundness,
-                               flow: brush.flow, spacing: brush.spacing, paintAmount: brush.paintAmount,
-                               colorStretch: brush.colorStretch)
+            let r = mix.render(dab, brush: brush, brushColor: mainColor, tip: tip)
             markDirty(r)
             return
         }
