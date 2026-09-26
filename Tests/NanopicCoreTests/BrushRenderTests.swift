@@ -90,4 +90,36 @@ final class BrushRenderTests: XCTestCase {
         }
         save(ed, "jitter.png")
     }
+
+    /// 色の縞の上を色混ぜブラシで擦る
+    func testMixing() {
+        let ed = Editor(width: 760, height: 520)
+        // 縦縞（赤・黄・青）をレイヤーに描く
+        ed.activeBrushIndex = 0
+        var pen = ed.currentBrush
+        pen.size = 60; pen.sizePressure = false; pen.smoothing = 0
+        ed.currentBrush = pen
+        let colors: [SIMD3<Float>] = [SIMD3(0.9, 0.15, 0.1), SIMD3(0.95, 0.8, 0.1), SIMD3(0.15, 0.3, 0.9)]
+        for i in 0..<9 {
+            ed.mainColor = colors[i % 3]
+            let x = 60 + Double(i) * 75
+            ed.beginStroke(StrokeInput(x: x, y: 30, pressure: 1, time: 0), usePressure: false, zoom: 1)
+            ed.continueStroke(StrokeInput(x: x, y: 490, pressure: 1, time: 0.2))
+            ed.endStroke()
+        }
+        ed.mainColor = SIMD3(1, 1, 1)
+        // 色混ぜ（絵の具量 0）: 上段は色延び 85%、中段 50%
+        ed.activeBrushIndex = 6
+        for (y, stretch) in [(90.0, 0.85), (200.0, 0.5)] as [(Double, Float)] {
+            var b = ed.currentBrush; b.colorStretch = stretch; b.paintAmount = 0; ed.currentBrush = b
+            stroke(ed, from: (40, y), to: (720, y), curve: 0, duration: 0.8, pressure: { _ in 0.9 })
+        }
+        // 水彩（白を少し補給）
+        ed.activeBrushIndex = 4
+        stroke(ed, from: (40, 320), to: (720, 320), curve: 30, duration: 0.8, pressure: { _ in 0.9 })
+        // 油彩（毛筆先端）
+        ed.activeBrushIndex = 5
+        stroke(ed, from: (40, 430), to: (720, 440), curve: -20, duration: 0.8, pressure: { u in sin(u * .pi) })
+        save(ed, "mix.png")
+    }
 }

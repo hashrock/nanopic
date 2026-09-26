@@ -87,11 +87,13 @@ public final class Editor {
     @ObservationIgnored private var engine: StrokeEngine?
     @ObservationIgnored private let strokeBufferLock = NSLock()
     @ObservationIgnored private var strokeBuffer: StrokeBuffer?
+    /// 色混ぜブラシのときはこちら（レイヤーに直接混ぜる）
+    @ObservationIgnored private var mixBuffer: MixBuffer?
+    private var strokeTarget: StrokeTarget? { mixBuffer ?? strokeBuffer }
     @ObservationIgnored private var strokeLayerID: UUID?
     @ObservationIgnored private var strokeMode: StrokeApplyMode = .normal
     @ObservationIgnored private var strokeBrush: BrushSettings?
     @ObservationIgnored private var strokeTip: BrushTip?
-    @ObservationIgnored private var carried: RGBA = .zero
     @ObservationIgnored private var strokeDabCount = 0
     public var isStroking: Bool { engine != nil }
 
@@ -276,7 +278,7 @@ public final class Editor {
     /// 表示用の合成オプション（ストローク中・変形中のプレビューを含む）
     public func compositeOptions() -> CompositeOptions {
         var o = CompositeOptions()
-        if let buf = strokeBuffer, let lid = strokeLayerID {
+        if let buf = strokeTarget, let lid = strokeLayerID {
             let mode = strokeMode
             let sel = doc.selection
             o.overrideLayerID = lid
@@ -349,8 +351,11 @@ public final class Editor {
         } else {
             strokeMode = layer.lockAlpha ? .lockAlpha : .normal
         }
-        strokeBuffer = StrokeBuffer(width: doc.width, height: doc.height)
-        carried = RGBA(mainColor.x, mainColor.y, mainColor.z, 1)
+        if brush.mixEnabled && brush.kind == .brush {
+            mixBuffer = MixBuffer(layer: layer.tiles, width: doc.width, height: doc.height)
+        } else {
+            strokeBuffer = StrokeBuffer(width: doc.width, height: doc.height)
+        }
         strokeDabCount = 0
         let e = StrokeEngine(brush: brush, usePressure: usePressure, zoom: zoom)
         e.emit = { [unowned self] dab in self.paintDab(dab) }
@@ -367,7 +372,8 @@ public final class Editor {
         guard let e = engine else { return }
         e.end()
         engine = nil
-        guard let buf = strokeBuffer, let lid = strokeLayerID else { return }
+        guard let buf = strokeTarget, let lid = strokeLayerID else { return }
+        let isMix = mixBuffer != nil
         let touched = buf.touched
         if !touched.isEmpty {
             checkpoint(strokeMode == .erase ? "消しゴム" : "描画")
@@ -381,11 +387,13 @@ public final class Editor {
                     let t = layer.tiles.mutableTile(key, gen: g)
                     _ = buf.apply(key: key, src: t.data, out: t.data, mode: mode, selection: sel)
                 }
-                if mode == .erase { layer.tiles.pruneTransparent(keys) }
+                // 色混ぜは透明を引きずって消すこともある
+                if mode == .erase || isMix { layer.tiles.pruneTransparent(keys) }
             }
             contentChanged(lid, rect: touched)
         }
         strokeBuffer = nil
+        mixBuffer = nil
         strokeLayerID = nil
         strokeTip = nil
         strokeBrush = nil
@@ -393,29 +401,18 @@ public final class Editor {
     }
 
     private func paintDab(_ dab: Dab) {
-        guard let buf = strokeBuffer, let brush = strokeBrush, let tip = strokeTip,
-              let lid = strokeLayerID, let layer = doc.node(lid) else { return }
+        guard let brush = strokeBrush, let tip = strokeTip else { return }
+        strokeDabCount += 1
+        if let mix = mixBuffer {
+            let r = mix.render(dab, brushColor: mainColor, tip: tip, hardness: brush.hardness, roundness: brush.roundness,
+                               flow: brush.flow, spacing: brush.spacing, paintAmount: brush.paintAmount,
+                               colorStretch: brush.colorStretch)
+            markDirty(r)
+            return
+        }
+        guard let buf = strokeBuffer else { return }
         var d = dab
         d.color = mainColor
-        if brush.mixEnabled && brush.kind == .brush {
-            let sample = buf.sampleAverage(x: dab.x, y: dab.y, radius: dab.radius, layer: layer.tiles, mode: strokeMode)
-            let brushColor = RGBA(mainColor.x, mainColor.y, mainColor.z, 1)
-            // 移動距離（ブラシ直径）あたりの割合 → ダブあたりの割合
-            let s = max(brush.spacing, 0.01)
-            let pickup = 1 - pow(1 - clamp01(1 - brush.colorStretch), s)
-            let supply = 1 - pow(1 - clamp01(brush.paintAmount), s)
-            if strokeDabCount == 0 {
-                carried = sample + (brushColor - sample) * brush.paintAmount
-            } else {
-                carried += (sample - carried) * pickup
-                carried += (brushColor - carried) * supply
-            }
-            if carried.w > 0.002 {
-                d.color = SIMD3(carried.x, carried.y, carried.z) / carried.w
-            }
-            d.alpha *= clamp01(carried.w)
-        }
-        strokeDabCount += 1
         let r = buf.render(d, tip: tip, hardness: brush.hardness, roundness: brush.roundness, flow: brush.flow)
         markDirty(r)
     }

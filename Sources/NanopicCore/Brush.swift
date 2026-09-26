@@ -570,32 +570,6 @@ public final class StrokeBuffer: @unchecked Sendable {
         return true
     }
 
-    /// ダブ位置の平均色（レイヤー + ストローク合成後、premultiplied）
-    public func sampleAverage(x: Float, y: Float, radius: Float, layer: TileMap, mode: StrokeApplyMode) -> RGBA {
-        let n = radius < 2 ? 1 : 5
-        var sum = RGBA.zero
-        let k: Float = 1.0 / 255.0
-        for j in 0..<n {
-            for i in 0..<n {
-                let fx = n == 1 ? x : x + (Float(i) / Float(n - 1) - 0.5) * radius * 1.2
-                let fy = n == 1 ? y : y + (Float(j) / Float(n - 1) - 0.5) * radius * 1.2
-                let px = Int(floor(fx)), py = Int(floor(fy))
-                let lp = layer.pixel(px, py)
-                var d = RGBA(Float(lp.0), Float(lp.1), Float(lp.2), Float(lp.3)) * k
-                let s = pixel(px, py)
-                if s.w > 0 {
-                    switch mode {
-                    case .normal: d = RGBA(s.x * s.w, s.y * s.w, s.z * s.w, s.w) + d * (1 - s.w)
-                    case .lockAlpha: d = RGBA(s.x * s.w * d.w, s.y * s.w * d.w, s.z * s.w * d.w, 0) + d * (1 - s.w); d.w = Float(lp.3) * k
-                    case .erase: d = d * (1 - s.w)
-                    }
-                }
-                sum += d
-            }
-        }
-        return sum / Float(n * n)
-    }
-
     public func clear() {
         for (_, p) in tiles { p.deallocate() }
         tiles.removeAll()

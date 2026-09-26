@@ -47,6 +47,17 @@ final class PerfTests: XCTestCase {
         print(String(format: "PERF 300px stroke 240 samples: total %.1f ms, frame composite avg %.2f ms max %.2f ms",
                      total, frameTimes.reduce(0, +) / Double(frameTimes.count), frameTimes.max()!))
 
+        // 色混ぜ 200px
+        ed.activeBrushIndex = 6
+        b = ed.currentBrush; b.size = 200; ed.currentBrush = b
+        t0 = Date()
+        ed.beginStroke(StrokeInput(x: 100, y: 1000, pressure: 1, time: 0), usePressure: true, zoom: 1)
+        for i in 1...240 {
+            ed.continueStroke(StrokeInput(x: 100 + Double(i) * 12, y: 1000 + Double(i) * 4, pressure: 1, time: Double(i) / 240))
+        }
+        ed.endStroke()
+        print(String(format: "PERF mix 200px stroke 240 samples: %.1f ms", Date().timeIntervalSince(t0) * 1000))
+
         t0 = Date()
         ed.fillSettings.reference = .allLayers
         ed.fill(atX: 2000, y: 1500)
