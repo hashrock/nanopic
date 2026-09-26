@@ -33,6 +33,10 @@ struct ContentView: View {
             }
             .frame(width: 270)
         }
+        // キャンバス以外（パネル）へのドロップでも開けるように
+        .dropDestination(for: URL.self) { urls, _ in
+            state.openDropped(urls, asLayer: NSEvent.modifierFlags.contains(.option))
+        }
         .sheet(isPresented: Binding(get: { state.showNewDocumentSheet }, set: { state.showNewDocumentSheet = $0 })) {
             NewDocumentSheet(state: state)
         }

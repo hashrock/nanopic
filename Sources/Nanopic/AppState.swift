@@ -132,6 +132,34 @@ final class AppState {
         open(url: url)
     }
 
+    static let openableExtensions: Set<String> = ["psd", "psb", "png", "jpg", "jpeg", "tif", "tiff", "bmp", "gif", "heic", "webp"]
+
+    static func isOpenable(_ url: URL) -> Bool {
+        url.isFileURL && openableExtensions.contains(url.pathExtension.lowercased())
+    }
+
+    /// ウィンドウにドロップされたファイルを開く。Option を押しながらなら画像を新規レイヤーとして追加。
+    @discardableResult
+    func openDropped(_ urls: [URL], asLayer: Bool) -> Bool {
+        guard let url = urls.first(where: Self.isOpenable) else { return false }
+        // ドラッグ操作の途中でモーダルを出さないよう、次のランループで処理する
+        DispatchQueue.main.async { [self] in
+            NSApp.activate(ignoringOtherApps: true)
+            let ext = url.pathExtension.lowercased()
+            if asLayer && ext != "psd" && ext != "psb" {
+                if let img = ImageUtil.loadImage(url: url) {
+                    editor.addImageLayer(name: url.deletingPathExtension().lastPathComponent, image: img)
+                } else {
+                    showError("画像を読み込めませんでした")
+                }
+                return
+            }
+            guard confirmDiscardChanges() else { return }
+            open(url: url)
+        }
+        return true
+    }
+
     func open(url: URL) {
         let ext = url.pathExtension.lowercased()
         do {

@@ -79,6 +79,7 @@ final class CanvasView: NSView {
         addSubview(overlay)
         editor.onNeedsDisplay = { [weak self] in self?.requestDisplay() }
         state.canvasView = self
+        registerForDraggedTypes([.fileURL])
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -413,6 +414,35 @@ final class CanvasView: NSView {
         }
     }
 
+    // MARK: - ファイルのドロップ
+
+    /// ドロップ受付中（オーバーレイで枠を表示）
+    private(set) var isDropTarget = false
+
+    private func droppedURLs(_ info: NSDraggingInfo) -> [URL] {
+        let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+                                                       options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        return urls.filter(AppState.isOpenable)
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard !droppedURLs(sender).isEmpty else { return [] }
+        isDropTarget = true
+        overlay.needsDisplay = true
+        return .copy
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        isDropTarget = false
+        overlay.needsDisplay = true
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        isDropTarget = false
+        overlay.needsDisplay = true
+        return state.openDropped(droppedURLs(sender), asLayer: NSEvent.modifierFlags.contains(.option))
+    }
+
     // MARK: - スクロール・ジェスチャー
 
     override func scrollWheel(with e: NSEvent) {
@@ -634,6 +664,13 @@ final class OverlayView: NSView {
                 ctx.setStrokeColor(NSColor.systemBlue.cgColor)
                 ctx.stroke(r)
             }
+        }
+
+        // ファイルのドロップ受付
+        if canvas.isDropTarget {
+            ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+            ctx.setLineWidth(4)
+            ctx.stroke(bounds.insetBy(dx: 2, dy: 2))
         }
 
         // ブラシカーソル
