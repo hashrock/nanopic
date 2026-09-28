@@ -68,6 +68,9 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
     private var carriedExtent: Float = 0
     /// 直前のダブ位置（ゆがみの前方向の移動量に使う）
     private var lastDab: (x: Float, y: Float)?
+    /// ゆがみの累積変位（出力 p = 元のレイヤー (p - D(p))）。
+    /// 画像を毎ダブ再サンプルすると補間で徐々にぼやけるため、変位場を積算して元画像から 1 回だけサンプルする
+    private var displacement: [TileKey: UnsafeMutablePointer<SIMD2<Float>>] = [:]
 
     public init(layer: TileMap, width: Int, height: Int) {
         self.layer = layer
@@ -77,6 +80,7 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
 
     deinit {
         for (_, p) in tiles { p.deallocate() }
+        for (_, p) in displacement { p.deallocate() }
     }
 
     public var tileKeys: [TileKey] { Array(tiles.keys) }
@@ -104,6 +108,14 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
         if let t = tiles[key] { return t[i] }
         guard let src = layer[key] else { return .zero }
         let p = src.data + i * 4
+        return RGBA(Float(p[0]), Float(p[1]), Float(p[2]), Float(p[3])) / 255
+    }
+
+    /// ストローク開始時のレイヤーの画素（範囲外は端の画素）
+    @inline(__always) private func originalPixel(_ x: Int, _ y: Int) -> RGBA {
+        let cx = min(max(x, 0), width - 1), cy = min(max(y, 0), height - 1)
+        guard let src = layer[TileKey(x: cx / kTileSize, y: cy / kTileSize)] else { return .zero }
+        let p = src.data + ((cy % kTileSize) * kTileSize + (cx % kTileSize)) * 4
         return RGBA(Float(p[0]), Float(p[1]), Float(p[2]), Float(p[3])) / 255
     }
 
@@ -154,8 +166,10 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
         let shape = DabShape(dab: dab, radius: radius, tip: tip, hardness: brush.hardness, roundness: brush.roundness)
         touched = touched.union(bb)
         if brush.hasWarp {
+            // ぼかし・色混ぜと併用するときは、それらの結果ごと歪めるため作業コピーを直接変位させる
             warp(dab: dab, shape: shape, bb: bb, strength: strength, e: e, brush: brush,
-                 step: prev.map { (dab.x - $0.x, dab.y - $0.y) } ?? (0, 0))
+                 step: prev.map { (dab.x - $0.x, dab.y - $0.y) } ?? (0, 0),
+                 accumulate: brush.blurAmount <= 0 && !brush.mixEnabled)
         }
         if brush.blurAmount > 0 {
             blur(shape: shape, bb: bb, amount: clamp01(brush.blurAmount) * strength, e: e, radius: radius)
@@ -192,7 +206,7 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
     // MARK: ゆがみ
 
     private func warp(dab: Dab, shape: DabShape, bb: IntRect, strength: Float, e: Float, brush: BrushSettings,
-                      step: (Float, Float)) {
+                      step: (Float, Float), accumulate: Bool) {
         let push = brush.warpPush
         // 膨張・回転はダブ 1 回あたりの量（止まっていても 60 回/秒 で効き続ける）
         let radialRate = brush.warpRadial * 0.04
@@ -202,8 +216,13 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
         let m = Int(ceil(maxDisp))
         let src = IntRect(minX: bb.minX - m, minY: bb.minY - m, maxX: bb.maxX + m, maxY: bb.maxY + m)
             .intersection(IntRect(x: 0, y: 0, width: width, height: height))
-        let snap = readRegion(src)
         let sw = src.width, sh = src.height
+        if accumulate {
+            warpDisplacement(dab: dab, shape: shape, bb: bb, strength: strength, push: push, step: step,
+                             radialRate: radialRate, twistRate: twistRate, src: src)
+            return
+        }
+        let snap = readRegion(src)
         @inline(__always) func at(_ x: Int, _ y: Int) -> RGBA {
             let cx = min(max(x - src.minX, 0), sw - 1), cy = min(max(y - src.minY, 0), sh - 1)
             return snap[cy * sw + cx]
@@ -226,6 +245,75 @@ public final class MixBuffer: StrokeTarget, @unchecked Sendable {
                 blendPixel(px, py, top + (bot - top) * ty, 1)
             }
         }
+    }
+
+    /// 変位場を積算して、元のレイヤーから 1 回だけサンプルする。
+    /// 今回の変位 d を現在の画像に適用すると 新(p) = 元(p - d - D(p - d)) なので D' (p) = d + D(p - d)
+    private func warpDisplacement(dab: Dab, shape: DabShape, bb: IntRect, strength: Float, push: Float,
+                                  step: (Float, Float), radialRate: Float, twistRate: Float, src: IntRect) {
+        // 変位場の該当範囲を書き換え前に写し取る（未変位の場所は 0）
+        let sw = src.width, sh = src.height
+        var snap = [SIMD2<Float>](repeating: .zero, count: sw * sh)
+        for key in src.tileKeys {
+            guard let f = displacement[key] else { continue }
+            let tr = key.rect.intersection(src)
+            let ox = key.x * kTileSize, oy = key.y * kTileSize
+            for y in tr.minY..<tr.maxY {
+                for x in tr.minX..<tr.maxX {
+                    snap[(y - src.minY) * sw + (x - src.minX)] = f[(y - oy) * kTileSize + (x - ox)]
+                }
+            }
+        }
+        @inline(__always) func at(_ x: Int, _ y: Int) -> SIMD2<Float> {
+            let cx = min(max(x - src.minX, 0), sw - 1), cy = min(max(y - src.minY, 0), sh - 1)
+            return snap[cy * sw + cx]
+        }
+        for key in bb.tileKeys {
+            let tr = key.rect.intersection(bb)
+            let ox = key.x * kTileSize, oy = key.y * kTileSize
+            var field: UnsafeMutablePointer<SIMD2<Float>>?
+            var tile: UnsafeMutablePointer<RGBA>?
+            for py in tr.minY..<tr.maxY {
+                for px in tr.minX..<tr.maxX {
+                    let sv = shape.value(px, py)
+                    if sv <= 0 { continue }
+                    let w = sv * strength
+                    let rx = Float(px) + 0.5 - dab.x, ry = Float(py) + 0.5 - dab.y
+                    let dx = w * (push * step.0 + radialRate * rx - twistRate * ry)
+                    let dy = w * (push * step.1 + radialRate * ry + twistRate * rx)
+                    if abs(dx) < 0.001 && abs(dy) < 0.001 { continue }
+                    // 変位元の位置の累積変位をバイリニアで取る（変位場は滑らかなので補間しても絵はぼやけない）
+                    let fx = Float(px) - dx, fy = Float(py) - dy
+                    let x0 = Int(floor(fx)), y0 = Int(floor(fy))
+                    let tx = fx - Float(x0), ty = fy - Float(y0)
+                    let top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * tx
+                    let bot = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * tx
+                    let d = SIMD2(dx, dy) + top + (bot - top) * ty
+                    if field == nil {
+                        field = displacementTile(key)
+                        tile = workingTile(key)
+                    }
+                    let i = (py - oy) * kTileSize + (px - ox)
+                    field![i] = d
+                    // 元のレイヤーからバイリニアで取る
+                    let gx = Float(px) - d.x, gy = Float(py) - d.y
+                    let ix = Int(floor(gx)), iy = Int(floor(gy))
+                    let ux = gx - Float(ix), uy = gy - Float(iy)
+                    let a = originalPixel(ix, iy), b = originalPixel(ix + 1, iy)
+                    let c = originalPixel(ix, iy + 1), e = originalPixel(ix + 1, iy + 1)
+                    let t0 = a + (b - a) * ux, t1 = c + (e - c) * ux
+                    tile![i] = t0 + (t1 - t0) * uy
+                }
+            }
+        }
+    }
+
+    private func displacementTile(_ key: TileKey) -> UnsafeMutablePointer<SIMD2<Float>> {
+        if let f = displacement[key] { return f }
+        let f = UnsafeMutablePointer<SIMD2<Float>>.allocate(capacity: kTilePixelCount)
+        f.initialize(repeating: .zero, count: kTilePixelCount)
+        displacement[key] = f
+        return f
     }
 
     // MARK: ぼかし

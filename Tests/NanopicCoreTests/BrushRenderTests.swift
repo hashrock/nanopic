@@ -157,4 +157,40 @@ final class BrushRenderTests: XCTestCase {
         }
         save(ed, "effects.png")
     }
+
+    /// ゆがみを何度重ねても絵がぼやけない（右回転 → 左回転で元に近い絵に戻る）
+    func testWarpDoesNotBlur() {
+        let ed = Editor(width: 240, height: 240)
+        ed.activeBrushIndex = 0
+        var pen = ed.currentBrush
+        pen.size = 6; pen.sizePressure = false; pen.smoothing = 0; pen.hardness = 1
+        ed.currentBrush = pen
+        for i in 0..<20 {
+            let x = 12 + Double(i) * 12
+            ed.beginStroke(StrokeInput(x: x, y: 0, pressure: 1, time: 0), usePressure: false, zoom: 1)
+            ed.continueStroke(StrokeInput(x: x, y: 240, pressure: 1, time: 0.2))
+            ed.endStroke()
+        }
+        let before = Compositor.compositeFull(ed.doc)
+        ed.activeBrushIndex = ed.brushes.firstIndex { $0.name == "ゆがみ" }!
+        for twist: Float in [1, -1] {
+            var b = ed.currentBrush; b.warpPush = 0; b.warpRadial = 0; b.warpTwist = twist; b.size = 160
+            ed.currentBrush = b
+            stroke(ed, from: (120, 120), to: (120.001, 120), curve: 0, duration: 0.5, pressure: { _ in 1 })
+        }
+        let after = Compositor.compositeFull(ed.doc)
+        // ブラシ中心付近で、白でも縞の色でもない中間の画素（ぼやけた画素）の数
+        func blurred(_ buf: [UInt8]) -> Int {
+            var count = 0
+            for y in 90..<150 {
+                for x in 90..<150 {
+                    let r = buf[(y * 240 + x) * 4]
+                    if r > 20 && r < 235 { count += 1 }
+                }
+            }
+            return count
+        }
+        // 毎ダブ画像を再サンプルすると、ほぼ全画素（3600）が中間色になる
+        XCTAssertLessThan(Double(blurred(after)), Double(blurred(before)) * 1.4)
+    }
 }
