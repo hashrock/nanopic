@@ -21,6 +21,13 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 CanvasRepresentable(state: state)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay(alignment: .topTrailing) {
+                        if let kind = state.adjustmentKind {
+                            AdjustmentPanel(state: state, kind: kind)
+                                .id(kind)
+                                .padding(12)
+                        }
+                    }
                 Divider()
                 StatusBar(state: state, editor: editor)
             }

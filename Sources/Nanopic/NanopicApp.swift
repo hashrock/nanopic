@@ -74,9 +74,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if flags.contains(.command) || flags.contains(.control) { return e }
         switch e.keyCode {
         case 36, 76: // return
+            if state.adjustmentKind != nil { state.closeAdjustment(commit: true); return nil }
             if editor.floating != nil { editor.commitTransform(); return nil }
             return e
         case 53: // escape
+            if state.adjustmentKind != nil { state.closeAdjustment(commit: false); return nil }
             if editor.floating != nil { editor.cancelTransform(); return nil }
             canvas.cancelInteraction()
             return nil
@@ -235,6 +237,11 @@ struct AppCommands: Commands {
                 .keyboardShortcut("d")
             Button("選択範囲を反転") { editor.invertSelection() }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
+        }
+        CommandMenu("フィルター") {
+            Button("色相・彩度・明度...") { state.openAdjustment(.hueSaturation) }
+                .keyboardShortcut("u")
+            Button("明るさ・コントラスト...") { state.openAdjustment(.brightnessContrast) }
         }
         CommandMenu("レイヤー") {
             Button("新規ラスターレイヤー") { editor.addLayer() }

@@ -943,6 +943,22 @@ extension AgentToolbox {
                                   layerID: lid, label: "塗りつぶし")
                 return [.text("塗りました")]
             },
+            AgentTool(name: "adjust_color",
+                      description: "色調補正: レイヤー（選択範囲があればその中）の色相・彩度・明度、明るさ・コントラストを変える。",
+                      properties: ["layer_id": layerID,
+                                   "hue": ["type": "number", "description": "色相 -180〜180（度）"],
+                                   "saturation": ["type": "number", "description": "彩度 -100〜100"],
+                                   "lightness": ["type": "number", "description": "明度 -100〜100"],
+                                   "brightness": ["type": "number", "description": "明るさ -100〜100"],
+                                   "contrast": ["type": "number", "description": "コントラスト -100〜100"]]) { [unowned self] a in
+                try useLayer(a, paint: true)
+                func v(_ k: String, _ r: Float) throws -> Float { Float(min(max(try a.double(k, default: 0), Double(-r)), Double(r))) }
+                let adj = ColorAdjustment(hue: try v("hue", 180), saturation: try v("saturation", 100), lightness: try v("lightness", 100),
+                                          brightness: try v("brightness", 100), contrast: try v("contrast", 100))
+                editor.previewAdjustment(adj)
+                editor.commitAdjustment()
+                return [.text("補正しました")]
+            },
             AgentTool(name: "set_color", description: "描画色（main）とサブカラー（sub）を設定する。",
                       properties: ["main": ["type": "string", "description": "\"#RRGGBB\""], "sub": ["type": "string"]]) { [unowned self] a in
                 if let c = try a.color("main") { editor.mainColor = c }

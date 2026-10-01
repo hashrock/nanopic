@@ -76,6 +76,8 @@ public final class Editor {
     public var grid = GridSettings()
     public private(set) var tips: [BrushTip] = BrushTip.builtins()
     public private(set) var floating: FloatingTransform?
+    /// 色調補正のプレビュー中（確定するまでレイヤーの中身は変えず、表示だけに補正をかける）
+    public private(set) var adjustment: (layerID: UUID, value: ColorAdjustment)?
     public var fileURL: URL?
     public private(set) var isDirty = false
 
@@ -123,6 +125,7 @@ public final class Editor {
 
     public func newDocument(width: Int, height: Int) {
         cancelTransform()
+        cancelAdjustment()
         gen += 1
         doc = Editor.makeNewDocument(width: width, height: height, gen: gen)
         selectedLayerIDs = []
@@ -134,6 +137,7 @@ public final class Editor {
 
     public func load(_ state: DocumentState, url: URL?) {
         cancelTransform()
+        cancelAdjustment()
         gen += 1
         doc = state
         func renumber(_ n: inout LayerNode) {
@@ -191,6 +195,7 @@ public final class Editor {
     public var redoLabel: String? { redoStack.last?.label }
 
     public func undo() {
+        cancelAdjustment()
         if let f = floating {
             // フローティング中は移動・変形を 1 操作ずつ戻し、最初まで戻ったら持ち上げ自体を取り消す
             if let prev = f.history.popLast() {
@@ -301,6 +306,14 @@ public final class Editor {
             o.overrideTile = { key, _, out in
                 f.renderTile(key: key, out: out)
             }
+        } else if let (lid, adj) = adjustment {
+            let sel = doc.selection
+            o.overrideLayerID = lid
+            o.overrideTile = { key, src, out in
+                guard let src else { return false }
+                adj.apply(tile: src, out: out, key: key, selection: sel)
+                return true
+            }
         }
         return o
     }
@@ -359,6 +372,7 @@ public final class Editor {
     public func beginStroke(_ input: StrokeInput, usePressure: Bool, zoom: Double) -> Bool {
         // 移動・変形中なら確定してから描く
         commitTransform()
+        cancelAdjustment()
         guard canPaintOnActiveLayer, let layer = doc.activeLayer else { return false }
         let brush = currentBrush
         strokeBrush = brush
@@ -732,6 +746,46 @@ public final class Editor {
         revision += 1
     }
 
+    // MARK: - 色調補正
+
+    /// 編集中のレイヤー（選択範囲があればその中）に補正をかけたときの見た目を表示する。描けないレイヤーなら false
+    @discardableResult
+    public func previewAdjustment(_ value: ColorAdjustment) -> Bool {
+        commitTransform()
+        guard canPaintOnActiveLayer, let layer = doc.activeLayer else { return false }
+        let before = adjustment
+        adjustment = (layer.id, value)
+        if before?.value != value || before?.layerID != layer.id { markDirty(adjustmentBounds(layer)) }
+        return true
+    }
+
+    /// プレビュー中の補正をレイヤーに書き込む
+    public func commitAdjustment() {
+        guard let (lid, adj) = adjustment else { return }
+        adjustment = nil
+        guard !adj.isIdentity, let layer = doc.node(lid) else {
+            doc.node(lid).map { markDirty(adjustmentBounds($0)) }
+            return
+        }
+        let rect = adjustmentBounds(layer)
+        checkpoint("色調補正")
+        let g = gen
+        let sel = doc.selection
+        doc.modify(lid) { l in
+            for key in Array(l.tiles.keys) where !key.rect.intersection(rect).isEmpty {
+                let t = l.tiles.mutableTile(key, gen: g)
+                adj.apply(tile: t.data, out: t.data, key: key, selection: sel)
+            }
+        }
+        contentChanged(lid, rect: rect)
+    }
+
+    public func cancelAdjustment() {
+        guard let (lid, _) = adjustment else { return }
+        adjustment = nil
+        doc.node(lid).map { markDirty(adjustmentBounds($0)) }
+    }
+
     // MARK: - レイヤー操作
 
     public var activeLayerID: UUID? { doc.activeLayerID }
@@ -740,6 +794,7 @@ public final class Editor {
     public func setActiveLayer(_ id: UUID) {
         guard doc.activeLayerID != id || !selectedLayerIDs.isEmpty else { return }
         commitTransform()
+        cancelAdjustment()
         doc.activeLayerID = id
         selectedLayerIDs = []
         revision += 1

@@ -11,6 +11,8 @@ final class AppState {
     var rotationDegrees: Double = 0
     var cursorCanvasPoint: CGPoint?
     var showNewDocumentSheet = false
+    /// 開いている補正パネル
+    var adjustmentKind: AdjustmentKind?
     var shortcuts = ShortcutMap.defaults
     /// ショートカットの入力待ち（この間は単キーのショートカットを無効にする）
     var isRecordingShortcut = false
