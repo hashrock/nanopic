@@ -7,6 +7,7 @@ a:focus-visible{outline:3px solid var(--accent);outline-offset:6px}
 .header{height:108px;display:flex;align-items:center;justify-content:space-between}
 .brand{display:inline-flex;align-items:center;gap:10px;font-size:23px;font-weight:650;letter-spacing:-1px}
 .brand img{display:block}
+.header-links{display:flex;align-items:center;gap:18px}
 .github{font-size:14px;color:var(--muted);padding:12px 0}
 .github span{margin-left:7px}
 .github:hover,.footer a:hover{color:var(--accent)}

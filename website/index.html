@@ -8,11 +8,17 @@
   <meta name="description" content="アカウント登録も、ライセンス認証もいらない。必要な道具だけをそろえた、Macのための小さなペイントアプリ。">
   <link rel="icon" href="./assets/nanopic.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./style.css">
+  <script type="module" src="https://repos.hashrock.info/switcher/v1.js"></script>
 </head>
 <body>
   <header class="header wrap">
     <a class="brand" href="./" aria-label="nanopic ホーム"><img src="./assets/nanopic.svg" width="36" height="36" alt=""><span>nanopic</span></a>
-    <a class="github" href="https://github.com/hashrock/nanopic">GitHub <span aria-hidden="true">↗</span></a>
+    <div class="header-links">
+      <a class="github" href="https://github.com/hashrock/nanopic">GitHub <span aria-hidden="true">↗</span></a>
+      <!-- hashrock の他のサービスへのメニュー。右上にヘッダーがあるので、浮かせずに GitHub リンクの隣に並べる。
+           ページは明るい配色で固定 (color-scheme: light) なので、OS の設定によらず light に揃える -->
+      <hashrock-switcher theme="light"></hashrock-switcher>
+    </div>
   </header>
   <main>
     <section class="hero wrap" aria-labelledby="headline">
