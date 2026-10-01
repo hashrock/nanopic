@@ -272,3 +272,55 @@ extension AgentToolTests {
         XCTAssertLessThan(n.tiles.pixel(55, 40).3, 255)
     }
 }
+
+extension AgentToolTests {
+    func framedLineArt(_ tb: AgentToolbox, brokenDivider: Bool) throws -> String {
+        let line = try object(tb.call("add_layer", ["name": "線画"]))["layer_id"] as! String
+        _ = try tb.call("stroke", ["points": [[20, 20], [180, 20], [180, 100], [20, 100], [20, 20]], "size": 3, "color": "#000000", "brush": "丸ペン"])
+        if brokenDivider {
+            _ = try tb.call("stroke", ["points": [[100, 20], [100, 50]], "size": 3, "color": "#000000", "brush": "丸ペン"])
+            _ = try tb.call("stroke", ["points": [[100, 68], [100, 100]], "size": 3, "color": "#000000", "brush": "丸ペン"])
+        } else {
+            _ = try tb.call("stroke", ["points": [[100, 20], [100, 100]], "size": 3, "color": "#000000", "brush": "丸ペン"])
+        }
+        return line
+    }
+
+    func testFindAndCloseGaps() throws {
+        let ed = Editor(width: 200, height: 120)
+        let tb = AgentToolbox(editor: ed)
+        let line = try framedLineArt(tb, brokenDivider: true)
+        let found = try tb.call("find_gaps", ["reference": line])
+        let gaps = try object(found)["gaps"] as! [[String: Any]]
+        XCTAssertEqual(gaps.count, 1)
+        let g = gaps[0]
+        XCTAssertEqual((g["from"] as! [Int])[0], 100, accuracy: 2)
+        XCTAssertEqual(g["length"] as! Int, 17, accuracy: 4)
+        let closed = try object(tb.call("close_gaps", ["gaps": "all"]))
+        let closing = closed["layer_id"] as! String
+        XCTAssertFalse(ed.doc.node(UUID(uuidString: closing)!)!.visible)
+        let regions = try object(tb.call("find_regions", ["reference": [line, closing]]))["regions"] as! [[String: Any]]
+        XCTAssertEqual(regions.filter { $0["touches_edge"] == nil }.count, 2)
+    }
+
+    func testClosedLineArtHasNoGaps() throws {
+        let tb = AgentToolbox(editor: Editor(width: 200, height: 120))
+        let line = try framedLineArt(tb, brokenDivider: false)
+        XCTAssertEqual(try object(tb.call("find_gaps", ["reference": line]))["count"] as? Int, 0)
+    }
+
+    func testLassoStayInsideLines() throws {
+        let ed = Editor(width: 200, height: 120)
+        let tb = AgentToolbox(editor: ed)
+        let line = try framedLineArt(tb, brokenDivider: false)
+        let flat = try object(tb.call("add_layer", ["name": "下塗り", "below": line]))["layer_id"] as! String
+        // 左の範囲を覆い、仕切りを越えて右へはみ出す多角形
+        _ = try tb.call("lasso_fill", ["points": [[10, 10], [130, 10], [130, 110], [10, 110]], "color": "#FF0000",
+                                       "stay_inside_lines": true, "seed": [60, 60], "reference": line, "layer_id": flat])
+        let l = ed.doc.node(UUID(uuidString: flat)!)!.tiles
+        XCTAssertEqual(l.pixel(60, 60).0, 255)
+        XCTAssertEqual(l.pixel(99, 60).0, 255, "線の下まで塗る")
+        XCTAssertEqual(l.pixel(115, 60).3, 0, "仕切りの向こうは塗らない")
+        XCTAssertEqual(l.pixel(12, 60).3, 0, "枠の外は塗らない")
+    }
+}

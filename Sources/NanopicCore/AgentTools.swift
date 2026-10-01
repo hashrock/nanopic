@@ -100,6 +100,9 @@ public final class AgentToolbox {
     public var extraTools: [AgentTool] = []
     /// 直前の find_regions の結果
     public private(set) var regionMap: RegionMap?
+    /// 直前の find_gaps の結果
+    private var gaps: [LineGap] = []
+    private var gapReference: [String]?
     /// 直前の find_regions で線として見たもの（fill_leftovers の既定）
     private var lastReference: [String]?
 
@@ -132,7 +135,8 @@ public final class AgentToolbox {
        線が大きく開いていて、塗り分けたい範囲が隣や背景とつながっているときは、新しいレイヤー（例: 閉じ線）に stroke で
        開いた所を閉じる線を描き（curve: true で点を通る滑らかな線になる。非表示のレイヤーにも layer_id を指定すれば描ける）、
        そのレイヤーを非表示にして、reference に [線画の ID, 閉じ線の ID] を渡して find_regions をやり直す。
-       多角形を手で合わせるより正確で早い。
+       開いた所は find_gaps で自動で探せる（候補を画像で確かめ、close_gaps で閉じ線レイヤーにまとめて描ける）。
+       多角形を手で合わせるより正確で早い。lasso_fill を使うときも stay_inside_lines: true で線を越えずに塗れる。
     2. 画像と元の絵を見比べ、各番号が何（肌、髪、服…）かを判断して、色を決める。
     3. fill_regions で番号と色をまとめて渡す（線の下まで少し広げて塗るので隙間が残らない）。
        パーツ（髪・肌・服…）ごとにレイヤーを分けるなら、各 fill に name をつけて separate_layers: true にする（線画の下のフォルダーにパーツごとのレイヤーができる）。
@@ -186,6 +190,22 @@ public final class AgentToolbox {
                       required: ["fills"]) { [unowned self] a in
                 try fillRegions(a)
             },
+            AgentTool(name: "find_gaps",
+                      description: "線画の開いた所（線の端が近くの線に届いていない所）を探し、閉じる線分の候補を番号つきで返す（画像に赤い線で描く）。close_gaps でまとめて閉じ線にできる。find_regions で範囲が隣や背景とつながってしまうときに。",
+                      properties: ["reference": ["description": "線画のレイヤー ID か ID の配列。省略すると直前の find_regions と同じ"],
+                                   "max_distance": ["type": "integer", "description": "これより長い隙間は探さない（px、既定 40）"],
+                                   "line_threshold": ["type": "number"],
+                                   "max_size": ["type": "integer", "description": "画像の長辺の最大 px（既定 1024）"]]) { [unowned self] a in
+                try findGaps(a)
+            },
+            AgentTool(name: "close_gaps",
+                      description: "find_gaps の候補を閉じ線として描く。閉じ線のレイヤー（なければ「閉じ線」を線画の上に作る）に描いて非表示にする。そのあと find_regions の reference に [線画, 閉じ線] を渡す。",
+                      properties: ["gaps": ["description": "閉じる番号の配列、または \"all\""],
+                                   "layer_id": ["type": "string", "description": "閉じ線のレイヤー。省略すると「閉じ線」レイヤー"],
+                                   "width": ["type": "number", "description": "線の太さ px（既定 3）"]],
+                      required: ["gaps"]) { [unowned self] a in
+                try closeGaps(a)
+            },
             AgentTool(name: "fill_leftovers",
                       description: "下塗りの塗り残し（線画で囲まれた、まだ塗っていない小さなすき間）を探し、接している色で塗る。fill_regions や lasso_fill のあとの仕上げに。dry_run: true なら塗らずに場所だけ返す。",
                       properties: ["layer_id": ["type": "string", "description": "下塗りのレイヤー、またはパーツごとのレイヤーを入れたフォルダー。省略すると編集中のレイヤー"],
@@ -208,7 +228,10 @@ public final class AgentToolbox {
                       description: "点を結んだ多角形の内側を塗る（erase: true なら消す）。",
                       properties: ["points": points.merging(["description": "[[x, y], ...]"]) { a, _ in a },
                                    "color": color, "erase": ["type": "boolean"], "layer_id": layerID,
-                                   "antialias": ["type": "boolean", "description": "既定 true"]],
+                                   "antialias": ["type": "boolean", "description": "既定 true"],
+                                   "stay_inside_lines": ["type": "boolean", "description": "線を越えない: 多角形の中を線で区切ったうち、seed（なければ一番大きい部分）だけを線の下まで塗る。多角形が線をまたいでもはみ出さない"],
+                                   "seed": ["type": "array", "items": ["type": "number"], "description": "stay_inside_lines で塗る部分の中の点 [x, y]"],
+                                   "reference": ["description": "stay_inside_lines で線として見るレイヤー ID（配列可）。省略すると直前の find_regions と同じ"]],
                       required: ["points"]) { [unowned self] a in
                 try lassoFill(a)
             },
@@ -505,6 +528,77 @@ public final class AgentToolbox {
         return [.text(json(["count": found.count, "filled": !dry, "leftovers": list]))]
     }
 
+    private func findGaps(_ a: AgentArgs) throws -> [AgentContent] {
+        guard let keys = try referenceKeys(a) ?? lastReference, keys != ["all"] else {
+            throw AgentError("reference（線画のレイヤー ID）を指定してください")
+        }
+        let doc = editor.doc
+        let (ref, refName) = try referenceImage(keys)
+        gaps = GapFinder.find(reference: ref, width: doc.width, height: doc.height,
+                              lineThreshold: Float(try a.double("line_threshold", default: 0.5)),
+                              maxDistance: max(4, try a.int("max_distance", default: 40)))
+        gapReference = keys
+        var contents: [AgentContent] = []
+        if let img = AgentRender.render(ref, width: doc.width, height: doc.height, rect: doc.bounds,
+                                        maxSize: try a.int("max_size", default: 1024), grid: false, draw: { [gaps] ctx, scale in
+            ctx.setStrokeColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
+            ctx.setLineWidth(CGFloat(3 * scale))
+            for g in gaps {
+                ctx.strokeLineSegments(between: [CGPoint(x: g.from.x, y: g.from.y), CGPoint(x: g.to.x, y: g.to.y)])
+                AgentRender.label(ctx, "\(g.id)", at: CGPoint(x: Double(g.from.x + g.to.x) / 2, y: Double(g.from.y + g.to.y) / 2 - 10 * scale),
+                                  size: 10 * scale, centered: true)
+            }
+        }) {
+            contents.append(.png(img.png))
+        }
+        let list: [[String: Any]] = gaps.map { ["gap": $0.id, "from": [$0.from.x, $0.from.y], "to": [$0.to.x, $0.to.y], "length": Int($0.length.rounded())] }
+        contents.append(.text(json(["reference": refName, "count": gaps.count, "gaps": list,
+                                    "note": "線の端から、進む向きにある近くの線へ結ぶ候補。髪の毛先のように開いたままでよい所もあるので、画像を見て閉じる番号を選び close_gaps に渡す。"])))
+        return contents
+    }
+
+    private func closeGaps(_ a: AgentArgs) throws -> [AgentContent] {
+        guard !gaps.isEmpty else { throw AgentError("先に find_gaps を呼んでください（候補がありません）") }
+        let chosen: [LineGap]
+        if (a.raw["gaps"] as? String) == "all" {
+            chosen = gaps
+        } else if let ids = a.raw["gaps"] as? [NSNumber] {
+            chosen = try ids.map { n in
+                guard let g = gaps.first(where: { $0.id == n.intValue }) else { throw AgentError("gap \(n) はありません") }
+                return g
+            }
+        } else {
+            throw AgentError("gaps には番号の配列か \"all\" を指定してください")
+        }
+        let doc = editor.doc
+        var lid = try a.uuid("layer_id")
+        if lid == nil { lid = findNode(named: "閉じ線", folder: false, in: doc.layers) }
+        if lid == nil {
+            editor.addLayer(name: "閉じ線")
+            lid = editor.activeLayerID
+            if let line = gapReference?.compactMap(UUID.init(uuidString:)).first, editor.doc.node(line) != nil {
+                editor.moveLayer(lid!, relativeTo: line, placement: .above)
+            }
+        }
+        guard let lid, let node = editor.doc.node(lid), node.kind == .raster else { throw AgentError("閉じ線のレイヤーが見つかりません") }
+        let width = try a.double("width", default: 3)
+        let path = CGMutablePath()
+        for g in chosen {
+            path.move(to: CGPoint(x: Double(g.from.x) + 0.5, y: Double(g.from.y) + 0.5))
+            path.addLine(to: CGPoint(x: Double(g.to.x) + 0.5, y: Double(g.to.y) + 0.5))
+        }
+        let m = SelectionMask.fromPath(path.copy(strokingWithWidth: CGFloat(width), lineCap: .round, lineJoin: .round, miterLimit: 1),
+                                       width: doc.width, height: doc.height, antialias: false)
+        if !m.isEmpty {
+            editor.paintMasks([Editor.MaskPaint(bounds: m.bounds, color: SIMD3(0, 0, 0)) { x, y in m.value(x, y) }], layerID: lid, label: "閉じ線")
+        }
+        if node.visible { editor.setLayerProperty(lid, label: "閉じ線を隠す") { $0.visible = false } }
+        var ref = gapReference ?? []
+        if !ref.contains(lid.uuidString) { ref.append(lid.uuidString) }
+        return [.text(json(["layer_id": lid.uuidString, "closed": chosen.count,
+                            "next": "find_regions の reference に \(ref) を渡して、範囲を探し直す"]))]
+    }
+
     private func fillLeftovers(_ a: AgentArgs, folder: LayerNode) throws -> [AgentContent] {
         guard let keys = try referenceKeys(a) ?? lastReference, keys != ["all"] else {
             throw AgentError("reference（線画のレイヤー ID）を指定してください")
@@ -625,9 +719,55 @@ public final class AgentToolbox {
         let m = SelectionMask.fromPath(path, width: editor.doc.width, height: editor.doc.height, antialias: try a.bool("antialias") ?? true)
         guard !m.isEmpty else { return [.text("範囲がキャンバスの外です")] }
         let erase = try a.bool("erase") ?? false
+        if try a.bool("stay_inside_lines") ?? false {
+            return try lassoFillInsideLines(a, mask: m, layer: lid, erase: erase)
+        }
         editor.paintMasks([Editor.MaskPaint(bounds: m.bounds, color: try a.color("color") ?? editor.mainColor, erase: erase) { x, y in m.value(x, y) }],
                           layerID: lid, label: erase ? "投げなわ消しゴム" : "投げなわ塗り")
         return [.text(erase ? "消しました" : "塗りました")]
+    }
+
+    /// 多角形の中を線で区切り、seed を含む部分（なければ一番大きい部分）だけを、線の下まで広げて塗る
+    private func lassoFillInsideLines(_ a: AgentArgs, mask m: SelectionMask, layer lid: UUID, erase: Bool) throws -> [AgentContent] {
+        guard let keys = try referenceKeys(a) ?? lastReference, keys != ["all"] else {
+            throw AgentError("stay_inside_lines には reference（線画のレイヤー ID）が要ります")
+        }
+        let doc = editor.doc
+        let (ref, _) = try referenceImage(keys)
+        let b = m.bounds, bw = b.width, bh = b.height
+        // 多角形の中だけを参照にした小さな画像で範囲を分ける（多角形の外は線として扱う）
+        var local = [UInt8](repeating: 0, count: bw * bh * 4)
+        for y in 0..<bh {
+            for x in 0..<bw {
+                let gx = x + b.minX, gy = y + b.minY
+                let o = (y * bw + x) * 4, g = (gy * doc.width + gx) * 4
+                if m.value(gx, gy) < 128 {
+                    local[o + 3] = 255 // 黒（線）
+                } else {
+                    for c in 0..<4 { local[o + c] = ref[g + c] }
+                }
+            }
+        }
+        let map = RegionMap.build(reference: local, width: bw, height: bh, minArea: 1)
+        guard !map.regions.isEmpty else { return [.text("塗れる範囲がありませんでした")] }
+        var target = 1
+        if let seed = a.raw["seed"] as? [NSNumber], seed.count >= 2 {
+            let sx = seed[0].intValue - b.minX, sy = seed[1].intValue - b.minY
+            guard sx >= 0, sy >= 0, sx < bw, sy < bh, map.labels[sy * bw + sx] > 0 else {
+                throw AgentError("seed が多角形の中の、線でない所にありません")
+            }
+            target = Int(map.labels[sy * bw + sx])
+        }
+        guard var p = map.paint(target, color: try a.color("color") ?? editor.mainColor, expand: 2) else { return [.text("塗れる範囲がありませんでした")] }
+        // 多角形の外へは広げない
+        let inner = p.alpha, ox = b.minX, oy = b.minY
+        p.bounds = IntRect(x: p.bounds.x + ox, y: p.bounds.y + oy, width: p.bounds.width, height: p.bounds.height)
+        p.alpha = { x, y in m.value(x, y) >= 128 ? inner(x - ox, y - oy) : 0 }
+        p.erase = erase
+        editor.paintMasks([p], layerID: lid, label: erase ? "投げなわ消しゴム" : "投げなわ塗り")
+        let r = map.region(target)!
+        return [.text(json(["area": r.area, "parts": map.regions.count,
+                            "note": map.regions.count > 1 ? "多角形の中は線で \(map.regions.count) 個に分かれていた。塗ったのは 1 個（面積 \(r.area)）" : "塗りました"]))]
     }
 
     private func stroke(_ a: AgentArgs) throws -> [AgentContent] {
