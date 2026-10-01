@@ -129,6 +129,7 @@ public final class AgentToolbox {
     2. 画像と元の絵を見比べ、各番号が何（肌、髪、服…）かを判断して、色を決める。
     3. 塗り用のレイヤーを選んで fill_regions で番号と色をまとめて渡す（線の下まで少し広げて塗るので隙間が残らない）。
     4. get_image で確かめ、塗り残しは fill（点で塗りつぶし）や lasso_fill（多角形で塗る）で、色違いは同じ番号を塗り直して直す。
+       fill の起点は線の上ではなく、塗りたい範囲の内側にする（線の上から塗ると、つながった線全体が塗られる）。
     """
 
     // MARK: - ツールの定義
@@ -436,12 +437,22 @@ public final class AgentToolbox {
         if let t = try a.double("tolerance") { s.tolerance = Float(t) }
         if let g = try a.int("gap_close") { s.gapClose = g }
         if let e = try a.int("expand") { s.expand = e }
+        let seed = editor.pickColor(x: x, y: y)
         let (mask, bounds) = editor.regionMask(at: x, y, using: s)
         guard !bounds.isEmpty else { return [.text("塗る範囲がありませんでした")] }
         let w = editor.doc.width
         editor.paintMasks([Editor.MaskPaint(bounds: bounds, color: try a.color("color") ?? editor.mainColor) { x, y in mask[y * w + x] }],
                           layerID: lid, label: "塗りつぶし")
-        return [.text("塗りました（範囲 \(Self.rectJSON(bounds))）")]
+        var area = 0
+        for yy in bounds.minY..<bounds.maxY {
+            for xx in bounds.minX..<bounds.maxX where mask[yy * w + xx] != 0 { area += 1 }
+        }
+        var out: [String: Any] = ["area": area, "bounds": Self.rectJSON(bounds), "seed_color": seed.map(Self.hex) as Any? ?? NSNull()]
+        // 線の上から塗ると、つながった線全体を塗ってしまう
+        if let c = seed, (c.x + c.y + c.z) / 3 < 0.5 {
+            out["warning"] = "起点 (\(x), \(y)) は暗い色（線の上の可能性）です。つながった線全体を塗ったかもしれません。意図と違えば undo して、線の内側の点で塗り直してください"
+        }
+        return [.text(json(out))]
     }
 
     private func lassoFill(_ a: AgentArgs) throws -> [AgentContent] {

@@ -96,3 +96,17 @@ final class AgentToolTests: XCTestCase {
         XCTAssertTrue(text(out).contains("5.00"))
     }
 }
+
+extension AgentToolTests {
+    /// 線の上から塗りつぶすと警告が出ること
+    func testFillOnLineWarns() throws {
+        let ed = Editor(width: 200, height: 120)
+        let tb = AgentToolbox(editor: ed)
+        _ = try tb.call("stroke", ["points": [[20, 60], [180, 60]], "size": 6, "color": "#000000", "brush": "丸ペン"])
+        let onLine = try object(tb.call("fill", ["x": 100, "y": 60, "color": "#FF0000"]))
+        XCTAssertNotNil(onLine["warning"])
+        let inside = try object(tb.call("fill", ["x": 100, "y": 20, "color": "#FF0000"]))
+        XCTAssertNil(inside["warning"])
+        XCTAssertGreaterThan(inside["area"] as! Int, 0)
+    }
+}
