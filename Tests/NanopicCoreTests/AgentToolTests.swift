@@ -117,9 +117,9 @@ extension AgentToolTests {
         let tb = AgentToolbox(editor: ed)
         let out = try tb.call("batch", ["calls": [
             ["tool": "add_layer", "arguments": ["name": "a"]],
-            ["tool": "fill_selection", "arguments": ["color": "#00FF00"]],
+            ["tool": "mcp__nanopic__fill_selection", "arguments": ["color": "#00FF00"]],
         ]])
-        XCTAssertTrue(text(out).contains("2 件中 2 件成功"))
+        XCTAssertTrue(text(out).contains("2 件すべて成功"))
         XCTAssertEqual(ed.doc.activeLayer?.name, "a")
         XCTAssertEqual(ed.doc.activeLayer?.tiles.pixel(50, 50).1, 255)
         XCTAssertThrowsError(try tb.call("batch", ["calls": [["tool": "set_color", "arguments": ["main": "bad"]],
@@ -192,7 +192,7 @@ extension AgentToolTests {
         let fid = UUID(uuidString: flat)!
         XCTAssertEqual(ed.doc.node(fid)!.tiles.pixel(95, 60).3, 0)
         let out = try object(tb.call("fill_leftovers", ["reference": line, "max_area": 2000]))
-        XCTAssertEqual(out["count"] as? Int, 1)
+        XCTAssertEqual(out["filled"] as? Int, 1)
         let px = ed.doc.node(fid)!.tiles.pixel(95, 60)
         XCTAssertEqual(px.1, 255)
         XCTAssertEqual(px.0, 0)
@@ -255,7 +255,7 @@ extension AgentToolTests {
         XCTAssertEqual(ed.doc.node(folder.id)!.children.count, 2)
         // フォルダー指定で塗り残しを埋める（今回は塗り残しなし）
         let left = try object(tb.call("fill_leftovers", ["layer_id": folder.id.uuidString]))
-        XCTAssertEqual(left["count"] as? Int, 0)
+        XCTAssertEqual(left["filled"] as? Int, 0)
     }
 
     func testCurveAndHiddenLayerStroke() throws {
@@ -309,18 +309,4 @@ extension AgentToolTests {
         XCTAssertEqual(try object(tb.call("find_gaps", ["reference": line]))["count"] as? Int, 0)
     }
 
-    func testLassoStayInsideLines() throws {
-        let ed = Editor(width: 200, height: 120)
-        let tb = AgentToolbox(editor: ed)
-        let line = try framedLineArt(tb, brokenDivider: false)
-        let flat = try object(tb.call("add_layer", ["name": "下塗り", "below": line]))["layer_id"] as! String
-        // 左の範囲を覆い、仕切りを越えて右へはみ出す多角形
-        _ = try tb.call("lasso_fill", ["points": [[10, 10], [130, 10], [130, 110], [10, 110]], "color": "#FF0000",
-                                       "stay_inside_lines": true, "seed": [60, 60], "reference": line, "layer_id": flat])
-        let l = ed.doc.node(UUID(uuidString: flat)!)!.tiles
-        XCTAssertEqual(l.pixel(60, 60).0, 255)
-        XCTAssertEqual(l.pixel(99, 60).0, 255, "線の下まで塗る")
-        XCTAssertEqual(l.pixel(115, 60).3, 0, "仕切りの向こうは塗らない")
-        XCTAssertEqual(l.pixel(12, 60).3, 0, "枠の外は塗らない")
-    }
 }

@@ -136,7 +136,7 @@ public final class AgentToolbox {
        開いた所を閉じる線を描き（curve: true で点を通る滑らかな線になる。非表示のレイヤーにも layer_id を指定すれば描ける）、
        そのレイヤーを非表示にして、reference に [線画の ID, 閉じ線の ID] を渡して find_regions をやり直す。
        開いた所は find_gaps で自動で探せる（候補を画像で確かめ、close_gaps で閉じ線レイヤーにまとめて描ける）。
-       多角形を手で合わせるより正確で早い。lasso_fill を使うときも stay_inside_lines: true で線を越えずに塗れる。
+       多角形を手で合わせるより正確で早い。
     2. 画像と元の絵を見比べ、各番号が何（肌、髪、服…）かを判断して、色を決める。
     3. fill_regions で番号と色をまとめて渡す（線の下まで少し広げて塗るので隙間が残らない）。
        パーツ（髪・肌・服…）ごとにレイヤーを分けるなら、各 fill に name をつけて separate_layers: true にする（線画の下のフォルダーにパーツごとのレイヤーができる）。
@@ -171,10 +171,7 @@ public final class AgentToolbox {
                       properties: ["reference": ["description": "線として見るもの: 線画のレイヤー ID か ID の配列（線画＋閉じ線のレイヤーなど。非表示でもよい）、\"all\"（見えている全体、既定）、\"reference_layers\"（参照レイヤー）"],
                                    "line_threshold": ["type": "number", "description": "白背景に重ねた暗さがこれ以上を線とみなす 0〜1（既定 0.5）"],
                                    "gap_close": ["type": "integer", "description": "この px までの線の途切れを閉じて扱う（既定 0）"],
-                                   "min_area": ["type": "integer", "description": "これより小さい範囲は除く（px、既定 30）"],
-                                   "max_regions": ["type": "integer", "description": "一覧に載せる最大数（大きい順、既定 300）"],
-                                   "list_min_area": ["type": "integer", "description": "これより小さい範囲は一覧に載せず数だけ返す（px、既定 150）"],
-                                   "max_size": ["type": "integer", "description": "画像の長辺の最大 px（既定 1024）"]]) { [unowned self] a in
+                                   "list_min_area": ["type": "integer", "description": "これより小さい範囲は一覧に載せず数だけ返す（px、既定 150）"]]) { [unowned self] a in
                 try findRegions(a)
             },
             AgentTool(name: "fill_regions",
@@ -184,8 +181,6 @@ public final class AgentToolbox {
                                                        "required": ["region", "color"]]],
                                    "layer_id": layerID,
                                    "separate_layers": ["type": "boolean", "description": "name（なければ色）ごとにレイヤーを分けて塗る。レイヤーはフォルダーにまとめ、線画の下に作る（同じ name のレイヤーがあればそこに足す）"],
-                                   "folder": ["type": "string", "description": "separate_layers のフォルダー名（既定「下塗り」）"],
-                                   "below": ["type": "string", "description": "separate_layers のフォルダーをこのレイヤーの下に作る（既定は find_regions の線画）"],
                                    "expand": ["type": "integer", "description": "線の下へ広げる px（既定 2）"]],
                       required: ["fills"]) { [unowned self] a in
                 try fillRegions(a)
@@ -207,12 +202,12 @@ public final class AgentToolbox {
                 try closeGaps(a)
             },
             AgentTool(name: "fill_leftovers",
-                      description: "下塗りの塗り残し（線画で囲まれた、まだ塗っていない小さなすき間）を探し、接している色で塗る。fill_regions や lasso_fill のあとの仕上げに。dry_run: true なら塗らずに場所だけ返す。",
+                      description: "下塗りの塗り残し（線画で囲まれた、まだ塗っていない小さなすき間）を探し、接している色で塗る。fill_regions や lasso_fill のあとの仕上げに。",
                       properties: ["layer_id": ["type": "string", "description": "下塗りのレイヤー、またはパーツごとのレイヤーを入れたフォルダー。省略すると編集中のレイヤー"],
                                    "reference": ["description": "線画のレイヤー ID か ID の配列。省略すると直前の find_regions と同じ"],
                                    "max_area": ["type": "integer", "description": "これより大きいすき間は塗らない（px、既定 400）"],
                                    "expand": ["type": "integer", "description": "線の下へ広げる px（既定 2）"],
-                                   "line_threshold": ["type": "number"], "dry_run": ["type": "boolean"]]) { [unowned self] a in
+                                   "line_threshold": ["type": "number"]]) { [unowned self] a in
                 try fillLeftovers(a)
             },
             AgentTool(name: "fill",
@@ -228,10 +223,7 @@ public final class AgentToolbox {
                       description: "点を結んだ多角形の内側を塗る（erase: true なら消す）。",
                       properties: ["points": points.merging(["description": "[[x, y], ...]"]) { a, _ in a },
                                    "color": color, "erase": ["type": "boolean"], "layer_id": layerID,
-                                   "antialias": ["type": "boolean", "description": "既定 true"],
-                                   "stay_inside_lines": ["type": "boolean", "description": "線を越えない: 多角形の中を線で区切ったうち、seed（なければ一番大きい部分）だけを線の下まで塗る。多角形が線をまたいでもはみ出さない"],
-                                   "seed": ["type": "array", "items": ["type": "number"], "description": "stay_inside_lines で塗る部分の中の点 [x, y]"],
-                                   "reference": ["description": "stay_inside_lines で線として見るレイヤー ID（配列可）。省略すると直前の find_regions と同じ"]],
+                                   "antialias": ["type": "boolean", "description": "既定 true"]],
                       required: ["points"]) { [unowned self] a in
                 try lassoFill(a)
             },
@@ -414,13 +406,12 @@ public final class AgentToolbox {
         let map = RegionMap.build(reference: ref, width: doc.width, height: doc.height,
                                   lineThreshold: Float(try a.double("line_threshold", default: 0.5)),
                                   gapClose: max(0, try a.int("gap_close", default: 0)),
-                                  minArea: max(1, try a.int("min_area", default: 30)))
+                                  minArea: 30)
         regionMap = map
         lastReference = try referenceKeys(a) ?? ["all"]
         let composite = Compositor.compositeFull(doc)
-        let limit = max(1, try a.int("max_regions", default: 300))
         let listMin = max(0, try a.int("list_min_area", default: 150))
-        let listed = map.regions.prefix(limit).filter { $0.area >= listMin }
+        let listed = map.regions.filter { $0.area >= listMin }
         let small = map.regions.filter { $0.area < listMin }
         let list: [[String: Any]] = listed.map { r in
             let i = (r.point.y * doc.width + r.point.x) * 4
@@ -434,7 +425,7 @@ public final class AgentToolbox {
             return o
         }
         var contents: [AgentContent] = []
-        if let img = AgentRender.regions(map, base: composite, maxSize: try a.int("max_size", default: 1024), maxLabels: listed.count) {
+        if let img = AgentRender.regions(map, base: composite, maxSize: 1024, maxLabels: listed.count) {
             contents.append(.png(img.png))
         }
         let summary: [String: Any] = [
@@ -506,26 +497,34 @@ public final class AgentToolbox {
         return (Compositor.compositeFull(tmp), tmp.layers.map { "レイヤー「\($0.name)」" }.joined(separator: "と"))
     }
 
+    /// layer_id がフォルダー（パーツごとのレイヤー）ならまとめて見て、塗り残しはその色をとったレイヤーに塗る
     private func fillLeftovers(_ a: AgentArgs) throws -> [AgentContent] {
-        // 下塗りのフォルダー（パーツごとのレイヤー）なら、まとめて見て、色をとったレイヤーに塗る
-        if let id = try a.uuid("layer_id"), let n = editor.doc.node(id), n.isFolder {
-            return try fillLeftovers(a, folder: n)
+        let doc = editor.doc
+        let targets: [LayerNode]
+        if let id = try a.uuid("layer_id"), let n = doc.node(id), n.isFolder {
+            targets = n.children.filter { $0.kind == .raster }.reversed()
+        } else {
+            targets = [doc.node(try useLayer(a, paint: true))!]
         }
-        let lid = try useLayer(a, paint: true)
-        guard let keys = try referenceKeys(a) ?? lastReference else {
+        guard let keys = try referenceKeys(a) ?? lastReference, keys != ["all"] else {
             throw AgentError("reference（線画のレイヤー ID）を指定してください")
         }
-        guard keys != ["all"] else { throw AgentError("reference には線画のレイヤー ID を指定してください（\"all\" だと塗った色も線に見えてしまう）") }
-        let doc = editor.doc
         let (ref, _) = try referenceImage(keys)
-        let flat = doc.node(lid)!.tiles.toBuffer(width: doc.width, height: doc.height)
+        var tmp = DocumentState(width: doc.width, height: doc.height)
+        tmp.layers = targets.reversed().map { var l = $0; l.visible = true; l.opacity = 1; l.clipping = false; return l }
+        let flat = Compositor.compositeFull(tmp)
         let found = RegionMap.leftovers(flat: flat, line: ref, width: doc.width, height: doc.height,
                                         lineThreshold: Float(try a.double("line_threshold", default: 0.5)),
                                         maxArea: max(1, try a.int("max_area", default: 400)), expand: max(0, try a.int("expand", default: 2)))
-        let dry = try a.bool("dry_run") ?? false
-        if !dry && !found.isEmpty { editor.paintMasks(found.map(\.paint), layerID: lid, label: "塗り残しを塗る") }
-        let list: [[String: Any]] = found.prefix(100).map { ["bounds": Self.rectJSON($0.bounds), "area": $0.area, "color": Self.hex($0.color)] }
-        return [.text(json(["count": found.count, "filled": !dry, "leftovers": list]))]
+        var byLayer: [UUID: [Editor.MaskPaint]] = [:]
+        for l in found {
+            let x = l.source % doc.width, y = l.source / doc.width
+            guard let target = targets.first(where: { $0.tiles.pixel(x, y).3 >= 128 }) ?? targets.first else { continue }
+            byLayer[target.id, default: []].append(l.paint)
+        }
+        for (id, items) in byLayer { editor.paintMasks(items, layerID: id, label: "塗り残しを塗る") }
+        let list: [[String: Any]] = found.prefix(100).map { ["bounds": [$0.bounds.x, $0.bounds.y, $0.bounds.width, $0.bounds.height], "area": $0.area, "color": Self.hex($0.color)] }
+        return [.text(json(["filled": found.count, "leftovers": list]))]
     }
 
     private func findGaps(_ a: AgentArgs) throws -> [AgentContent] {
@@ -599,34 +598,6 @@ public final class AgentToolbox {
                             "next": "find_regions の reference に \(ref) を渡して、範囲を探し直す"]))]
     }
 
-    private func fillLeftovers(_ a: AgentArgs, folder: LayerNode) throws -> [AgentContent] {
-        guard let keys = try referenceKeys(a) ?? lastReference, keys != ["all"] else {
-            throw AgentError("reference（線画のレイヤー ID）を指定してください")
-        }
-        let doc = editor.doc
-        let (ref, _) = try referenceImage(keys)
-        var f = folder
-        f.visible = true
-        f.opacity = 1
-        var tmp = DocumentState(width: doc.width, height: doc.height)
-        tmp.layers = [f]
-        let flat = Compositor.compositeFull(tmp)
-        let found = RegionMap.leftovers(flat: flat, line: ref, width: doc.width, height: doc.height,
-                                        lineThreshold: Float(try a.double("line_threshold", default: 0.5)),
-                                        maxArea: max(1, try a.int("max_area", default: 400)), expand: max(0, try a.int("expand", default: 2)))
-        let dry = try a.bool("dry_run") ?? false
-        let children = folder.children.filter { $0.kind == .raster }.reversed()
-        var byLayer: [UUID: [Editor.MaskPaint]] = [:]
-        for l in found {
-            let x = l.source % doc.width, y = l.source / doc.width
-            guard let target = children.first(where: { $0.tiles.pixel(x, y).3 >= 128 }) ?? children.first else { continue }
-            byLayer[target.id, default: []].append(l.paint)
-        }
-        if !dry { for (id, items) in byLayer { editor.paintMasks(items, layerID: id, label: "塗り残しを塗る") } }
-        let list: [[String: Any]] = found.prefix(100).map { ["bounds": [$0.bounds.x, $0.bounds.y, $0.bounds.width, $0.bounds.height], "area": $0.area, "color": Self.hex($0.color)] }
-        return [.text(json(["count": found.count, "filled": !dry, "leftovers": list]))]
-    }
-
     private func fillRegions(_ a: AgentArgs) throws -> [AgentContent] {
         guard let map = regionMap, map.width == editor.doc.width, map.height == editor.doc.height else {
             throw AgentError("先に find_regions を呼んでください")
@@ -649,9 +620,9 @@ public final class AgentToolbox {
             return [.text("\(fills.count) 個の範囲を「\(editor.doc.node(lid)?.name ?? "")」に塗りました")]
         }
         // 色（name）ごとのレイヤーに塗る。フォルダーにまとめ、線画の下に置く
-        let anchor = try a.uuid("below") ?? lastReference?.compactMap(UUID.init(uuidString:)).first ?? editor.activeLayerID
-        guard let anchor, editor.doc.node(anchor) != nil else { throw AgentError("below（置く位置の上にあるレイヤー）を指定してください") }
-        let folderName = try a.string("folder") ?? "下塗り"
+        let anchor = lastReference?.compactMap(UUID.init(uuidString:)).first ?? editor.activeLayerID
+        guard let anchor, editor.doc.node(anchor) != nil else { throw AgentError("先に find_regions を線画のレイヤーで呼んでください") }
+        let folderName = "下塗り"
         var folderID = findNode(named: folderName, folder: true, in: editor.doc.layers)
         if folderID == nil {
             editor.addFolder(name: folderName)
@@ -719,55 +690,9 @@ public final class AgentToolbox {
         let m = SelectionMask.fromPath(path, width: editor.doc.width, height: editor.doc.height, antialias: try a.bool("antialias") ?? true)
         guard !m.isEmpty else { return [.text("範囲がキャンバスの外です")] }
         let erase = try a.bool("erase") ?? false
-        if try a.bool("stay_inside_lines") ?? false {
-            return try lassoFillInsideLines(a, mask: m, layer: lid, erase: erase)
-        }
         editor.paintMasks([Editor.MaskPaint(bounds: m.bounds, color: try a.color("color") ?? editor.mainColor, erase: erase) { x, y in m.value(x, y) }],
                           layerID: lid, label: erase ? "投げなわ消しゴム" : "投げなわ塗り")
         return [.text(erase ? "消しました" : "塗りました")]
-    }
-
-    /// 多角形の中を線で区切り、seed を含む部分（なければ一番大きい部分）だけを、線の下まで広げて塗る
-    private func lassoFillInsideLines(_ a: AgentArgs, mask m: SelectionMask, layer lid: UUID, erase: Bool) throws -> [AgentContent] {
-        guard let keys = try referenceKeys(a) ?? lastReference, keys != ["all"] else {
-            throw AgentError("stay_inside_lines には reference（線画のレイヤー ID）が要ります")
-        }
-        let doc = editor.doc
-        let (ref, _) = try referenceImage(keys)
-        let b = m.bounds, bw = b.width, bh = b.height
-        // 多角形の中だけを参照にした小さな画像で範囲を分ける（多角形の外は線として扱う）
-        var local = [UInt8](repeating: 0, count: bw * bh * 4)
-        for y in 0..<bh {
-            for x in 0..<bw {
-                let gx = x + b.minX, gy = y + b.minY
-                let o = (y * bw + x) * 4, g = (gy * doc.width + gx) * 4
-                if m.value(gx, gy) < 128 {
-                    local[o + 3] = 255 // 黒（線）
-                } else {
-                    for c in 0..<4 { local[o + c] = ref[g + c] }
-                }
-            }
-        }
-        let map = RegionMap.build(reference: local, width: bw, height: bh, minArea: 1)
-        guard !map.regions.isEmpty else { return [.text("塗れる範囲がありませんでした")] }
-        var target = 1
-        if let seed = a.raw["seed"] as? [NSNumber], seed.count >= 2 {
-            let sx = seed[0].intValue - b.minX, sy = seed[1].intValue - b.minY
-            guard sx >= 0, sy >= 0, sx < bw, sy < bh, map.labels[sy * bw + sx] > 0 else {
-                throw AgentError("seed が多角形の中の、線でない所にありません")
-            }
-            target = Int(map.labels[sy * bw + sx])
-        }
-        guard var p = map.paint(target, color: try a.color("color") ?? editor.mainColor, expand: 2) else { return [.text("塗れる範囲がありませんでした")] }
-        // 多角形の外へは広げない
-        let inner = p.alpha, ox = b.minX, oy = b.minY
-        p.bounds = IntRect(x: p.bounds.x + ox, y: p.bounds.y + oy, width: p.bounds.width, height: p.bounds.height)
-        p.alpha = { x, y in m.value(x, y) >= 128 ? inner(x - ox, y - oy) : 0 }
-        p.erase = erase
-        editor.paintMasks([p], layerID: lid, label: erase ? "投げなわ消しゴム" : "投げなわ塗り")
-        let r = map.region(target)!
-        return [.text(json(["area": r.area, "parts": map.regions.count,
-                            "note": map.regions.count > 1 ? "多角形の中は線で \(map.regions.count) 個に分かれていた。塗ったのは 1 個（面積 \(r.area)）" : "塗りました"]))]
     }
 
     private func stroke(_ a: AgentArgs) throws -> [AgentContent] {
@@ -992,11 +917,10 @@ extension AgentToolbox {
         let layerID: [String: Any] = ["type": "string", "description": "対象のレイヤー ID。省略すると編集中のレイヤー"]
         return [
             AgentTool(name: "batch",
-                      description: "複数のツールを順に呼ぶ（1 回のやりとりで済む）。たとえば線をたくさん描く、いくつかの点を塗りつぶすなど。画像を返すツールの画像もそのまま返す。",
+                      description: "複数のツールを順に呼ぶ（1 回のやりとりで済む）。たとえば線をたくさん描く、いくつかの点を塗りつぶすなど。画像を返すツールの画像もそのまま返す。失敗したらそこで止める。",
                       properties: ["calls": ["type": "array", "description": "[{\"tool\": 名前, \"arguments\": {...}}, ...]",
                                              "items": ["type": "object", "properties": ["tool": ["type": "string"], "arguments": ["type": "object"]],
-                                                       "required": ["tool"]]],
-                                   "stop_on_error": ["type": "boolean", "description": "失敗したらそこで止める（既定 true）"]],
+                                                       "required": ["tool"]]]],
                       required: ["calls"]) { [unowned self] a in
                 try batch(a)
             },
@@ -1090,11 +1014,12 @@ extension AgentToolbox {
 
     private func batch(_ a: AgentArgs) throws -> [AgentContent] {
         guard let calls = a.raw["calls"] as? [[String: Any]], !calls.isEmpty else { throw AgentError("calls を指定してください") }
-        let stop = try a.bool("stop_on_error") ?? true
         var out: [AgentContent] = []
-        var failed = 0
         for (i, c) in calls.enumerated() {
-            guard let name = c["tool"] as? String else { throw AgentError("calls[\(i)] に tool がありません") }
+            // MCP クライアントでの名前（mcp__nanopic__stroke など）で書かれても通す
+            guard let raw = c["tool"] as? String, let name = raw.split(separator: "__").last.map(String.init) else {
+                throw AgentError("calls[\(i)] に tool がありません")
+            }
             guard name != "batch" else { throw AgentError("batch の中で batch は使えません") }
             do {
                 let r = try call(name, c["arguments"] as? [String: Any] ?? [:])
@@ -1102,12 +1027,11 @@ extension AgentToolbox {
                     if case let .text(t) = item { out.append(.text("[\(i)] \(name): \(t)")) } else { out.append(item) }
                 }
             } catch {
-                failed += 1
                 out.append(.text("[\(i)] \(name): 失敗: \(error)"))
-                if stop { throw AgentError(out.compactMap { if case let .text(t) = $0 { return t } else { return nil } }.joined(separator: "\n") + "\n（ここで止めました。前の操作は実行済み）") }
+                throw AgentError(out.compactMap { if case let .text(t) = $0 { return t } else { return nil } }.joined(separator: "\n") + "\n（ここで止めました。前の操作は実行済み）")
             }
         }
-        out.append(.text("\(calls.count) 件中 \(calls.count - failed) 件成功"))
+        out.append(.text("\(calls.count) 件すべて成功"))
         return out
     }
 
