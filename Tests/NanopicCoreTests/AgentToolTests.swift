@@ -228,3 +228,47 @@ extension AgentToolTests {
         XCTAssertEqual(after.filter { $0["touches_edge"] == nil }.count, 1)
     }
 }
+
+extension AgentToolTests {
+    /// パーツごとのレイヤーに塗り分け、フォルダーごと塗り残しを埋められること
+    func testSeparateLayersAndLeftoversInFolder() throws {
+        let ed = Editor(width: 200, height: 120)
+        let tb = AgentToolbox(editor: ed)
+        let line = try object(tb.call("add_layer", ["name": "線画"]))["layer_id"] as! String
+        _ = try tb.call("stroke", ["points": [[20, 20], [180, 20], [180, 100], [20, 100], [20, 20]], "size": 4, "color": "#000000", "brush": "丸ペン"])
+        _ = try tb.call("stroke", ["points": [[100, 20], [100, 100]], "size": 4, "color": "#000000", "brush": "丸ペン"])
+        let regions = try object(tb.call("find_regions", ["reference": line]))["regions"] as! [[String: Any]]
+        let inner = regions.filter { $0["touches_edge"] == nil }.map { $0["region"] as! Int }
+        let out = try object(tb.call("fill_regions", ["separate_layers": true, "fills": [
+            ["region": inner[0], "color": "#FF0000", "name": "服"], ["region": inner[1], "color": "#0000FF", "name": "肌"]]]))
+        let layers = out["layers"] as! [String: String]
+        XCTAssertEqual(Set(layers.keys), ["服", "肌"])
+        let folder = try XCTUnwrap(ed.doc.node(UUID(uuidString: out["folder_id"] as! String)))
+        XCTAssertEqual(folder.name, "下塗り")
+        XCTAssertEqual(folder.children.count, 2)
+        // フォルダーは線画のすぐ下
+        let order = ed.doc.layers.map(\.name)
+        XCTAssertEqual(order.firstIndex(of: "下塗り")! + 1, order.firstIndex(of: "線画")!)
+        // 同じ name で呼ぶと同じレイヤーに足す
+        let again = try object(tb.call("fill_regions", ["separate_layers": true, "fills": [["region": inner[0], "color": "#FF0000", "name": "服"]]]))
+        XCTAssertEqual((again["layers"] as! [String: String])["服"], layers["服"])
+        XCTAssertEqual(ed.doc.node(folder.id)!.children.count, 2)
+        // フォルダー指定で塗り残しを埋める（今回は塗り残しなし）
+        let left = try object(tb.call("fill_leftovers", ["layer_id": folder.id.uuidString]))
+        XCTAssertEqual(left["count"] as? Int, 0)
+    }
+
+    func testCurveAndHiddenLayerStroke() throws {
+        let ed = Editor(width: 200, height: 120)
+        let tb = AgentToolbox(editor: ed)
+        let id = try object(tb.call("add_layer", ["name": "閉じ線"]))["layer_id"] as! String
+        _ = try tb.call("update_layer", ["layer_id": id, "visible": false])
+        XCTAssertThrowsError(try tb.call("stroke", ["points": [[10, 60], [100, 20], [190, 60]]]), "layer_id なしでは描かない")
+        _ = try tb.call("stroke", ["points": [[10, 60], [100, 20], [190, 60]], "curve": true, "layer_id": id, "size": 4, "brush": "丸ペン"])
+        let n = ed.doc.node(UUID(uuidString: id)!)!
+        XCTAssertFalse(n.visible)
+        // 曲線なので、中間の点 (55, ~33) あたりを通り、折れ線の (55, 40) は通らない
+        XCTAssertEqual(n.tiles.pixel(100, 20).3, 255)
+        XCTAssertLessThan(n.tiles.pixel(55, 40).3, 255)
+    }
+}

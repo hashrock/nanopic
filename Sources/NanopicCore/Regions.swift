@@ -152,6 +152,8 @@ public struct Leftover {
     public var area: Int
     public var color: SIMD3<Float>
     public var paint: Editor.MaskPaint
+    /// 色をとった画素（flat の添字）
+    public var source: Int
 }
 
 extension RegionMap {
@@ -234,7 +236,8 @@ extension RegionMap {
             let c = color(best.value.index)
             let bw = b.width, ox = b.minX, oy = b.minY
             out.append(Leftover(bounds: IntRect(minX: minX, minY: minY, maxX: maxX + 1, maxY: maxY + 1), area: comp.count, color: c,
-                                paint: Editor.MaskPaint(bounds: b, color: c) { x, y in local[(y - oy) * bw + (x - ox)] }))
+                                paint: Editor.MaskPaint(bounds: b, color: c) { x, y in local[(y - oy) * bw + (x - ox)] },
+                                source: best.value.index))
         }
         return out
     }
