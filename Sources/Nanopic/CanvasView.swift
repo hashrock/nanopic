@@ -95,11 +95,13 @@ final class CanvasView: NSView {
     }
 
     private var keyObserver: NSObjectProtocol?
+    private var closeGuard: WindowCloseGuard?
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
         guard let window else { return }
+        if closeGuard?.window !== window { closeGuard = WindowCloseGuard(window: window, state: state) }
         // SwiftUI がテキスト欄に自動でフォーカスを移すと単キーのショートカットが効かなくなるため、
         // ウィンドウがアクティブになったらキャンバスにフォーカスを戻す
         keyObserver = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in

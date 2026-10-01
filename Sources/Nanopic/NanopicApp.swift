@@ -15,7 +15,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.activate(ignoringOtherApps: true)
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] e in
-            self?.handleKey(e) ?? e
+            // `self?.handleKey(e) ?? e` だと処理済み（nil）のキーまで流れてビープが鳴る
+            guard let self else { return e }
+            return self.handleKey(e)
         }
     }
 
@@ -122,6 +124,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         canvas.requestDisplay()
         return nil
+    }
+}
+
+/// 未保存のままウィンドウを閉じようとしたら、ウィンドウを残したまま終了確認を出す。
+/// SwiftUI が設定したウィンドウの delegate に割り込み、それ以外のメッセージは元の delegate に転送する
+final class WindowCloseGuard: NSObject, NSWindowDelegate {
+    weak var window: NSWindow?
+    private weak var original: NSWindowDelegate?
+    private let state: AppState
+
+    init(window: NSWindow, state: AppState) {
+        self.window = window
+        self.original = window.delegate
+        self.state = state
+        super.init()
+        window.delegate = self
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard state.editor.isDirty else { return original?.windowShouldClose?(sender) ?? true }
+        // ウィンドウを閉じるとアプリも終了するので、確認は applicationShouldTerminate に任せる
+        NSApp.terminate(nil)
+        return false
+    }
+
+    override func responds(to aSelector: Selector!) -> Bool {
+        super.responds(to: aSelector) || (original?.responds(to: aSelector) ?? false)
+    }
+
+    override func forwardingTarget(for aSelector: Selector!) -> Any? {
+        original?.responds(to: aSelector) == true ? original : super.forwardingTarget(for: aSelector)
     }
 }
 
