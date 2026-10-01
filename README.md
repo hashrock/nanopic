@@ -2,11 +2,14 @@
 
 Swift で書いた macOS 用のペイントツールです。CLIP STUDIO PAINT のラスター描画機能を参考にしています。
 
+[サイト](https://hashrock.github.io/nanopic/) · [ダウンロード](https://github.com/hashrock/nanopic/releases/latest)
+
 ## ビルドと起動
 
 ```sh
 ./scripts/build-app.sh      # リリースビルドして build/Nanopic.app を生成
 open build/Nanopic.app
+./scripts/release.sh        # Developer ID で署名・公証して dist/Nanopic-<版>.zip を作る（配布用）
 ```
 
 - 必要なもの: macOS 14 以降、Xcode 16 以降（Swift 5.10+）
