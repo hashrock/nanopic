@@ -515,7 +515,7 @@ final class CanvasView: NSView {
     /// ツールキーを押している間だけ切り替えたツール
     private struct TemporaryTool {
         let keyCode: UInt16
-        let previous: Tool
+        let previous: Editor.ToolSnapshot
         let start: TimeInterval
         /// キーを押している間にキャンバスを操作したか
         var used = false
@@ -525,10 +525,10 @@ final class CanvasView: NSView {
     private var temporaryTool: TemporaryTool?
 
     /// ツールキーの keyDown。短く押せばそのまま切り替え、押したまま操作するか長押しすると、離したときに元のツールへ戻る
-    func toolKeyDown(_ e: NSEvent, tool: Tool) {
-        let previous = temporaryTool?.previous ?? editor.tool
-        editor.selectTool(tool)
-        temporaryTool = previous == tool ? nil : TemporaryTool(keyCode: e.keyCode, previous: previous, start: e.timestamp)
+    func toolKeyDown(_ e: NSEvent, target: ShortcutTarget) {
+        let previous = temporaryTool?.previous ?? editor.toolSnapshot
+        editor.activate(target)
+        temporaryTool = previous == editor.toolSnapshot ? nil : TemporaryTool(keyCode: e.keyCode, previous: previous, start: e.timestamp)
         updateCursor(e.modifierFlags)
         requestDisplay()
     }
@@ -547,7 +547,7 @@ final class CanvasView: NSView {
     private func endTemporaryToolIfReleased() {
         guard let t = temporaryTool, t.released else { return }
         temporaryTool = nil
-        editor.selectTool(t.previous)
+        editor.restore(t.previous)
         updateCursor(NSEvent.modifierFlags)
         requestDisplay()
     }

@@ -11,7 +11,20 @@ final class AppState {
     var rotationDegrees: Double = 0
     var cursorCanvasPoint: CGPoint?
     var showNewDocumentSheet = false
+    var shortcuts = ShortcutMap.defaults
+    /// ショートカットの入力待ち（この間は単キーのショートカットを無効にする）
+    var isRecordingShortcut = false
     @ObservationIgnored weak var canvasView: CanvasView?
+    /// エージェント連携の状態表示
+    var mcpStatus = "停止中"
+    /// 設定画面の再描画用（UserDefaults の値は Observation で追えないため）
+    var mcpSettingsVersion = 0
+    @ObservationIgnored private(set) lazy var agent = makeAgentToolbox()
+    @ObservationIgnored private(set) lazy var mcp: MCPServer = {
+        let s = MCPServer(toolbox: agent)
+        s.onStatusChange = { [weak self] in self?.mcpStatus = $0 }
+        return s
+    }()
     @ObservationIgnored private var thumbCache: [UUID: (version: Int, image: NSImage)] = [:]
 
     init() {
@@ -42,6 +55,7 @@ final class AppState {
         if let d = try? enc.encode(editor.erasers) { UserDefaults.standard.set(d, forKey: erasersKey) }
         if let d = try? enc.encode(editor.grid) { UserDefaults.standard.set(d, forKey: "grid.v1") }
         if let d = try? enc.encode(editor.fillSettings) { UserDefaults.standard.set(d, forKey: "fill.v1") }
+        if let d = try? enc.encode(shortcuts) { UserDefaults.standard.set(d, forKey: "shortcuts.v1") }
     }
 
     private func loadPreferences() {
@@ -64,6 +78,28 @@ final class AppState {
         if let d = UserDefaults.standard.data(forKey: "fill.v1"), let f = try? dec.decode(FillSettings.self, from: d) {
             editor.fillSettings = f
         }
+        if let d = UserDefaults.standard.data(forKey: "shortcuts.v1"), let m = try? dec.decode(ShortcutMap.self, from: d) {
+            shortcuts = m
+        }
+    }
+
+    // MARK: - ショートカット
+
+    func setShortcut(_ chord: KeyChord?, for target: ShortcutTarget) {
+        shortcuts.assign(chord, to: target)
+        shortcuts.prune(validPresets: Set((editor.brushes + editor.erasers).map(\.id)))
+        savePreferences()
+    }
+
+    func resetShortcuts() {
+        shortcuts = .defaults
+        savePreferences()
+    }
+
+    /// 表示用（"B, P" のように）。割り当てがなければ nil
+    func shortcutLabel(_ target: ShortcutTarget) -> String? {
+        let c = shortcuts.chords(for: target)
+        return c.isEmpty ? nil : c.map(\.displayName).joined(separator: ", ")
     }
 
     func resetBrushPresets() {
@@ -167,25 +203,30 @@ final class AppState {
     }
 
     func open(url: URL) {
-        let ext = url.pathExtension.lowercased()
         do {
-            if ext == "psd" || ext == "psb" {
-                let data = try Data(contentsOf: url)
-                let doc = try PSD.read(data)
-                editor.load(doc, url: url)
-            } else {
-                guard let img = ImageUtil.loadImage(url: url),
-                      let doc = Editor.document(from: img, name: url.deletingPathExtension().lastPathComponent) else {
-                    throw NSError(domain: "Nanopic", code: 1, userInfo: [NSLocalizedDescriptionKey: "画像を読み込めませんでした"])
-                }
-                editor.load(doc, url: nil)
-            }
-            thumbCache.removeAll()
-            canvasView?.fitToWindow()
-            NSApp.keyWindow?.title = url.lastPathComponent
+            try load(url: url)
         } catch {
             showError("ファイルを開けませんでした: \(error)")
         }
+    }
+
+    /// ファイルを開く（確認や警告は出さない）
+    func load(url: URL) throws {
+        let ext = url.pathExtension.lowercased()
+        if ext == "psd" || ext == "psb" {
+            let data = try Data(contentsOf: url)
+            let doc = try PSD.read(data)
+            editor.load(doc, url: url)
+        } else {
+            guard let img = ImageUtil.loadImage(url: url),
+                  let doc = Editor.document(from: img, name: url.deletingPathExtension().lastPathComponent) else {
+                throw NSError(domain: "Nanopic", code: 1, userInfo: [NSLocalizedDescriptionKey: "画像を読み込めませんでした"])
+            }
+            editor.load(doc, url: nil)
+        }
+        thumbCache.removeAll()
+        canvasView?.fitToWindow()
+        canvasView?.window?.title = url.lastPathComponent
     }
 
     func save() {
@@ -205,15 +246,20 @@ final class AppState {
     }
 
     private func write(to url: URL) {
-        editor.commitTransform()
         do {
-            let data = try PSD.write(editor.doc)
-            try data.write(to: url, options: .atomic)
-            editor.markSaved(url: url)
-            NSApp.keyWindow?.title = url.lastPathComponent
+            try writePSD(to: url)
         } catch {
             showError("保存に失敗しました: \(error)")
         }
+    }
+
+    /// PSD で保存する（警告は出さない）
+    func writePSD(to url: URL) throws {
+        editor.commitTransform()
+        let data = try PSD.write(editor.doc)
+        try data.write(to: url, options: .atomic)
+        editor.markSaved(url: url)
+        canvasView?.window?.title = url.lastPathComponent
     }
 
     func exportPNG() {

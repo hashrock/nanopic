@@ -281,6 +281,27 @@ final class EditorTests: XCTestCase {
         XCTAssertGreaterThan(radii.max()!, 18)
     }
 
+    /// サイズ・角度のランダムがあっても、同じ入力なら同じ画素になること
+    func testRandomizedStrokeIsDeterministic() {
+        func draw(startY: Double) -> [UInt8] {
+            let ed = Editor(width: 200, height: 100)
+            var b = ed.currentBrush
+            b.size = 20
+            b.sizeJitter = 0.8
+            b.angleJitter = 1
+            b.tipID = "chalk"
+            ed.currentBrush = b
+            for i in 0...40 {
+                let s = StrokeInput(x: 10 + Double(i) * 4, y: startY, pressure: 1, time: Double(i) / 100)
+                if i == 0 { ed.beginStroke(s, usePressure: false, zoom: 1) } else { ed.continueStroke(s) }
+            }
+            ed.endStroke()
+            return Compositor.compositeFull(ed.doc)
+        }
+        XCTAssertEqual(draw(startY: 50), draw(startY: 50))
+        XCTAssertNotEqual(draw(startY: 50), draw(startY: 50.5))
+    }
+
     /// 並べ替え後に dirty 範囲だけ再合成した結果が、全体を合成し直した結果と一致すること
     func testReorderDirtyRectIsSufficient() {
         let w = 400, h = 300

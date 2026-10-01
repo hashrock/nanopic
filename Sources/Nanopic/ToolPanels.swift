@@ -4,7 +4,9 @@ import SwiftUI
 // MARK: - ツールバー（左端）
 
 struct ToolBarView: View {
+    let state: AppState
     @Bindable var editor: Editor
+    @State private var editingShortcut: Tool?
 
     private let groups: [[Tool]] = [
         [.brush, .eraser, .fill, .lassoFill, .lassoErase, .eyedropper],
@@ -28,7 +30,16 @@ struct ToolBarView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(tool.displayName)
+                    .help(state.shortcutLabel(.tool(tool)).map { "\(tool.displayName) (\($0))" } ?? tool.displayName)
+                    .contextMenu {
+                        if Tool.assignable.contains(tool) {
+                            Button("ショートカットを設定…") { editingShortcut = tool }
+                        }
+                    }
+                    .popover(isPresented: Binding(get: { editingShortcut == tool }, set: { if !$0 { editingShortcut = nil } }),
+                             arrowEdge: .trailing) {
+                        ShortcutPopover(state: state, title: tool.displayName, target: .tool(tool))
+                    }
                 }
                 if gi < groups.count - 1 { Divider().frame(width: 28) }
             }
@@ -94,8 +105,11 @@ struct ToolOptionsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                Text(editor.tool.displayName)
-                    .font(.headline)
+                HStack {
+                    Text(editor.tool.displayName)
+                        .font(.headline)
+                    ShortcutBadge(state: state, target: .tool(editor.tool))
+                }
                 switch editor.tool {
                 case .brush, .eraser:
                     BrushOptionsView(state: state, editor: editor)
@@ -144,6 +158,8 @@ struct ToolOptionsView: View {
 struct BrushOptionsView: View {
     let state: AppState
     @Bindable var editor: Editor
+
+    @State private var editingShortcut: UUID?
 
     private var isEraser: Bool { editor.tool == .eraser }
     private var presets: [BrushSettings] { isEraser ? editor.erasers : editor.brushes }
@@ -239,6 +255,7 @@ struct BrushOptionsView: View {
                     }
                     Text(b.name).font(.callout)
                     Spacer()
+                    ShortcutBadge(state: state, target: .preset(b.id))
                     Text(String(format: "%.0f", b.size)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 6)
@@ -249,7 +266,13 @@ struct BrushOptionsView: View {
                 .onTapGesture {
                     if isEraser { editor.activeEraserIndex = i } else { editor.activeBrushIndex = i }
                 }
+                .popover(isPresented: Binding(get: { editingShortcut == b.id }, set: { if !$0 { editingShortcut = nil } }),
+                         arrowEdge: .trailing) {
+                    ShortcutPopover(state: state, title: b.name, target: .preset(b.id))
+                }
                 .contextMenu {
+                    Button("ショートカットを設定…") { editingShortcut = b.id }
+                    Divider()
                     Button("複製") { duplicate(i) }
                     Button("削除") { delete(i) }.disabled(presets.count <= 1)
                 }

@@ -88,7 +88,8 @@ public final class StrokeEngine {
     private var lastDabTime: Double = -1
     private var lastDabPos: (Double, Double)?
 
-    public init(brush: BrushSettings, usePressure: Bool, zoom: Double = 1) {
+    /// seed: サイズ・角度のランダムの種。同じ種・同じ入力なら必ず同じダブを出す
+    public init(brush: BrushSettings, usePressure: Bool, zoom: Double = 1, seed: Int = 0) {
         self.brush = brush
         self.usePressure = usePressure
         self.zoom = max(zoom, 0.01)
@@ -100,7 +101,16 @@ public final class StrokeEngine {
         fy = OneEuroFilter(minCutoff: minCutoff, beta: beta)
         fp = OneEuroFilter(minCutoff: 12, beta: 0.5)
         effP = usePressure ? 0 : 1
-        jitterSeed = Int.random(in: 0..<1_000_000)
+        jitterSeed = seed
+    }
+
+    /// 描き始めの入力から決める乱数の種（同じストロークは毎回同じ結果になる）
+    public static func seed(for s: StrokeInput) -> Int {
+        var h: UInt64 = 0xcbf2_9ce4_8422_2325
+        for v in [s.x, s.y, s.pressure] {
+            h = (h ^ v.bitPattern) &* 0x100_0000_01b3
+        }
+        return Int(truncatingIfNeeded: h % 1_000_000)
     }
 
     private var maxRadius: Double { Double(max(brush.size, 1)) / 2 }

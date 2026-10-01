@@ -13,7 +13,7 @@ struct ContentView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            ToolBarView(editor: editor)
+            ToolBarView(state: state, editor: editor)
             Divider()
             ToolOptionsView(state: state, editor: editor)
                 .frame(width: 230)

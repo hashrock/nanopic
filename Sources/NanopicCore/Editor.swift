@@ -7,22 +7,25 @@ public enum Tool: String, CaseIterable, Codable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .brush: return "ブラシ (B)"
-        case .eraser: return "消しゴム (E)"
-        case .fill: return "塗りつぶし (G)"
-        case .lassoFill: return "投げなわ塗り (Shift+G)"
-        case .lassoErase: return "投げなわ消しゴム (Shift+E)"
-        case .selectRect: return "矩形選択 (M)"
-        case .selectEllipse: return "楕円選択 (Shift+M)"
-        case .lasso: return "投げなわ選択 (L)"
-        case .wand: return "自動選択 (W)"
-        case .move: return "レイヤー移動 (V)"
-        case .transform: return "拡大・縮小・回転 (⌘T)"
-        case .eyedropper: return "スポイト (I)"
-        case .hand: return "手のひら (H / Space)"
-        case .zoom: return "ズーム (Z)"
+        case .brush: return "ブラシ"
+        case .eraser: return "消しゴム"
+        case .fill: return "塗りつぶし"
+        case .lassoFill: return "投げなわ塗り"
+        case .lassoErase: return "投げなわ消しゴム"
+        case .selectRect: return "矩形選択"
+        case .selectEllipse: return "楕円選択"
+        case .lasso: return "投げなわ選択"
+        case .wand: return "自動選択"
+        case .move: return "レイヤー移動"
+        case .transform: return "拡大・縮小・回転"
+        case .eyedropper: return "スポイト"
+        case .hand: return "手のひら"
+        case .zoom: return "ズーム"
         }
     }
+
+    /// ショートカットを割り当てられるツール（拡大・縮小・回転は ⌘T）
+    public static let assignable: [Tool] = allCases.filter { $0 != .transform }
 
     public var symbol: String {
         switch self {
@@ -372,7 +375,7 @@ public final class Editor {
             strokeBuffer = StrokeBuffer(width: doc.width, height: doc.height)
         }
         strokeDabCount = 0
-        let e = StrokeEngine(brush: brush, usePressure: usePressure, zoom: zoom)
+        let e = StrokeEngine(brush: brush, usePressure: usePressure, zoom: zoom, seed: StrokeEngine.seed(for: input))
         if brush.kind == .brush && (brush.warpRadial != 0 || brush.warpTwist != 0) {
             e.continuousInterval = 1.0 / 60
         }
@@ -508,44 +511,78 @@ public final class Editor {
 
     /// マスク（0...255）の範囲を描画色で塗る（erase: true なら消す）。選択範囲があればさらに制限。
     private func paintMask(_ mask: [UInt8], bounds: IntRect, layerID: UUID, label: String, erase: Bool = false) {
-        guard let layer = doc.node(layerID) else { return }
+        let w = doc.width
+        paintMasks([MaskPaint(bounds: bounds, color: mainColor, erase: erase) { x, y in mask[y * w + x] }],
+                   layerID: layerID, label: label)
+    }
+
+    /// 範囲と、その中の各画素の塗る量（0...255）
+    public struct MaskPaint {
+        public var bounds: IntRect
+        public var color: SIMD3<Float>
+        public var erase: Bool
+        public var alpha: (Int, Int) -> UInt8
+
+        public init(bounds: IntRect, color: SIMD3<Float>, erase: Bool = false, alpha: @escaping (Int, Int) -> UInt8) {
+            self.bounds = bounds
+            self.color = color
+            self.erase = erase
+            self.alpha = alpha
+        }
+    }
+
+    /// いくつかのマスクを順に塗る（取り消しは 1 回分）。選択範囲があればさらに制限。
+    public func paintMasks(_ items: [MaskPaint], layerID: UUID, label: String) {
+        guard let layer = doc.node(layerID), layer.kind == .raster else { return }
+        let items = items.map { var i = $0; i.bounds = i.bounds.intersection(doc.bounds); return i }.filter { !$0.bounds.isEmpty }
+        guard !items.isEmpty else { return }
         checkpoint(label)
         let g = gen
         let sel = doc.selection
         let lockAlpha = layer.lockAlpha
-        let c = mainColor
-        let w = doc.width
+        var all = IntRect.zero
         doc.modify(layerID) { l in
-            for key in bounds.tileKeys {
-                if (lockAlpha || erase) && l.tiles[key] == nil { continue }
-                let t = l.tiles.mutableTile(key, gen: g)
-                let tr = key.rect.intersection(bounds)
-                for y in tr.minY..<tr.maxY {
-                    for x in tr.minX..<tr.maxX {
-                        var a = Float(mask[y * w + x]) / 255
-                        if let sel { a *= Float(sel.value(x, y)) / 255 }
-                        if a <= 0 { continue }
-                        let o = t.data + ((y - key.y * kTileSize) * kTileSize + (x - key.x * kTileSize)) * 4
-                        if erase {
-                            for c in 0..<4 { o[c] = Compositor.toByte(Float(o[c]) / 255 * (1 - a)) }
-                            continue
+            for item in items {
+                let bounds = item.bounds
+                let c = item.color
+                let erase = item.erase
+                all = all.union(bounds)
+                for key in bounds.tileKeys {
+                    if (lockAlpha || erase) && l.tiles[key] == nil { continue }
+                    let t = l.tiles.mutableTile(key, gen: g)
+                    let tr = key.rect.intersection(bounds)
+                    for y in tr.minY..<tr.maxY {
+                        for x in tr.minX..<tr.maxX {
+                            var a = Float(item.alpha(x, y)) / 255
+                            if let sel { a *= Float(sel.value(x, y)) / 255 }
+                            if a <= 0 { continue }
+                            let o = t.data + ((y - key.y * kTileSize) * kTileSize + (x - key.x * kTileSize)) * 4
+                            if erase {
+                                for c in 0..<4 { o[c] = Compositor.toByte(Float(o[c]) / 255 * (1 - a)) }
+                                continue
+                            }
+                            let d = RGBA(Float(o[0]), Float(o[1]), Float(o[2]), Float(o[3])) / 255
+                            var r: RGBA
+                            if lockAlpha {
+                                r = RGBA(c.x, c.y, c.z, 0) * a * d.w + d * (1 - a)
+                                r.w = d.w
+                            } else {
+                                r = RGBA(c.x * a, c.y * a, c.z * a, a) + d * (1 - a)
+                            }
+                            o[0] = Compositor.toByte(r.x); o[1] = Compositor.toByte(r.y)
+                            o[2] = Compositor.toByte(r.z); o[3] = Compositor.toByte(r.w)
                         }
-                        let d = RGBA(Float(o[0]), Float(o[1]), Float(o[2]), Float(o[3])) / 255
-                        var r: RGBA
-                        if lockAlpha {
-                            r = RGBA(c.x, c.y, c.z, 0) * a * d.w + d * (1 - a)
-                            r.w = d.w
-                        } else {
-                            r = RGBA(c.x * a, c.y * a, c.z * a, a) + d * (1 - a)
-                        }
-                        o[0] = Compositor.toByte(r.x); o[1] = Compositor.toByte(r.y)
-                        o[2] = Compositor.toByte(r.z); o[3] = Compositor.toByte(r.w)
                     }
                 }
+                l.tiles.pruneTransparent(bounds.tileKeys)
             }
-            l.tiles.pruneTransparent(bounds.tileKeys)
         }
-        contentChanged(layerID, rect: bounds)
+        contentChanged(layerID, rect: all)
+    }
+
+    /// 指定した設定で塗りつぶし用の領域マスクを作る（設定は一時的なもので、ツールの設定は変えない）
+    public func regionMask(at x: Int, _ y: Int, using settings: FillSettings) -> (mask: [UInt8], bounds: IntRect) {
+        regionMask(at: x, y, settings: settings)
     }
 
     /// 選択範囲（なければ全体）を描画色で塗る
@@ -770,10 +807,10 @@ public final class Editor {
         return (Array(path.dropLast()), path.last! + 1)
     }
 
-    public func addLayer() {
+    public func addLayer(name: String? = nil) {
         commitTransform()
         checkpoint("新規レイヤー")
-        let node = LayerNode(name: nextLayerName(prefix: "レイヤー"))
+        let node = LayerNode(name: name ?? nextLayerName(prefix: "レイヤー"))
         let (parent, index) = insertionPoint()
         doc.insert(node, parentPath: parent, index: index)
         doc.activeLayerID = node.id
@@ -781,10 +818,10 @@ public final class Editor {
         structureChanged()
     }
 
-    public func addFolder() {
+    public func addFolder(name: String? = nil) {
         commitTransform()
         checkpoint("新規フォルダー")
-        let node = LayerNode(name: nextLayerName(prefix: "フォルダー"), kind: .folder)
+        let node = LayerNode(name: name ?? nextLayerName(prefix: "フォルダー"), kind: .folder)
         let (parent, index) = insertionPoint()
         doc.insert(node, parentPath: parent, index: index)
         doc.activeLayerID = node.id

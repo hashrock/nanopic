@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 単キーのショートカット（テキスト入力中は無視）
     private func handleKey(_ e: NSEvent) -> NSEvent? {
-        guard let state, let canvas = state.canvasView else { return e }
+        guard let state, let canvas = state.canvasView, e.window === canvas.window, !state.isRecordingShortcut else { return e }
         if let tv = e.window?.firstResponder as? NSTextView, tv.isEditable { return e }
         let editor = state.editor
         let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
@@ -72,10 +72,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         if flags.contains(.command) || flags.contains(.control) { return e }
-        let key = e.charactersIgnoringModifiers?.lowercased() ?? ""
-        func setTool(_ t: Tool) {
-            if !e.isARepeat { canvas.toolKeyDown(e, tool: t) }
-        }
         switch e.keyCode {
         case 36, 76: // return
             if editor.floating != nil { editor.commitTransform(); return nil }
@@ -105,17 +101,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         default:
             break
         }
-        switch key {
-        case "b", "p": setTool(.brush)
-        case "e": setTool(flags.contains(.shift) ? .lassoErase : .eraser)
-        case "g": setTool(flags.contains(.shift) ? .lassoFill : .fill)
-        case "m": setTool(flags.contains(.shift) ? .selectEllipse : .selectRect)
-        case "l": setTool(.lasso)
-        case "w": setTool(.wand)
-        case "v": setTool(.move)
-        case "i": setTool(.eyedropper)
-        case "h": setTool(.hand)
-        case "z": setTool(.zoom)
+        guard let chord = KeyChord(event: e) else { return e }
+        if let target = state.shortcuts.target(for: chord) {
+            if !e.isARepeat { canvas.toolKeyDown(e, target: target) }
+            canvas.requestDisplay()
+            return nil
+        }
+        switch chord.key {
         case "x": editor.swapColors()
         case "[": editor.setBrushSize(editor.currentBrush.size / 1.15)
         case "]": editor.setBrushSize(editor.currentBrush.size * 1.15)
@@ -124,6 +116,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         canvas.requestDisplay()
         return nil
+    }
+}
+
+extension KeyChord {
+    /// キー入力から作る（⌘・⌃ 付きや文字のないキーは nil）
+    init?(event e: NSEvent) {
+        let flags = e.modifierFlags
+        guard flags.isDisjoint(with: [.command, .control]), let c = e.charactersIgnoringModifiers?.lowercased(), c.count == 1,
+              let scalar = c.unicodeScalars.first, scalar.value >= 0x20, scalar.value < 0xF700 else { return nil }
+        self.init(c, shift: flags.contains(.shift), option: flags.contains(.option))
     }
 }
 
@@ -166,10 +168,16 @@ struct NanopicApp: App {
     var body: some Scene {
         Window("Nanopic", id: "main") {
             ContentView(state: state)
-                .onAppear { delegate.state = state }
+                .onAppear {
+                    delegate.state = state
+                    if state.mcpEnabled { state.applyMCPSetting() }
+                }
         }
         .defaultSize(width: 1400, height: 900)
         .commands { AppCommands(state: state) }
+        Settings {
+            SettingsView(state: state)
+        }
     }
 }
 
@@ -178,6 +186,10 @@ struct AppCommands: Commands {
     var editor: Editor { state.editor }
 
     var body: some Commands {
+        CommandGroup(after: .appSettings) {
+            Toggle("エージェント連携（MCP）", isOn: Binding(get: { _ = state.mcpSettingsVersion; return state.mcpEnabled },
+                                                     set: { state.mcpEnabled = $0 }))
+        }
         CommandGroup(replacing: .newItem) {
             Button("新規...") {
                 if state.confirmDiscardChanges() { state.showNewDocumentSheet = true }
