@@ -100,12 +100,14 @@ public final class AgentToolbox {
     public var extraTools: [AgentTool] = []
     /// 直前の find_regions の結果
     public private(set) var regionMap: RegionMap?
+    /// 直前の find_regions で線として見たもの（fill_leftovers の既定）
+    private var lastReference: [String]?
 
     public init(editor: Editor) {
         self.editor = editor
     }
 
-    public var tools: [AgentTool] { coreTools + extraTools }
+    public var tools: [AgentTool] { coreTools + moreTools + extraTools }
 
     public func call(_ name: String, _ args: [String: Any]) throws -> [AgentContent] {
         guard let tool = tools.first(where: { $0.name == name }) else { throw AgentError("知らないツールです: \(name)") }
@@ -122,13 +124,18 @@ public final class AgentToolbox {
     1. get_document で大きさとレイヤー構成を、get_image（grid: true で座標の目盛り）で見た目を確かめる。
     2. 描く・塗る前に、どのレイヤーに入れるか決める。線画の下に色を置くなら add_layer で塗り用のレイヤーを作り、move_layer で線画の下へ。
     3. 操作のあとは get_image で結果を見て確かめ、直す。
+    4. 線を何本も描く、いくつもの点を塗るなど、操作が続くときは batch でまとめて送ると早い。
 
     下塗り（線画で囲まれた範囲を色で塗り分ける）:
     1. find_regions を線画のレイヤー（reference: 線画のレイヤー ID）で呼ぶ。線で閉じた範囲が番号つきで返り、番号を描き込んだ画像も返る。
-       線が途切れて隣とつながっている場合は gap_close を 2〜4 にする。背景は touches_edge が true で面積が大きい。
+       線が少し途切れて隣とつながっている場合は gap_close を 2〜4 にする。背景は touches_edge が true で面積が大きい。
+       線が大きく開いていて、塗り分けたい範囲が隣や背景とつながっているときは、新しいレイヤー（例: 閉じ線）に stroke で
+       開いた所を閉じる線を描き、そのレイヤーを非表示にして、reference に [線画の ID, 閉じ線の ID] を渡して find_regions をやり直す。
+       多角形を手で合わせるより正確で早い。
     2. 画像と元の絵を見比べ、各番号が何（肌、髪、服…）かを判断して、色を決める。
     3. 塗り用のレイヤーを選んで fill_regions で番号と色をまとめて渡す（線の下まで少し広げて塗るので隙間が残らない）。
-    4. get_image で確かめ、塗り残しは fill（点で塗りつぶし）や lasso_fill（多角形で塗る）で、色違いは同じ番号を塗り直して直す。
+    4. 最後に fill_leftovers で細かい塗り残しをまとめて埋める。
+       get_image で確かめ、色違いは同じ番号を塗り直して直す。
        fill の起点は線の上ではなく、塗りたい範囲の内側にする（線の上から塗ると、つながった線全体が塗られる）。
     """
 
@@ -155,7 +162,7 @@ public final class AgentToolbox {
             },
             AgentTool(name: "find_regions",
                       description: "線画で囲まれた範囲を探して番号をつける（下塗り用）。番号・面積・範囲・内側の点・今の色を一覧で、番号を描き込んだ画像と一緒に返す。結果は fill_regions と select で使える。",
-                      properties: ["reference": ["type": "string", "description": "線として見るもの: 線画のレイヤー ID、\"all\"（見えている全体、既定）、\"reference_layers\"（参照レイヤー）"],
+                      properties: ["reference": ["description": "線として見るもの: 線画のレイヤー ID か ID の配列（線画＋閉じ線のレイヤーなど。非表示でもよい）、\"all\"（見えている全体、既定）、\"reference_layers\"（参照レイヤー）"],
                                    "line_threshold": ["type": "number", "description": "白背景に重ねた暗さがこれ以上を線とみなす 0〜1（既定 0.5）"],
                                    "gap_close": ["type": "integer", "description": "この px までの線の途切れを閉じて扱う（既定 0）"],
                                    "min_area": ["type": "integer", "description": "これより小さい範囲は除く（px、既定 30）"],
@@ -172,6 +179,15 @@ public final class AgentToolbox {
                                    "expand": ["type": "integer", "description": "線の下へ広げる px（既定 2）"]],
                       required: ["fills"]) { [unowned self] a in
                 try fillRegions(a)
+            },
+            AgentTool(name: "fill_leftovers",
+                      description: "下塗りの塗り残し（線画で囲まれた、まだ塗っていない小さなすき間）を探し、接している色で塗る。fill_regions や lasso_fill のあとの仕上げに。dry_run: true なら塗らずに場所だけ返す。",
+                      properties: ["layer_id": ["type": "string", "description": "下塗りのレイヤー。省略すると編集中のレイヤー"],
+                                   "reference": ["description": "線画のレイヤー ID か ID の配列。省略すると直前の find_regions と同じ"],
+                                   "max_area": ["type": "integer", "description": "これより大きいすき間は塗らない（px、既定 400）"],
+                                   "expand": ["type": "integer", "description": "線の下へ広げる px（既定 2）"],
+                                   "line_threshold": ["type": "number"], "dry_run": ["type": "boolean"]]) { [unowned self] a in
+                try fillLeftovers(a)
             },
             AgentTool(name: "fill",
                       description: "塗りつぶし（バケツ）。点 (x, y) から色の近い範囲を塗る。",
@@ -194,17 +210,28 @@ public final class AgentToolbox {
                       description: "ブラシで線を描く。点は [x, y] か [x, y, 筆圧 0〜1]。点の間は滑らかにつなぐ。筆圧を渡すとブラシの筆圧設定が効く。",
                       properties: ["points": points, "brush": ["type": "string", "description": "ブラシの名前か ID（list_brushes）。省略すると選択中のブラシ"],
                                    "size": ["type": "number", "description": "直径 px（このストロークだけ）"],
+                                   "opacity": ["type": "number", "description": "不透明度 0〜1（このストロークだけ）"],
+                                   "settings": ["type": "object", "description": "ブラシ設定の上書き（このストロークだけ）。項目は list_brushes の detail: true で見られる（hardness, flow, spacing, smoothing など）"],
                                    "color": ["type": "string", "description": "\"#RRGGBB\"（このストロークだけ）。省略すると現在の描画色"], "erase": ["type": "boolean", "description": "消しゴムで描く"], "layer_id": layerID],
                       required: ["points"]) { [unowned self] a in
                 try stroke(a)
             },
-            AgentTool(name: "list_brushes", description: "ブラシと消しゴムの一覧（ID・名前・大きさ）。") { [unowned self] _ in
-                func info(_ b: BrushSettings) -> [String: Any] { ["id": b.id.uuidString, "name": b.name, "size": Double(b.size), "opacity": Double(b.opacity)] }
+            AgentTool(name: "list_brushes", description: "ブラシと消しゴムの一覧（ID・名前・大きさ）。detail: true ですべての設定項目も返す。",
+                      properties: ["detail": ["type": "boolean"]]) { [unowned self] a in
+                let detail = try a.bool("detail") ?? false
+                func info(_ b: BrushSettings) -> [String: Any] {
+                    detail ? Self.settingsJSON(b) : ["id": b.id.uuidString, "name": b.name, "size": Double(b.size), "opacity": Double(b.opacity)]
+                }
                 return [.text(json(["brushes": editor.brushes.map(info), "erasers": editor.erasers.map(info)]))]
             },
             AgentTool(name: "select",
                       description: "選択範囲を作る。選択範囲があると、塗る・描く・消す操作はその中だけに効く。",
-                      properties: ["shape": ["type": "string", "enum": ["rect", "ellipse", "polygon", "regions", "all", "none", "invert"]],
+                      properties: ["shape": ["type": "string", "enum": ["rect", "ellipse", "polygon", "regions", "wand", "layer", "all", "none", "invert"],
+                                             "description": "wand: 点 (x, y) から色の近い範囲（自動選択）。layer: layer_id のレイヤーの描かれている部分"],
+                                   "x": ["type": "integer"], "y": ["type": "integer"],
+                                   "tolerance": ["type": "number", "description": "wand の色の許容誤差 0〜1"],
+                                   "reference": ["type": "string", "description": "wand が見るもの: \"all\"（既定）、\"layer\"（編集中のレイヤー）、\"reference_layers\""],
+                                   "layer_id": ["type": "string", "description": "layer で使うレイヤー"],
                                    "rect": rect.merging(["description": "rect / ellipse の範囲"]) { a, _ in a },
                                    "points": points.merging(["description": "polygon の頂点"]) { a, _ in a },
                                    "regions": ["type": "array", "items": ["type": "integer"], "description": "find_regions の番号"],
@@ -345,7 +372,7 @@ public final class AgentToolbox {
                                            maxSize: try a.int("max_size", default: 1024), grid: try a.bool("grid") ?? false) else {
             throw AgentError("画像を作れませんでした")
         }
-        let note = "\(what)。範囲 x=\(rect.x) y=\(rect.y) \(rect.width)×\(rect.height)、画像 \(out.width)×\(out.height)px（画像の 1px = ドキュメントの \(String(format: "%.2f", out.scale))px）"
+        let note = "\(what)。範囲 x=\(rect.x) y=\(rect.y) \(rect.width)×\(rect.height)、画像 \(out.width)×\(out.height)px（\(out.scale < 1 ? "ドキュメントの 1px を \(Int((1 / out.scale).rounded())) 倍に拡大" : "画像の 1px = ドキュメントの " + String(format: "%.2f", out.scale) + "px")）"
         return [.png(out.png), .text(note)]
     }
 
@@ -353,30 +380,13 @@ public final class AgentToolbox {
 
     private func findRegions(_ a: AgentArgs) throws -> [AgentContent] {
         let doc = editor.doc
-        let ref: [UInt8]
-        let refName: String
-        switch try a.string("reference") ?? "all" {
-        case "all":
-            ref = Compositor.compositeFull(doc)
-            refName = "見えている全体"
-        case "reference_layers":
-            var o = CompositeOptions()
-            o.referenceOnly = true
-            ref = Compositor.compositeFull(doc, options: o)
-            refName = "参照レイヤー"
-        case let s:
-            guard let id = UUID(uuidString: s), var n = doc.node(id) else { throw AgentError("reference のレイヤーが見つかりません: \(s)") }
-            n.visible = true
-            var tmp = DocumentState(width: doc.width, height: doc.height)
-            tmp.layers = [n]
-            ref = Compositor.compositeFull(tmp)
-            refName = "レイヤー「\(n.name)」"
-        }
+        let (ref, refName) = try referenceImage(try referenceKeys(a) ?? ["all"])
         let map = RegionMap.build(reference: ref, width: doc.width, height: doc.height,
                                   lineThreshold: Float(try a.double("line_threshold", default: 0.5)),
                                   gapClose: max(0, try a.int("gap_close", default: 0)),
                                   minArea: max(1, try a.int("min_area", default: 30)))
         regionMap = map
+        lastReference = try referenceKeys(a) ?? ["all"]
         let composite = Compositor.compositeFull(doc)
         let limit = max(1, try a.int("max_regions", default: 300))
         let list: [[String: Any]] = map.regions.prefix(limit).map { r in
@@ -399,6 +409,49 @@ public final class AgentToolbox {
         ]
         contents.append(.text(json(summary)))
         return contents
+    }
+
+    /// reference は文字列か、レイヤー ID の配列
+    private func referenceKeys(_ a: AgentArgs) throws -> [String]? {
+        if let arr = a.raw["reference"] as? [String] { return arr.isEmpty ? nil : arr }
+        return try a.string("reference").map { [$0] }
+    }
+
+    /// 線として見る画像（"all"、"reference_layers"、レイヤー ID の並び。非表示のレイヤーも見る）
+    private func referenceImage(_ keys: [String]) throws -> ([UInt8], String) {
+        let doc = editor.doc
+        if keys == ["all"] { return (Compositor.compositeFull(doc), "見えている全体") }
+        if keys == ["reference_layers"] {
+            var o = CompositeOptions()
+            o.referenceOnly = true
+            return (Compositor.compositeFull(doc, options: o), "参照レイヤー")
+        }
+        var tmp = DocumentState(width: doc.width, height: doc.height)
+        for key in keys {
+            guard let id = UUID(uuidString: key), var n = doc.node(id) else { throw AgentError("reference のレイヤーが見つかりません: \(key)") }
+            n.visible = true
+            n.clipping = false
+            tmp.layers.append(n)
+        }
+        return (Compositor.compositeFull(tmp), tmp.layers.map { "レイヤー「\($0.name)」" }.joined(separator: "と"))
+    }
+
+    private func fillLeftovers(_ a: AgentArgs) throws -> [AgentContent] {
+        let lid = try useLayer(a, paint: true)
+        guard let keys = try referenceKeys(a) ?? lastReference else {
+            throw AgentError("reference（線画のレイヤー ID）を指定してください")
+        }
+        guard keys != ["all"] else { throw AgentError("reference には線画のレイヤー ID を指定してください（\"all\" だと塗った色も線に見えてしまう）") }
+        let doc = editor.doc
+        let (ref, _) = try referenceImage(keys)
+        let flat = doc.node(lid)!.tiles.toBuffer(width: doc.width, height: doc.height)
+        let found = RegionMap.leftovers(flat: flat, line: ref, width: doc.width, height: doc.height,
+                                        lineThreshold: Float(try a.double("line_threshold", default: 0.5)),
+                                        maxArea: max(1, try a.int("max_area", default: 400)), expand: max(0, try a.int("expand", default: 2)))
+        let dry = try a.bool("dry_run") ?? false
+        if !dry && !found.isEmpty { editor.paintMasks(found.map(\.paint), layerID: lid, label: "塗り残しを塗る") }
+        let list: [[String: Any]] = found.prefix(100).map { ["bounds": Self.rectJSON($0.bounds), "area": $0.area, "color": Self.hex($0.color)] }
+        return [.text(json(["count": found.count, "filled": !dry, "leftovers": list]))]
     }
 
     private func fillRegions(_ a: AgentArgs) throws -> [AgentContent] {
@@ -487,7 +540,9 @@ public final class AgentToolbox {
         editor.activate(.preset(presets[index].id))
         let original = editor.currentBrush
         let originalColor = editor.mainColor
+        if let o = a.raw["settings"] as? [String: Any] { editor.currentBrush = try Self.applying(o, to: editor.currentBrush) }
         if let size = try a.double("size") { editor.setBrushSize(Float(size)) }
+        if let op = try a.double("opacity") { editor.currentBrush.opacity = Float(min(max(op, 0), 1)) }
         if let c = try a.color("color") { editor.mainColor = c }
         defer {
             editor.currentBrush = original
@@ -558,6 +613,28 @@ public final class AgentToolbox {
                     for x in p.bounds.minX..<p.bounds.maxX { data[y * doc.width + x] = max(data[y * doc.width + x], p.alpha(x, y)) }
                 }
             }
+            editor.setSelection(SelectionMask.combine(doc.selection, SelectionMask(width: doc.width, height: doc.height, data: data), op: op),
+                                label: "選択範囲")
+        case "wand":
+            let x = try a.requireInt("x"), y = try a.requireInt("y")
+            guard doc.bounds.contains(x, y) else { throw AgentError("(\(x), \(y)) はキャンバスの外です") }
+            var st = editor.wandSettings
+            switch try a.string("reference") {
+            case nil, "all": st.reference = .allLayers
+            case "layer": st.reference = .currentLayer
+            case "reference_layers": st.reference = .referenceLayers
+            case let r?: throw AgentError("reference は all / layer / reference_layers のどれか: \(r)")
+            }
+            if let t = try a.double("tolerance") { st.tolerance = Float(t) }
+            let saved = editor.wandSettings
+            editor.wandSettings = st
+            editor.wandSelect(atX: x, y: y, op: op)
+            editor.wandSettings = saved
+        case "layer":
+            let id = try layer(a, "layer_id")
+            guard let n = doc.node(id), n.kind == .raster else { throw AgentError("ラスターレイヤーを指定してください") }
+            let buf = n.tiles.toBuffer(width: doc.width, height: doc.height)
+            let data = (0..<(doc.width * doc.height)).map { buf[$0 * 4 + 3] }
             editor.setSelection(SelectionMask.combine(doc.selection, SelectionMask(width: doc.width, height: doc.height, data: data), op: op),
                                 label: "選択範囲")
         case let s:
@@ -650,5 +727,172 @@ public final class AgentToolbox {
         guard let d = try? JSONSerialization.data(withJSONObject: v, options: [.sortedKeys, .withoutEscapingSlashes]),
               let s = String(data: d, encoding: .utf8) else { return "\(v)" }
         return s
+    }
+}
+
+// MARK: - 変形・選択・ブラシ・まとめて実行
+
+extension AgentToolbox {
+    var moreTools: [AgentTool] {
+        let layerID: [String: Any] = ["type": "string", "description": "対象のレイヤー ID。省略すると編集中のレイヤー"]
+        return [
+            AgentTool(name: "batch",
+                      description: "複数のツールを順に呼ぶ（1 回のやりとりで済む）。たとえば線をたくさん描く、いくつかの点を塗りつぶすなど。画像を返すツールの画像もそのまま返す。",
+                      properties: ["calls": ["type": "array", "description": "[{\"tool\": 名前, \"arguments\": {...}}, ...]",
+                                             "items": ["type": "object", "properties": ["tool": ["type": "string"], "arguments": ["type": "object"]],
+                                                       "required": ["tool"]]],
+                                   "stop_on_error": ["type": "boolean", "description": "失敗したらそこで止める（既定 true）"]],
+                      required: ["calls"]) { [unowned self] a in
+                try batch(a)
+            },
+            AgentTool(name: "transform",
+                      description: "選択範囲の中（なければレイヤー全体）を動かす・拡大縮小する・回転する・反転する。中心は対象の範囲の中心。",
+                      properties: ["layer_id": layerID,
+                                   "dx": ["type": "number", "description": "右へ動かす px"], "dy": ["type": "number", "description": "下へ動かす px"],
+                                   "scale": ["type": "number", "description": "縦横同じ倍率"],
+                                   "scale_x": ["type": "number"], "scale_y": ["type": "number"],
+                                   "rotation": ["type": "number", "description": "度。正の値で時計回り"],
+                                   "flip_horizontal": ["type": "boolean"], "flip_vertical": ["type": "boolean"]]) { [unowned self] a in
+                try transform(a)
+            },
+            AgentTool(name: "fill_selection", description: "選択範囲（なければレイヤー全体）を色で塗る。select で楕円や多角形を選んでから塗る、などに。",
+                      properties: ["color": ["type": "string", "description": "\"#RRGGBB\"。省略すると現在の描画色"], "layer_id": layerID]) { [unowned self] a in
+                let lid = try useLayer(a, paint: true)
+                let doc = editor.doc
+                let sel = doc.selection
+                editor.paintMasks([Editor.MaskPaint(bounds: sel?.bounds ?? doc.bounds, color: try a.color("color") ?? editor.mainColor) { _, _ in 255 }],
+                                  layerID: lid, label: "塗りつぶし")
+                return [.text("塗りました")]
+            },
+            AgentTool(name: "set_color", description: "描画色（main）とサブカラー（sub）を設定する。",
+                      properties: ["main": ["type": "string", "description": "\"#RRGGBB\""], "sub": ["type": "string"]]) { [unowned self] a in
+                if let c = try a.color("main") { editor.mainColor = c }
+                if let c = try a.color("sub") { editor.subColor = c }
+                return [.text(json(["main": Self.hex(editor.mainColor), "sub": Self.hex(editor.subColor)]))]
+            },
+            AgentTool(name: "select_brush", description: "ブラシ（または消しゴム）を名前か ID で選ぶ。以後ユーザーが描くときもそのブラシになる。",
+                      properties: ["brush": ["type": "string"]], required: ["brush"]) { [unowned self] a in
+                let b = try brush(try a.requireString("brush"))
+                editor.activate(.preset(b.id))
+                return [.text("選びました: \(b.name)")]
+            },
+            AgentTool(name: "update_brush",
+                      description: "ブラシの設定を変えて保存する（ユーザーのブラシも変わる）。一時的に変えたいだけなら stroke の settings を使う。",
+                      properties: ["brush": ["type": "string", "description": "名前か ID"],
+                                   "settings": ["type": "object", "description": "変える項目（list_brushes の detail: true で見られる名前）"]],
+                      required: ["brush", "settings"]) { [unowned self] a in
+                let b = try brush(try a.requireString("brush"))
+                guard let o = a.raw["settings"] as? [String: Any] else { throw AgentError("settings を指定してください") }
+                let nb = try Self.applying(o, to: b)
+                if let i = editor.brushes.firstIndex(where: { $0.id == b.id }) { editor.brushes[i] = nb }
+                if let i = editor.erasers.firstIndex(where: { $0.id == b.id }) { editor.erasers[i] = nb }
+                return [.text(json(Self.settingsJSON(nb)))]
+            },
+            AgentTool(name: "create_brush",
+                      description: "既存のブラシを元に新しいブラシを作る（ユーザーのブラシ一覧に加わる）。",
+                      properties: ["from": ["type": "string", "description": "元にするブラシの名前か ID"], "name": ["type": "string"],
+                                   "settings": ["type": "object", "description": "変える項目"]],
+                      required: ["from", "name"]) { [unowned self] a in
+                let base = try brush(try a.requireString("from"))
+                var nb = try Self.applying(a.raw["settings"] as? [String: Any] ?? [:], to: base)
+                nb.id = UUID()
+                nb.name = try a.requireString("name")
+                if editor.erasers.contains(where: { $0.id == base.id }) { editor.erasers.append(nb) } else { editor.brushes.append(nb) }
+                return [.text(json(["id": nb.id.uuidString, "name": nb.name]))]
+            },
+            AgentTool(name: "group_layers", description: "いくつかのレイヤーを新しいフォルダーにまとめる。",
+                      properties: ["layer_ids": ["type": "array", "items": ["type": "string"]], "name": ["type": "string"]],
+                      required: ["layer_ids"]) { [unowned self] a in
+                guard let ids = (a.raw["layer_ids"] as? [String])?.compactMap(UUID.init(uuidString:)), !ids.isEmpty else {
+                    throw AgentError("layer_ids に ID を並べてください")
+                }
+                for id in ids where editor.doc.node(id) == nil { throw AgentError("レイヤーが見つかりません: \(id)") }
+                editor.setActiveLayer(ids[0])
+                for id in ids.dropFirst() where !editor.isLayerSelected(id) { editor.toggleLayerSelection(id) }
+                editor.groupSelectedLayers()
+                guard let path = editor.doc.indexPath(of: ids[0]), let folder = editor.doc.node(at: Array(path.dropLast())), folder.isFolder else {
+                    throw AgentError("まとめられませんでした")
+                }
+                if let name = try a.string("name") { editor.setLayerProperty(folder.id, label: "レイヤーの名前") { $0.name = name } }
+                return [.text(json(["folder_id": folder.id.uuidString]))]
+            },
+            AgentTool(name: "resize_canvas", description: "キャンバスの大きさを変える（左上を基準に、絵は拡大縮小しない）。",
+                      properties: ["width": ["type": "integer"], "height": ["type": "integer"]], required: ["width", "height"]) { [unowned self] a in
+                let w = try a.requireInt("width"), h = try a.requireInt("height")
+                guard (1...20000).contains(w), (1...20000).contains(h) else { throw AgentError("大きさは 1〜20000 px") }
+                editor.resizeCanvas(width: w, height: h)
+                return [.text("\(w)×\(h) にしました")]
+            },
+        ]
+    }
+
+    private func brush(_ key: String) throws -> BrushSettings {
+        guard let b = (editor.brushes + editor.erasers).first(where: { $0.id.uuidString == key || $0.name == key }) else {
+            throw AgentError("ブラシが見つかりません: \(key)（list_brushes で確かめてください）")
+        }
+        return b
+    }
+
+    private func batch(_ a: AgentArgs) throws -> [AgentContent] {
+        guard let calls = a.raw["calls"] as? [[String: Any]], !calls.isEmpty else { throw AgentError("calls を指定してください") }
+        let stop = try a.bool("stop_on_error") ?? true
+        var out: [AgentContent] = []
+        var failed = 0
+        for (i, c) in calls.enumerated() {
+            guard let name = c["tool"] as? String else { throw AgentError("calls[\(i)] に tool がありません") }
+            guard name != "batch" else { throw AgentError("batch の中で batch は使えません") }
+            do {
+                let r = try call(name, c["arguments"] as? [String: Any] ?? [:])
+                for item in r {
+                    if case let .text(t) = item { out.append(.text("[\(i)] \(name): \(t)")) } else { out.append(item) }
+                }
+            } catch {
+                failed += 1
+                out.append(.text("[\(i)] \(name): 失敗: \(error)"))
+                if stop { throw AgentError(out.compactMap { if case let .text(t) = $0 { return t } else { return nil } }.joined(separator: "\n") + "\n（ここで止めました。前の操作は実行済み）") }
+            }
+        }
+        out.append(.text("\(calls.count) 件中 \(calls.count - failed) 件成功"))
+        return out
+    }
+
+    private func transform(_ a: AgentArgs) throws -> [AgentContent] {
+        try useLayer(a, paint: true)
+        var p = TransformParams()
+        p.tx = try a.double("dx", default: 0)
+        p.ty = try a.double("dy", default: 0)
+        let s = try a.double("scale", default: 1)
+        p.sx = try a.double("scale_x", default: s)
+        p.sy = try a.double("scale_y", default: s)
+        if try a.bool("flip_horizontal") ?? false { p.sx = -p.sx }
+        if try a.bool("flip_vertical") ?? false { p.sy = -p.sy }
+        p.rotation = try a.double("rotation", default: 0) * .pi / 180
+        guard p.sx != 0, p.sy != 0 else { throw AgentError("倍率に 0 は使えません") }
+        guard editor.beginTransform() else { throw AgentError("変形できませんでした（空のレイヤーか、選択範囲の中が空）") }
+        editor.updateTransform(p)
+        let dest = editor.floating?.destBounds
+        editor.commitTransform()
+        return [.text(json(["bounds": dest.map(Self.rectJSON) as Any? ?? NSNull()]))]
+    }
+
+    /// ブラシ設定の一部を JSON で上書きする
+    static func applying(_ o: [String: Any], to b: BrushSettings) throws -> BrushSettings {
+        var d = settingsJSON(b)
+        for (k, v) in o {
+            guard d[k] != nil, k != "id", k != "kind" else {
+                throw AgentError("ブラシの設定に \(k) はありません。使える項目: \(d.keys.filter { $0 != "id" && $0 != "kind" }.sorted().joined(separator: ", "))")
+            }
+            d[k] = v
+        }
+        do {
+            return try JSONDecoder().decode(BrushSettings.self, from: JSONSerialization.data(withJSONObject: d))
+        } catch {
+            throw AgentError("ブラシの設定の値の型が違います: \(error)")
+        }
+    }
+
+    static func settingsJSON(_ b: BrushSettings) -> [String: Any] {
+        guard let d = try? JSONEncoder().encode(b), let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return [:] }
+        return o
     }
 }

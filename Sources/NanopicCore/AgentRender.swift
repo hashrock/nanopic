@@ -17,13 +17,16 @@ enum AgentRender {
                        grid: Bool, draw: ((CGContext, Double) -> Void)? = nil) -> Output? {
         guard let full = ImageUtil.makeImage(premultiplied: buf, width: w, height: h),
               let cropped = full.cropping(to: CGRect(x: rect.x, y: rect.y, width: rect.width, height: rect.height)) else { return nil }
-        let scale = max(1, Double(max(rect.width, rect.height)) / Double(max(maxSize, 64)))
+        var scale = max(1, Double(max(rect.width, rect.height)) / Double(max(maxSize, 64)))
+        // 小さい範囲は画素が見えるよう整数倍に拡大する（長辺 512px 程度まで、最大 16 倍）
+        let long = max(rect.width, rect.height)
+        if long < 256 { scale = 1 / Double(min(16, max(2, min(512, maxSize) / max(long, 1)))) }
         let ow = max(1, Int((Double(rect.width) / scale).rounded())), oh = max(1, Int((Double(rect.height) / scale).rounded()))
         guard let ctx = CGContext(data: nil, width: ow, height: oh, bitsPerComponent: 8, bytesPerRow: 0, space: ImageUtil.sRGB,
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         ctx.setFillColor(CGColor(gray: 1, alpha: 1))
         ctx.fill(CGRect(x: 0, y: 0, width: ow, height: oh))
-        ctx.interpolationQuality = .high
+        ctx.interpolationQuality = scale < 1 ? .none : .high
         ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: ow, height: oh))
         // ここからはドキュメント座標（左上原点・下向き）で描く
         ctx.translateBy(x: 0, y: CGFloat(oh))

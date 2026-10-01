@@ -79,6 +79,19 @@ extension AppState {
                 try writePSD(to: url)
                 return [.text("保存しました: \(url.path)")]
             },
+            AgentTool(name: "set_view",
+                      description: "ユーザーの画面の表示を変える（作業している所を見せる）。region を渡すとそこを画面いっぱいに、fit: true で全体を表示。",
+                      properties: ["region": ["type": "object", "properties": ["x": ["type": "integer"], "y": ["type": "integer"],
+                                                                                "width": ["type": "integer"], "height": ["type": "integer"]]],
+                                   "fit": ["type": "boolean"]]) { [unowned self] a in
+                guard let canvas = canvasView else { throw AgentError("キャンバスが開いていません") }
+                if let r = try a.rect("region") {
+                    canvas.show(CGRect(x: r.x, y: r.y, width: r.width, height: r.height))
+                } else {
+                    canvas.fitToWindow()
+                }
+                return [.text(String(format: "表示倍率 %.0f%%", zoom * 100))]
+            },
             AgentTool(name: "export_png", description: "見た目を 1 枚の PNG に書き出す。",
                       properties: ["path": ["type": "string", "description": "絶対パス（.png）"]], required: ["path"]) { [unowned self] a in
                 let url = try fileURL(a)

@@ -97,9 +97,14 @@ claude mcp add --transport http nanopic http://127.0.0.1:47823/mcp
 | ツール | 内容 |
 |---|---|
 | `get_document` / `get_image` | レイヤー構成と見た目（座標の目盛りや一部の拡大も） |
-| `find_regions` / `fill_regions` | 線画で囲まれた範囲を番号つきで返し、番号と色を指定してまとめて塗る（線の下まで塗り、隣にははみ出さない） |
-| `fill` / `lasso_fill` / `stroke` / `select` / `clear` | 塗りつぶし、多角形の塗り、ブラシの線、選択範囲、消去 |
-| `add_layer` / `update_layer` / `move_layer` ほか | レイヤーの作成・設定・並べ替え・結合・削除 |
+| `find_regions` / `fill_regions` | 線画で囲まれた範囲を番号つきで返し、番号と色を指定してまとめて塗る（線の下まで塗り、隣にははみ出さない）。開いた線は、非表示の閉じ線レイヤーと一緒に参照すれば閉じて扱える |
+| `fill_leftovers` | 下塗りの細かい塗り残しを探し、接している色でまとめて埋める |
+| `fill` / `lasso_fill` / `fill_selection` / `stroke` / `clear` | 塗りつぶし、多角形の塗り、選択範囲の塗り、ブラシの線（設定の一時的な上書き可）、消去 |
+| `select` / `transform` | 選択範囲（矩形・楕円・多角形・自動選択・レイヤーから・領域から）、移動・拡大縮小・回転・反転 |
+| `add_layer` / `update_layer` / `move_layer` / `group_layers` ほか | レイヤーの作成・設定・並べ替え・フォルダーにまとめる・結合・削除 |
+| `list_brushes` / `select_brush` / `update_brush` / `create_brush` / `set_color` | ブラシと色 |
+| `batch` | 複数の操作を 1 回でまとめて実行 |
+| `set_view` / `resize_canvas` / `undo` / `redo` | 表示位置、キャンバスサイズ、取り消し |
 | `open_file` / `save_psd` / `export_png` ほか | ファイルの読み書き（保存していない変更があると、明示しない限り閉じない） |
 
 ブラシのサイズ・角度のランダムは、描き始めの点から決まる種で作るので、同じ入力からは必ず同じ絵になります。

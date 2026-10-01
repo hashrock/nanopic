@@ -148,6 +148,15 @@ final class CanvasView: NSView {
         viewChanged()
     }
 
+    /// ドキュメントの rect が画面いっぱいに見えるようにする
+    func show(_ rect: CGRect) {
+        guard bounds.width > 0, bounds.height > 0, rect.width > 0, rect.height > 0 else { return }
+        rotation = 0
+        zoom = min(max(min(bounds.width / rect.width, bounds.height / rect.height) * 0.92, 0.01), 64)
+        offset = CGPoint(x: bounds.midX - rect.midX * zoom, y: bounds.midY - rect.midY * zoom)
+        viewChanged()
+    }
+
     func setActualSize() {
         zoom(to: 1, around: CGPoint(x: bounds.midX, y: bounds.midY))
     }

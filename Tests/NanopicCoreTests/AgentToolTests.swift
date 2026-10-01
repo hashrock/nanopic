@@ -110,3 +110,121 @@ extension AgentToolTests {
         XCTAssertGreaterThan(inside["area"] as! Int, 0)
     }
 }
+
+extension AgentToolTests {
+    func testBatchRunsInOrderAndStopsOnError() throws {
+        let ed = Editor(width: 100, height: 100)
+        let tb = AgentToolbox(editor: ed)
+        let out = try tb.call("batch", ["calls": [
+            ["tool": "add_layer", "arguments": ["name": "a"]],
+            ["tool": "fill_selection", "arguments": ["color": "#00FF00"]],
+        ]])
+        XCTAssertTrue(text(out).contains("2 件中 2 件成功"))
+        XCTAssertEqual(ed.doc.activeLayer?.name, "a")
+        XCTAssertEqual(ed.doc.activeLayer?.tiles.pixel(50, 50).1, 255)
+        XCTAssertThrowsError(try tb.call("batch", ["calls": [["tool": "set_color", "arguments": ["main": "bad"]],
+                                                              ["tool": "add_layer"]]]))
+        XCTAssertEqual(ed.doc.activeLayer?.name, "a", "失敗した後は実行しない")
+    }
+
+    func testTransformMovesSelection() throws {
+        let ed = Editor(width: 100, height: 100)
+        let tb = AgentToolbox(editor: ed)
+        _ = try tb.call("select", ["shape": "rect", "rect": ["x": 10, "y": 10, "width": 20, "height": 20]])
+        _ = try tb.call("fill_selection", ["color": "#FF0000"])
+        _ = try tb.call("transform", ["dx": 50, "dy": 0])
+        let l = ed.doc.activeLayer!.tiles
+        XCTAssertEqual(l.pixel(20, 20).3, 0)
+        XCTAssertEqual(l.pixel(70, 20).0, 255)
+    }
+
+    func testSelectLayerAndWand() throws {
+        let ed = Editor(width: 100, height: 100)
+        let tb = AgentToolbox(editor: ed)
+        let id = try object(tb.call("add_layer", ["name": "a"]))["layer_id"] as! String
+        _ = try tb.call("lasso_fill", ["points": [[10, 10], [40, 10], [40, 40], [10, 40]], "color": "#000000", "antialias": false])
+        _ = try tb.call("select", ["shape": "layer", "layer_id": id])
+        XCTAssertEqual(ed.doc.selection?.bounds, IntRect(x: 10, y: 10, width: 30, height: 30))
+        _ = try tb.call("select", ["shape": "wand", "x": 80, "y": 80])
+        XCTAssertEqual(ed.doc.selection?.value(80, 80), 255)
+        XCTAssertEqual(ed.doc.selection?.value(20, 20), 0)
+    }
+
+    func testBrushSettingsOverrideAndPersistentEdits() throws {
+        let ed = Editor(width: 100, height: 100)
+        let tb = AgentToolbox(editor: ed)
+        XCTAssertThrowsError(try tb.call("stroke", ["points": [[10, 10], [90, 90]], "settings": ["nope": 1]]))
+        _ = try tb.call("stroke", ["points": [[10, 10], [90, 90]], "settings": ["hardness": 0.2]])
+        XCTAssertEqual(ed.brushes[0].hardness, BrushSettings.defaultPresets[0].hardness, "一時的な上書きは残らない")
+        _ = try tb.call("update_brush", ["brush": "丸ペン", "settings": ["size": 33]])
+        XCTAssertEqual(ed.brushes.first { $0.name == "丸ペン" }?.size, 33)
+        let made = try object(tb.call("create_brush", ["from": "丸ペン", "name": "太丸", "settings": ["size": 60]]))
+        XCTAssertEqual(ed.brushes.last?.name, "太丸")
+        XCTAssertEqual(ed.brushes.last?.id.uuidString, made["id"] as? String)
+        _ = try tb.call("select_brush", ["brush": "太丸"])
+        XCTAssertEqual(ed.currentBrush.name, "太丸")
+    }
+
+    func testGroupLayers() throws {
+        let ed = Editor(width: 50, height: 50)
+        let tb = AgentToolbox(editor: ed)
+        let a = try object(tb.call("add_layer", ["name": "a"]))["layer_id"] as! String
+        let b = try object(tb.call("add_layer", ["name": "b"]))["layer_id"] as! String
+        let f = try object(tb.call("group_layers", ["layer_ids": [a, b], "name": "人物"]))["folder_id"] as! String
+        let folder = try XCTUnwrap(ed.doc.node(UUID(uuidString: f)))
+        XCTAssertEqual(folder.name, "人物")
+        XCTAssertEqual(Set(folder.children.map(\.name)), ["a", "b"])
+    }
+}
+
+extension AgentToolTests {
+    /// lasso_fill で塗り残したすき間を、接している色で埋めること
+    func testFillLeftovers() throws {
+        let ed = Editor(width: 200, height: 120)
+        let tb = AgentToolbox(editor: ed)
+        let line = try object(tb.call("add_layer", ["name": "線画"]))["layer_id"] as! String
+        _ = try tb.call("stroke", ["points": [[20, 20], [180, 20], [180, 100], [20, 100], [20, 20]], "size": 4, "color": "#000000", "brush": "丸ペン"])
+        _ = try tb.call("stroke", ["points": [[100, 20], [100, 100]], "size": 4, "color": "#000000", "brush": "丸ペン"])
+        let flat = try object(tb.call("add_layer", ["name": "下塗り", "below": line]))["layer_id"] as! String
+        // 左は少し塗り残し、右は赤で全部
+        _ = try tb.call("lasso_fill", ["points": [[22, 22], [90, 22], [90, 98], [22, 98]], "color": "#00FF00", "antialias": false])
+        _ = try tb.call("lasso_fill", ["points": [[102, 22], [178, 22], [178, 98], [102, 98]], "color": "#FF0000", "antialias": false])
+        let fid = UUID(uuidString: flat)!
+        XCTAssertEqual(ed.doc.node(fid)!.tiles.pixel(95, 60).3, 0)
+        let out = try object(tb.call("fill_leftovers", ["reference": line, "max_area": 2000]))
+        XCTAssertEqual(out["count"] as? Int, 1)
+        let px = ed.doc.node(fid)!.tiles.pixel(95, 60)
+        XCTAssertEqual(px.1, 255)
+        XCTAssertEqual(px.0, 0)
+        // 枠の外（背景）は大きいので塗らない
+        XCTAssertEqual(ed.doc.node(fid)!.tiles.pixel(5, 5).3, 0)
+    }
+
+    func testSmallRegionIsMagnified() throws {
+        let tb = AgentToolbox(editor: Editor(width: 300, height: 300))
+        let out = try tb.call("get_image", ["region": ["x": 10, "y": 10, "width": 32, "height": 16]])
+        guard case let .png(data) = out[0] else { return XCTFail() }
+        let img = try XCTUnwrap(CGImageSourceCreateImageAtIndex(CGImageSourceCreateWithData(data as CFData, nil)!, 0, nil))
+        XCTAssertEqual(img.width, 512)
+        XCTAssertEqual(img.height, 256)
+        XCTAssertTrue(text(out).contains("16 倍"))
+    }
+}
+
+extension AgentToolTests {
+    /// 開いた線を、非表示の閉じ線レイヤーと一緒に参照すると範囲が分かれること
+    func testClosingLineLayer() throws {
+        let ed = Editor(width: 200, height: 120)
+        let tb = AgentToolbox(editor: ed)
+        let line = try object(tb.call("add_layer", ["name": "線画"]))["layer_id"] as! String
+        // 下が開いたコの字
+        _ = try tb.call("stroke", ["points": [[20, 110], [20, 20], [180, 20], [180, 110]], "size": 4, "color": "#000000", "brush": "丸ペン"])
+        let before = try object(tb.call("find_regions", ["reference": line]))["regions"] as! [[String: Any]]
+        XCTAssertEqual(before.filter { $0["touches_edge"] == nil }.count, 0)
+        let closing = try object(tb.call("add_layer", ["name": "閉じ線"]))["layer_id"] as! String
+        _ = try tb.call("stroke", ["points": [[20, 100], [180, 100]], "size": 4, "color": "#000000", "brush": "丸ペン"])
+        _ = try tb.call("update_layer", ["layer_id": closing, "visible": false])
+        let after = try object(tb.call("find_regions", ["reference": [line, closing]]))["regions"] as! [[String: Any]]
+        XCTAssertEqual(after.filter { $0["touches_edge"] == nil }.count, 1)
+    }
+}

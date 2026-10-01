@@ -145,3 +145,97 @@ public struct RegionMap: Sendable {
         return Editor.MaskPaint(bounds: b, color: color) { x, y in local[(y - oy) * bw + (x - ox)] }
     }
 }
+
+/// 塗り残し（下塗りのレイヤーで塗られていない、線以外の小さなすき間）
+public struct Leftover {
+    public var bounds: IntRect
+    public var area: Int
+    public var color: SIMD3<Float>
+    public var paint: Editor.MaskPaint
+}
+
+extension RegionMap {
+    /// flat: 下塗りのレイヤー、line: 線画（どちらも premultiplied RGBA8、キャンバス全体）。
+    /// 面積が maxArea 以下のすき間を見つけ、接している塗りの色（なければ線を挟んだ近くの色）で塗るマスクを返す
+    public static func leftovers(flat: [UInt8], line ref: [UInt8], width w: Int, height h: Int,
+                                 lineThreshold: Float = 0.5, maxArea: Int = 400, expand: Int = 2) -> [Leftover] {
+        let n = w * h
+        let thr = Int((1 - min(max(lineThreshold, 0.01), 1)) * 255 * 3)
+        var line = [Bool](repeating: false, count: n)
+        for i in 0..<n {
+            let a = 255 - Int(ref[i * 4 + 3])
+            line[i] = Int(ref[i * 4]) + Int(ref[i * 4 + 1]) + Int(ref[i * 4 + 2]) + a * 3 <= thr
+        }
+        @inline(__always) func filled(_ i: Int) -> Bool { flat[i * 4 + 3] >= 128 }
+        func color(_ i: Int) -> SIMD3<Float> {
+            let a = Float(flat[i * 4 + 3])
+            return SIMD3(Float(flat[i * 4]) / a, Float(flat[i * 4 + 1]) / a, Float(flat[i * 4 + 2]) / a)
+        }
+        func key(_ i: Int) -> Int { Int(flat[i * 4]) << 16 | Int(flat[i * 4 + 1]) << 8 | Int(flat[i * 4 + 2]) }
+
+        var seen = [Bool](repeating: false, count: n)
+        var out: [Leftover] = []
+        for start in 0..<n where !seen[start] && !line[start] && !filled(start) {
+            // すき間を 4 近傍で集める（maxArea を超えたら打ち切って捨てる）
+            var comp: [Int] = []
+            var stack = [start]
+            seen[start] = true
+            var tooBig = false, edge = false
+            while let i = stack.popLast() {
+                comp.append(i)
+                if comp.count > maxArea { tooBig = true }
+                let x = i % w, y = i / w
+                if x == 0 || y == 0 || x == w - 1 || y == h - 1 { edge = true }
+                for j in [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]
+                where j >= 0 && !seen[j] && !line[j] && !filled(j) {
+                    seen[j] = true
+                    stack.append(j)
+                }
+            }
+            if tooBig || edge { continue }
+            // 色: 直接接している塗り → なければ線をたどって 12px 以内で最初に届いた塗り（多いもの）
+            var votes: [Int: (count: Int, index: Int)] = [:]
+            for i in comp {
+                let x = i % w, y = i / w
+                for j in [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1] where j >= 0 && filled(j) {
+                    votes[key(j), default: (0, j)].count += 1
+                }
+            }
+            if votes.isEmpty {
+                var dist: [Int: Int] = [:]
+                var queue = comp
+                for i in comp { dist[i] = 0 }
+                var head = 0
+                while head < queue.count {
+                    let i = queue[head]; head += 1
+                    let d = dist[i]!
+                    if d >= 12 { continue }
+                    let x = i % w, y = i / w
+                    for j in [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1] where j >= 0 && dist[j] == nil {
+                        dist[j] = d + 1
+                        if filled(j) { votes[key(j), default: (0, j)].count += 1 } else if line[j] { queue.append(j) }
+                    }
+                }
+            }
+            guard let best = votes.max(by: { $0.value.count < $1.value.count || ($0.value.count == $1.value.count && $0.key > $1.key) }) else { continue }
+            // マスク: すき間と、そこから expand px 以内の線の画素
+            var minX = w, minY = h, maxX = 0, maxY = 0
+            for i in comp { minX = min(minX, i % w); maxX = max(maxX, i % w); minY = min(minY, i / w); maxY = max(maxY, i / w) }
+            let b = IntRect(minX: minX, minY: minY, maxX: maxX + 1, maxY: maxY + 1).insetBy(-expand).intersection(IntRect(x: 0, y: 0, width: w, height: h))
+            var local = [UInt8](repeating: 0, count: b.width * b.height)
+            for i in comp { local[(i / w - b.minY) * b.width + (i % w - b.minX)] = 255 }
+            if expand > 0 {
+                var grown = local
+                FloodFill.dilate(&grown, b.width, b.height, radius: expand, value: 255)
+                for y in 0..<b.height {
+                    for x in 0..<b.width where grown[y * b.width + x] != 0 && line[(y + b.minY) * w + x + b.minX] { local[y * b.width + x] = 255 }
+                }
+            }
+            let c = color(best.value.index)
+            let bw = b.width, ox = b.minX, oy = b.minY
+            out.append(Leftover(bounds: IntRect(minX: minX, minY: minY, maxX: maxX + 1, maxY: maxY + 1), area: comp.count, color: c,
+                                paint: Editor.MaskPaint(bounds: b, color: c) { x, y in local[(y - oy) * bw + (x - ox)] }))
+        }
+        return out
+    }
+}
