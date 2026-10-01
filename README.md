@@ -1,8 +1,16 @@
-# Nanopic
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="website/assets/nanopic-white.svg">
+    <img src="website/assets/nanopic.svg" width="40" height="40" alt="">
+  </picture>
+  Nanopic
+</h1>
 
 Swift で書いた macOS 用のペイントツールです。CLIP STUDIO PAINT のラスター描画機能を参考にしています。
 
 [サイト](https://hashrock.github.io/nanopic/) · [ダウンロード](https://github.com/hashrock/nanopic/releases/latest)
+
+![Nanopic の描画画面](website/assets/screenshot.png)
 
 ## ビルドと起動
 
