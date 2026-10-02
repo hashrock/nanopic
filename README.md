@@ -6,7 +6,7 @@
   Nanopic
 </h1>
 
-Swift で書いた macOS 用のペイントツールです。CLIP STUDIO PAINT のラスター描画機能を参考にしています。
+Swift で書いた macOS 用のペイントツールです。
 
 [サイト](https://hashrock.github.io/nanopic/) · [ダウンロード](https://github.com/hashrock/nanopic/releases/latest)
 
