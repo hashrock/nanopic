@@ -30,8 +30,10 @@ struct PaletteView: View {
                         swatch(i, c)
                     }
                 }
+                // 選択中の枠は色見本の 2px 外側に描くので、スクロールの端で切れないよう余白をとる
+                .padding(3)
             }
-            .frame(maxHeight: 76)
+            .frame(maxHeight: 82)
         }
         .onChange(of: editor.palette) { _, _ in state.savePreferences() }
     }
