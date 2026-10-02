@@ -71,3 +71,30 @@ final class ColorAdjustTests: XCTestCase {
         XCTAssertNil(ed.adjustment)
     }
 }
+
+final class PaletteTests: XCTestCase {
+    func testAddRemoveReplace() {
+        let ed = Editor(width: 10, height: 10)
+        let n = ed.palette.count
+        XCTAssertGreaterThan(n, 0)
+        ed.addToPalette(SIMD3(0.5, 0.25, 0.75))
+        ed.addToPalette(SIMD3(0.5, 0.25, 0.75))
+        XCTAssertEqual(ed.palette.count, n + 1, "同じ色は足さない")
+        ed.replacePaletteColor(at: n, with: SIMD3(1, 0, 0))
+        XCTAssertEqual(AgentToolbox.hex(ed.palette[n]), "#FF0000")
+        ed.removeFromPalette(at: n)
+        ed.removeFromPalette(at: 999)
+        XCTAssertEqual(ed.palette.count, n)
+    }
+
+    func testAgentEditPalette() throws {
+        let ed = Editor(width: 10, height: 10)
+        ed.palette = []
+        let tb = AgentToolbox(editor: ed)
+        _ = try tb.call("edit_palette", ["add": ["#112233", "#445566", "#112233"]])
+        XCTAssertEqual(ed.palette.map(AgentToolbox.hex), ["#112233", "#445566"])
+        _ = try tb.call("edit_palette", ["remove": ["#112233"]])
+        XCTAssertEqual(ed.palette.map(AgentToolbox.hex), ["#445566"])
+        XCTAssertThrowsError(try tb.call("edit_palette", ["add": ["red"]]))
+    }
+}

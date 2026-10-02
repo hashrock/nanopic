@@ -35,6 +35,9 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 ColorPickerView(editor: editor)
                     .padding(10)
+                PaletteView(state: state, editor: editor)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 10)
                 Divider()
                 LayerPanel(state: state, editor: editor)
             }

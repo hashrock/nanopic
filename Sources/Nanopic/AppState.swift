@@ -58,6 +58,7 @@ final class AppState {
         if let d = try? enc.encode(editor.grid) { UserDefaults.standard.set(d, forKey: "grid.v1") }
         if let d = try? enc.encode(editor.fillSettings) { UserDefaults.standard.set(d, forKey: "fill.v1") }
         if let d = try? enc.encode(shortcuts) { UserDefaults.standard.set(d, forKey: "shortcuts.v1") }
+        UserDefaults.standard.set(editor.palette.map(AgentToolbox.hex), forKey: "palette.v1")
     }
 
     private func loadPreferences() {
@@ -82,6 +83,9 @@ final class AppState {
         }
         if let d = UserDefaults.standard.data(forKey: "shortcuts.v1"), let m = try? dec.decode(ShortcutMap.self, from: d) {
             shortcuts = m
+        }
+        if let p = UserDefaults.standard.stringArray(forKey: "palette.v1") {
+            editor.palette = p.compactMap(AgentToolbox.parseColor)
         }
     }
 

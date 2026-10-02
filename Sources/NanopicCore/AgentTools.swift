@@ -363,6 +363,7 @@ public final class AgentToolbox {
             "active_layer_id": doc.activeLayerID?.uuidString as Any? ?? NSNull(),
             "selection": doc.selection.map { Self.rectJSON($0.bounds) } as Any? ?? NSNull(),
             "main_color": Self.hex(editor.mainColor),
+            "palette": editor.palette.map(Self.hex),
             "tool": editor.tool.rawValue,
             "brush": ["id": editor.currentBrush.id.uuidString, "name": editor.currentBrush.name, "size": Double(editor.currentBrush.size)],
             "unsaved_changes": editor.isDirty,
@@ -964,6 +965,21 @@ extension AgentToolbox {
                 if let c = try a.color("main") { editor.mainColor = c }
                 if let c = try a.color("sub") { editor.subColor = c }
                 return [.text(json(["main": Self.hex(editor.mainColor), "sub": Self.hex(editor.subColor)]))]
+            },
+            AgentTool(name: "edit_palette", description: "パレット（登録した色）に色を足す・消す。今のパレットは get_document の palette。",
+                      properties: ["add": ["type": "array", "items": ["type": "string"], "description": "足す色 \"#RRGGBB\" の配列（同じ色があれば足さない）"],
+                                   "remove": ["type": "array", "items": ["type": "string"], "description": "消す色 \"#RRGGBB\" の配列"]]) { [unowned self] a in
+                func colors(_ k: String) throws -> [SIMD3<Float>] {
+                    guard a.has(k) else { return [] }
+                    guard let arr = a.raw[k] as? [String] else { throw AgentError("\(k) は \"#RRGGBB\" の配列で指定してください") }
+                    return try arr.map { s in
+                        guard let c = Self.parseColor(s) else { throw AgentError("色の形が違います: \(s)") }
+                        return c
+                    }
+                }
+                for c in try colors("remove") { editor.palette.removeAll { Editor.sameColor($0, c) } }
+                for c in try colors("add") { editor.addToPalette(c) }
+                return [.text(json(["palette": editor.palette.map(Self.hex)]))]
             },
             AgentTool(name: "select_brush", description: "ブラシ（または消しゴム）を名前か ID で選ぶ。以後ユーザーが描くときもそのブラシになる。",
                       properties: ["brush": ["type": "string"]], required: ["brush"]) { [unowned self] a in

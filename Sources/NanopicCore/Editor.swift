@@ -69,6 +69,7 @@ public final class Editor {
     public var activeEraserIndex = 0
     public var mainColor = SIMD3<Float>(0.1, 0.1, 0.12)
     public var subColor = SIMD3<Float>(1, 1, 1)
+    public var palette: [SIMD3<Float>] = Editor.defaultPalette
     public var fillSettings = FillSettings()
     public var wandSettings = FillSettings()
     public var selectionAntialias = true
