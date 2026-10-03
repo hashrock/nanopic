@@ -142,6 +142,8 @@ public struct DocumentState {
     public var timeline = Timeline()
     /// デフォーマとパラメータ
     public var rig = Rig()
+    /// 書き出しの設定（範囲、大きさ、形式、書き出し先）
+    public var publish: PublishSettings?
     public var activeLayerID: UUID?
 
     public init(width: Int, height: Int) {

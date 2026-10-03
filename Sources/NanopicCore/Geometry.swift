@@ -5,7 +5,7 @@ public let kTileSize = 128
 public let kTilePixelCount = kTileSize * kTileSize
 
 /// 整数矩形（maxX / maxY は排他的）
-public struct IntRect: Hashable, Sendable, CustomStringConvertible {
+public struct IntRect: Hashable, Codable, Sendable, CustomStringConvertible {
     public var x: Int
     public var y: Int
     public var width: Int

@@ -25,12 +25,13 @@ extension AppState {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let doc = editor.doc
         let values = editor.parameterValues
+        let options = editor.movieOptions
         let progress = MovieExportProgress()
         progress.total = doc.timeline.frameCount
         movieExport = progress
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let result = Result {
-                try MovieExport.export(doc, to: url, values: values) { done, total in
+                try MovieExport.export(doc, to: url, values: values, options: options) { done, total in
                     DispatchQueue.main.async { progress.done = done; progress.total = total }
                     return !progress.isCancelled
                 }

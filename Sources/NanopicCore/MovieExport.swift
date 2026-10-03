@@ -7,7 +7,18 @@ public enum MovieExport {
     public struct Options: Sendable {
         /// 長辺をこれ以下にする（H.264 の上限に収めるため）
         public var maxLongSide = 3840
+        /// 切り抜く範囲（キャンバスの座標）。nil ならキャンバス全体
+        public var crop: IntRect?
+        /// 出力の大きさ。nil なら範囲と同じ
+        public var outputWidth: Int?
+        public var outputHeight: Int?
         public init() {}
+
+        /// 書き出しの設定の範囲と大きさを使う
+        public init(publish s: PublishSettings, canvas: IntRect) {
+            crop = s.resolvedRect(canvas: canvas)
+            (outputWidth, outputHeight) = s.resolvedOutputSize(canvas: canvas)
+        }
     }
 
     public struct Cancelled: Error {}
@@ -24,7 +35,9 @@ public enum MovieExport {
     public static func export(_ doc: DocumentState, to url: URL, values: [String: Double] = [:], options: Options = Options(),
                               progress: (Int, Int) -> Bool = { _, _ in true }) throws {
         let t = doc.timeline
-        let (w, h) = outputSize(width: doc.width, height: doc.height, options: options)
+        let crop = (options.crop ?? doc.bounds).intersection(doc.bounds)
+        let srcW = options.outputWidth ?? crop.width, srcH = options.outputHeight ?? crop.height
+        let (w, h) = outputSize(width: srcW, height: srcH, options: options)
         try? FileManager.default.removeItem(at: url)
         let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
@@ -42,7 +55,7 @@ public enum MovieExport {
         guard writer.startWriting() else { throw writer.error ?? CocoaError(.fileWriteUnknown) }
         writer.startSession(atSourceTime: .zero)
 
-        let scale = min(1, Double(options.maxLongSide) / Double(max(doc.width, doc.height)))
+        let scale = min(1, Double(options.maxLongSide) / Double(max(srcW, srcH)))
         var frameDoc = doc
         let fps = Int32(max(t.fps, 1))
         for f in 0..<max(t.frameCount, 1) {
@@ -54,7 +67,8 @@ public enum MovieExport {
             frameDoc.applyTimeline(frame: f)
             let pose = values.merging(t.parameterValues(at: f)) { _, new in new }
             let buf = Compositor.compositeFull(frameDoc.posed(values: pose))
-            guard let image = ImageUtil.makeImage(premultiplied: buf, width: doc.width, height: doc.height),
+            guard let full = ImageUtil.makeImage(premultiplied: buf, width: doc.width, height: doc.height),
+                  let image = crop == doc.bounds ? full : full.cropping(to: CGRect(x: crop.x, y: crop.y, width: crop.width, height: crop.height)),
                   let pool = adaptor.pixelBufferPool else { throw CocoaError(.fileWriteUnknown) }
             var pb: CVPixelBuffer?
             CVPixelBufferPoolCreatePixelBuffer(nil, pool, &pb)
@@ -67,8 +81,8 @@ public enum MovieExport {
             ctx?.fill(CGRect(x: 0, y: 0, width: w, height: h))
             ctx?.interpolationQuality = .high
             // 偶数に切り上げた分は右と下に白で足す（CGContext は下が原点）
-            ctx?.draw(image, in: CGRect(x: 0, y: Double(h) - Double(doc.height) * scale,
-                                        width: Double(doc.width) * scale, height: Double(doc.height) * scale))
+            ctx?.draw(image, in: CGRect(x: 0, y: Double(h) - Double(srcH) * scale,
+                                        width: Double(srcW) * scale, height: Double(srcH) * scale))
             CVPixelBufferUnlockBaseAddress(pb, [])
             while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.002) }
             guard adaptor.append(pb, withPresentationTime: CMTime(value: CMTimeValue(f), timescale: fps)) else {

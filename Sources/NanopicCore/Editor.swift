@@ -1198,6 +1198,12 @@ public final class Editor {
         doc.width = width
         doc.height = height
         doc.selection = nil
+        // 書き出し範囲も新しいキャンバスの座標に合わせる（外れたらキャンバス全体）
+        if var p = doc.publish, let r = p.rect {
+            let moved = IntRect(x: r.x - originX, y: r.y - originY, width: r.width, height: r.height).intersection(doc.bounds)
+            p.rect = moved.isEmpty ? nil : moved
+            doc.publish = p
+        }
         structureChanged()
     }
 
