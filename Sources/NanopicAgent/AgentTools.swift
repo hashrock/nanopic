@@ -1099,9 +1099,12 @@ extension AgentToolbox {
         guard let n = editor.doc.node(id), n.psdID != 0 else { throw AgentError("トラックを作れませんでした") }
         if try a.bool("delete") ?? false {
             editor.deleteKey(layer: n.psdID, frame: frame)
+        } else if n.isSwitch, try a.bool("visible") == false {
+            // 空のコマ（フォルダーごと出さない）
+            editor.setKey(layer: n.psdID, TimelineKey(frame: frame, visible: false))
         } else if n.isSwitch {
             guard let cid = try a.uuid("child"), let c = n.children.first(where: { $0.id == cid }) else {
-                throw AgentError("スイッチフォルダーには child（表示する子のレイヤー ID）を渡してください")
+                throw AgentError("スイッチフォルダーには child（表示する子のレイヤー ID）か、空のコマなら visible: false を渡してください")
             }
             editor.setKey(layer: n.psdID, TimelineKey(frame: frame, child: c.psdID))
         } else {

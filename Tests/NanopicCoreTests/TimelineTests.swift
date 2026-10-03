@@ -223,3 +223,29 @@ extension TimelineTests {
         XCTAssertNil(ed.doc.node(third))
     }
 }
+
+extension TimelineTests {
+    func testEmptyFrameHidesSwitch() {
+        let (ed, mouth, closed, open, _) = editor()
+        ed.timelineOpen = true
+        ed.addTrack(mouth)
+        let m = ed.doc.node(mouth)!.psdID
+        ed.setKey(layer: m, TimelineKey(frame: 2, visible: false))
+        ed.setKey(layer: m, TimelineKey(frame: 4, child: ed.doc.node(open)!.psdID))
+        ed.goToFrame(2)
+        XCTAssertFalse(ed.doc.node(mouth)!.visible, "空のコマではフォルダーごと出さない")
+        XCTAssertEqual(ed.doc.node(mouth)!.children.filter(\.visible).count, 1, "中のセルは 1 つ表示のまま")
+        ed.goToFrame(4)
+        XCTAssertTrue(ed.doc.node(mouth)!.visible)
+        XCTAssertEqual(shown(ed, mouth), "あ")
+        ed.goToFrame(0)
+        XCTAssertTrue(ed.doc.node(mouth)!.visible)
+        XCTAssertEqual(shown(ed, mouth), "閉じ")
+        _ = closed
+
+        // フォルダーの目を閉じると、そのコマに「なし」のキーが打たれる
+        ed.goToFrame(6)
+        ed.toggleVisibility(mouth)
+        XCTAssertEqual(ed.timeline.track(for: m)!.keys.first { $0.frame == 6 }, TimelineKey(frame: 6, visible: false))
+    }
+}

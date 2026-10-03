@@ -450,6 +450,41 @@ struct TimelineView: View {
     /// 目盛りの数字の間隔（狭いほど間引く）
     private var labelEvery: Int { cell >= 14 ? 6 : cell >= 9 ? 12 : 24 }
 
+    /// キーから次のキーまでの区間。最初のキーより前は、最初のキーの状態が続く（lead）
+    private func spans(_ track: TimelineTrack, _ count: Int) -> [(start: Int, end: Int, key: TimelineKey, lead: Bool)] {
+        let keys = track.keys.filter { $0.frame < count }
+        var out: [(Int, Int, TimelineKey, Bool)] = []
+        if let first = keys.first, first.frame > 0 { out.append((0, first.frame, first, true)) }
+        for (i, k) in keys.enumerated() {
+            out.append((k.frame, i + 1 < keys.count ? keys[i + 1].frame : count, k, false))
+        }
+        return out
+    }
+
+    /// 表示している間を帯で出し、スイッチならセルの名前を帯の中に書く（「なし」や非表示の間は空ける）
+    private func trackBands(_ track: TimelineTrack, _ node: LayerNode?, _ count: Int) -> some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(spans(track, count), id: \.start) { s in
+                if s.key.visible != false {
+                    let w = CGFloat(s.end - s.start) * cell
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.accentColor.opacity(s.lead ? 0.07 : 0.16))
+                        .frame(width: max(w - 2, 1), height: rowHeight - 8)
+                        .offset(x: CGFloat(s.start) * cell + 1, y: 4)
+                    if !s.lead, w - cell >= 12, let child = s.key.child,
+                       let name = node?.children.first(where: { $0.psdID == child })?.name {
+                        Text(name).font(.system(size: 9)).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.tail)
+                            .frame(width: w - cell - 2, height: rowHeight, alignment: .leading)
+                            .offset(x: CGFloat(s.start + 1) * cell)
+                    }
+                }
+            }
+        }
+        .frame(width: CGFloat(count) * cell, height: rowHeight, alignment: .topLeading)
+        .allowsHitTesting(false)
+    }
+
     private func trackRow(_ track: TimelineTrack, _ t: Timeline) -> some View {
         let node = editor.doc.node(psdID: track.layer)
         return HStack(spacing: 0) {
@@ -463,20 +498,31 @@ struct TimelineView: View {
                             .font(.system(size: 9))
                             .foregroundStyle(key.visible == false ? Color.secondary : Color.accentColor)
                             .frame(width: cell)
-                        // コマが狭いときは重なるので名前を出さない
-                        if cell >= 14, let child = key.child, let name = node?.children.first(where: { $0.psdID == child })?.name {
-                            Text(name).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1).fixedSize()
-                                .offset(x: cell)
-                                .allowsHitTesting(false)
-                        }
                     }
                 }
                 .frame(width: cell, height: rowHeight)
                 .overlay(alignment: .bottom) { Divider() }
                 .contextMenu {
-                    Button("ここにキーを打つ（今の表示）") {
-                        editor.goToFrame(f)
-                        editor.setKeyFromCurrentState(layer: track.layer, frame: f)
+                    if let node, node.isSwitch {
+                        // セルを選んでこのコマに出す（上のセルから）
+                        ForEach(node.children.reversed(), id: \.id) { c in
+                            Button {
+                                editor.goToFrame(f)
+                                editor.setKey(layer: track.layer, TimelineKey(frame: f, child: c.psdID))
+                            } label: {
+                                if key?.child == c.psdID && key?.visible != false { Label(c.name, systemImage: "checkmark") } else { Text(c.name) }
+                            }
+                        }
+                        Button("なし（空のコマ）") {
+                            editor.goToFrame(f)
+                            editor.setKey(layer: track.layer, TimelineKey(frame: f, visible: false))
+                        }
+                        Divider()
+                    } else {
+                        Button("ここにキーを打つ（今の表示）") {
+                            editor.goToFrame(f)
+                            editor.setKeyFromCurrentState(layer: track.layer, frame: f)
+                        }
                     }
                     if key != nil {
                         Button("キーを削除") { editor.deleteKey(layer: track.layer, frame: f) }
@@ -484,6 +530,7 @@ struct TimelineView: View {
                 }
             }
         }
+        .background(alignment: .topLeading) { trackBands(track, node, t.frameCount) }
     }
 }
 

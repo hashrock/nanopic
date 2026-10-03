@@ -96,6 +96,8 @@ extension Editor {
     /// frame のコマで、レイヤーのいまの状態を表すキー
     func currentKey(_ n: LayerNode, frame: Int) -> TimelineKey? {
         if n.isSwitch {
+            // フォルダーを隠していれば「なし」（空のコマ）
+            if !n.visible { return TimelineKey(frame: frame, visible: false) }
             guard let shown = n.children.first(where: \.visible) else { return nil }
             return TimelineKey(frame: frame, child: shown.psdID)
         }

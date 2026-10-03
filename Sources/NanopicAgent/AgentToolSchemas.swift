@@ -909,6 +909,7 @@ let coreToolSchemas = ##"""
           "type": "number"
         },
         "visible": {
+          "description": "レイヤーを表示するか。スイッチフォルダーに false を渡すと空のコマ（そのコマではフォルダーごと出さない）",
           "type": "boolean"
         }
       },

@@ -69,7 +69,7 @@ public struct TimelineKey: Codable, Equatable, Sendable {
     public var frame: Int
     /// ふつうのレイヤー: 表示するか
     public var visible: Bool?
-    /// スイッチフォルダー: 表示する子の PSD レイヤー ID
+    /// スイッチフォルダー: 表示する子の PSD レイヤー ID。visible が false のキーは「なし」（フォルダーごと出さない空のコマ）
     public var child: UInt32?
 
     public init(frame: Int, visible: Bool? = nil, child: UInt32? = nil) {
@@ -178,6 +178,11 @@ extension DocumentState {
             guard let n = node(psdID: track.layer), let key = track.key(at: frame),
                   let path = indexPath(of: n.id) else { continue }
             if let child = key.child, n.isSwitch {
+                // 「なし」のキーがあるトラックでは、フォルダーの表示もトラックで決める
+                if !n.visible, track.keys.contains(where: { $0.visible == false }) {
+                    modify(n.id) { $0.visible = true }
+                    changed = true
+                }
                 guard let k = n.children.firstIndex(where: { $0.psdID == child }), !n.children[k].visible else { continue }
                 modifySiblings(parentPath: path) { kids in
                     for i in kids.indices { kids[i].visible = i == k }
