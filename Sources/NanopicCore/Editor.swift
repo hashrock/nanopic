@@ -59,7 +59,7 @@ public struct GridSettings: Codable, Equatable, Sendable {
 public final class Editor {
     public internal(set) var doc: DocumentState
     /// ドキュメントの構造・内容が変わるたびに増加（UI の再描画用）
-    public private(set) var revision = 0
+    public internal(set) var revision = 0
 
     // MARK: ツール状態
     public var tool: Tool = .brush
@@ -82,6 +82,10 @@ public final class Editor {
     public var fileURL: URL?
     /// PSD の隣に置くサイドカーの中身
     public var sidecar = Sidecar()
+    /// タイムラインの再生位置（コマ）
+    public internal(set) var currentFrame = 0
+    /// タイムラインを開いている間は、トラックのあるレイヤーの表示を切り替えると、今のコマにキーを打つ
+    public var timelineOpen = false
     public private(set) var isDirty = false
 
     // MARK: 履歴
@@ -135,6 +139,7 @@ public final class Editor {
         resetHistory()
         fileURL = nil
         sidecar = Sidecar()
+        currentFrame = 0
         isDirty = false
         structureChanged()
     }
@@ -156,6 +161,7 @@ public final class Editor {
         resetHistory()
         fileURL = url
         self.sidecar = sidecar
+        currentFrame = 0
         applySidecar()
         isDirty = false
         structureChanged()

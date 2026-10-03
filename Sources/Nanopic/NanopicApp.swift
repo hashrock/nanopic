@@ -289,6 +289,9 @@ struct AppCommands: Commands {
                 .keyboardShortcut("1")
             Button("回転をリセット") { state.canvasView?.resetRotation() }
             Divider()
+            Button(state.timelineOpen ? "タイムラインを隠す" : "タイムラインを表示") { state.setTimelineOpen(!state.timelineOpen) }
+                .keyboardShortcut("t", modifiers: [.command, .option])
+            Divider()
             Button(editor.grid.visible ? "グリッドを隠す" : "グリッドを表示") {
                 editor.grid.visible.toggle()
                 state.savePreferences()

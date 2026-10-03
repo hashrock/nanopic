@@ -24,7 +24,11 @@ extension Editor {
         if isInSwitch(id) {
             showSwitchChild(id)
         } else {
-            setLayerProperty(id, label: "表示切替") { $0.visible.toggle() }
+            guard doc.node(id) != nil else { return }
+            checkpoint("表示切替")
+            doc.modify(id) { $0.visible.toggle() }
+            autoKey(id)
+            structureChanged()
         }
     }
 
@@ -34,6 +38,7 @@ extension Editor {
         commitTransform()
         checkpoint("表示の切り替え")
         reveal(id)
+        if let path = doc.indexPath(of: id), let parent = doc.node(at: Array(path.dropLast())) { autoKey(parent.id) }
         structureChanged()
     }
 
@@ -90,6 +95,7 @@ extension Editor {
         var ids: [UInt32] = []
         doc.forEachNode { if $0.isSwitch { ids.append($0.psdID) } }
         sidecar.switchFolders = ids
+        sidecar.timeline = doc.timeline.isEmpty ? nil : doc.timeline
     }
 
     /// 開いたときに呼ぶ: サイドカーの印をドキュメントに反映する
@@ -98,6 +104,7 @@ extension Editor {
             guard let n = doc.node(psdID: id), n.isFolder else { continue }
             doc.modify(n.id) { $0.isSwitch = true }
         }
+        if let t = sidecar.timeline { doc.timeline = t }
         normalizeSwitches()
     }
 }

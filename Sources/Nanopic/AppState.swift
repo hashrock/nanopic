@@ -13,6 +13,9 @@ final class AppState {
     var showNewDocumentSheet = false
     /// 開いている補正パネル
     var adjustmentKind: AdjustmentKind?
+    var timelineOpen = false
+    var isPlaying = false
+    @ObservationIgnored var playTimer: Timer?
     var shortcuts = ShortcutMap.defaults
     /// ショートカットの入力待ち（この間は単キーのショートカットを無効にする）
     var isRecordingShortcut = false

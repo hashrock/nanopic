@@ -973,6 +973,22 @@ extension AgentToolbox {
                 editor.commitAdjustment()
                 return [.text("補正しました")]
             },
+            AgentTool(name: "timeline",
+                      description: "タイムライン（簡易アニメーション）を見る・設定する。レイヤーの表示／非表示と、スイッチフォルダーの子の切り替えをコマごとに切り替える（補間なし）。引数を省くと今の設定とトラックを返すだけ。",
+                      properties: ["fps": ["type": "integer"], "frame_count": ["type": "integer", "description": "長さ（コマ数）"],
+                                   "loop": ["type": "boolean"], "frame": ["type": "integer", "description": "再生位置を動かす（0 から）。そのコマの表示がキャンバスに当たる"]]) { [unowned self] a in
+                editor.setTimeline(fps: try a.int("fps"), frameCount: try a.int("frame_count"), loop: try a.bool("loop"))
+                if let f = try a.int("frame") { editor.goToFrame(f) }
+                return [.text(json(timelineInfo()))]
+            },
+            AgentTool(name: "set_key",
+                      description: "タイムラインにキーを打つ。スイッチフォルダーなら child（表示する子のレイヤー ID）、ふつうのレイヤーなら visible を渡す。トラックがなければ作る。",
+                      properties: ["layer_id": ["type": "string"], "frame": ["type": "integer", "description": "0 から"],
+                                   "child": ["type": "string", "description": "スイッチフォルダーで表示する子のレイヤー ID"],
+                                   "visible": ["type": "boolean"], "delete": ["type": "boolean", "description": "そのコマのキーを消す"]],
+                      required: ["layer_id", "frame"]) { [unowned self] a in
+                try setKey(a)
+            },
             AgentTool(name: "set_color", description: "描画色（main）とサブカラー（sub）を設定する。",
                       properties: ["main": ["type": "string", "description": "\"#RRGGBB\""], "sub": ["type": "string"]]) { [unowned self] a in
                 if let c = try a.color("main") { editor.mainColor = c }
@@ -1061,6 +1077,41 @@ extension AgentToolbox {
                 return [.text("\(w)×\(h) にしました")]
             },
         ]
+    }
+
+    func timelineInfo() -> [String: Any] {
+        let t = editor.timeline
+        func uuid(_ psd: UInt32) -> Any { editor.doc.node(psdID: psd)?.id.uuidString as Any? ?? NSNull() }
+        return ["fps": t.fps, "frame_count": t.frameCount, "loop": t.loop, "frame": editor.currentFrame,
+                "tracks": t.tracks.map { tr -> [String: Any] in
+                    ["layer_id": uuid(tr.layer), "name": editor.doc.node(psdID: tr.layer)?.name ?? "",
+                     "keys": tr.keys.map { k -> [String: Any] in
+                         var o: [String: Any] = ["frame": k.frame]
+                         if let v = k.visible { o["visible"] = v }
+                         if let c = k.child { o["child"] = uuid(c) }
+                         return o
+                     }]
+                }]
+    }
+
+    private func setKey(_ a: AgentArgs) throws -> [AgentContent] {
+        let id = try layer(a, "layer_id")
+        let frame = max(0, try a.requireInt("frame"))
+        editor.addTrack(id) // なければ作る（今の表示を 0 コマ目に）
+        guard let n = editor.doc.node(id), n.psdID != 0 else { throw AgentError("トラックを作れませんでした") }
+        if try a.bool("delete") ?? false {
+            editor.deleteKey(layer: n.psdID, frame: frame)
+        } else if n.isSwitch {
+            guard let cid = try a.uuid("child"), let c = n.children.first(where: { $0.id == cid }) else {
+                throw AgentError("スイッチフォルダーには child（表示する子のレイヤー ID）を渡してください")
+            }
+            editor.setKey(layer: n.psdID, TimelineKey(frame: frame, child: c.psdID))
+        } else {
+            guard let v = try a.bool("visible") else { throw AgentError("visible を渡してください") }
+            editor.setKey(layer: n.psdID, TimelineKey(frame: frame, visible: v))
+        }
+        if frame >= editor.timeline.frameCount { editor.setTimeline(frameCount: frame + 1) }
+        return [.text(json(timelineInfo()))]
     }
 
     private func brush(_ key: String) throws -> BrushSettings {

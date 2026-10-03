@@ -138,6 +138,8 @@ public struct DocumentState {
     public var dpi: Double = 350
     public var layers: [LayerNode] = []
     public var selection: SelectionMask?
+    /// タイムライン（取り消しに乗るよう、ドキュメントに持つ）
+    public var timeline = Timeline()
     public var activeLayerID: UUID?
 
     public init(width: Int, height: Int) {

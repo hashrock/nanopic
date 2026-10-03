@@ -28,6 +28,10 @@ struct ContentView: View {
                                 .padding(12)
                         }
                     }
+                if state.timelineOpen {
+                    Divider()
+                    TimelineView(state: state, editor: editor)
+                }
                 Divider()
                 StatusBar(state: state, editor: editor)
             }
