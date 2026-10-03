@@ -884,6 +884,60 @@ extension AgentToolbox {
                 if let f = try a.int("frame") { editor.goToFrame(f) }
                 return [.text(json(timelineInfo()))]
             },
+            tool("publish_settings") { [unowned self] a in
+                let canvas = editor.doc.bounds
+                var p = editor.publishSettings.normalized(canvas: canvas)
+                let before = p
+                if try a.bool("whole_canvas") ?? false { p.setWholeCanvas(canvas) }
+                if let r = try a.rect("rect") {
+                    let c = r.intersection(canvas)
+                    guard !c.isEmpty else { throw AgentError("rect がキャンバスの外です") }
+                    p.rect = c
+                    // 範囲の比に出力を合わせる（出力の大きさを渡していなければ幅を保つ）
+                    let o = p.resolvedOutputSize(canvas: canvas)
+                    p.outputWidth = o.width
+                    p.outputHeight = max(1, Int((Double(o.width) * Double(c.height) / Double(c.width)).rounded()))
+                }
+                let ow = try a.int("output_width"), oh = try a.int("output_height")
+                if let ow, let oh {
+                    p.outputWidth = max(1, ow)
+                    p.outputHeight = max(1, oh)
+                    p.rect = Publish.fit(p.resolvedRect(canvas: canvas), aspect: Double(ow) / Double(oh), canvas: canvas)
+                } else if ow != nil || oh != nil {
+                    p.setOutputSize(width: ow, height: oh, lock: true, canvas: canvas)
+                }
+                if let f = try a.string("format") {
+                    guard let format = PublishFormat(rawValue: f) else { throw AgentError("format は png か jpeg") }
+                    p.format = format
+                }
+                if let q = try a.int("quality") { p.quality = min(max(q, 1), 100) }
+                if let b = try a.string("background") {
+                    guard let bg = PublishBackground(rawValue: b) else { throw AgentError("background は transparent か white") }
+                    p.background = bg
+                }
+                if let d = try a.string("destination") {
+                    let url = URL(fileURLWithPath: (d as NSString).expandingTildeInPath)
+                    p.destination = editor.publishDestinationString(for: url)
+                    // 形式を渡していなければ拡張子に合わせる
+                    if try a.string("format") == nil, let f = PublishFormat(fileExtension: url.pathExtension) { p.format = f }
+                }
+                if p != before { editor.setPublishSettings(p) }
+                return [.text(json(publishInfo()))]
+            },
+            tool("publish") { [unowned self] a in
+                var s = editor.publishSettings
+                if let d = try a.string("destination") {
+                    let url = URL(fileURLWithPath: (d as NSString).expandingTildeInPath)
+                    s.destination = editor.publishDestinationString(for: url)
+                    if let f = PublishFormat(fileExtension: url.pathExtension) { s.format = f }
+                    editor.setPublishSettings(s, label: "書き出し先")
+                }
+                guard let url = editor.publishDestinationURL(s) else { throw AgentError("書き出し先がありません。destination を渡してください") }
+                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try editor.publish(to: url, settings: s)
+                let o = s.resolvedOutputSize(canvas: editor.doc.bounds)
+                return [.text("書き出しました: \(url.path)（\(o.width) × \(o.height)、\(s.format.displayName)）")]
+            },
             tool("set_key") { [unowned self] a in
                 try setKey(a)
             },
@@ -1054,6 +1108,16 @@ extension AgentToolbox {
         }
         editor.setForm(parameter: pid, value: value, deformer: did, form)
         return [.text(json(rigInfo()))]
+    }
+
+    func publishInfo() -> [String: Any] {
+        let canvas = editor.doc.bounds
+        let p = editor.publishSettings
+        let r = p.resolvedRect(canvas: canvas), o = p.resolvedOutputSize(canvas: canvas)
+        return ["rect": ["x": r.x, "y": r.y, "width": r.width, "height": r.height],
+                "output_width": o.width, "output_height": o.height,
+                "format": p.format.rawValue, "quality": p.quality, "background": p.effectiveBackground.rawValue,
+                "destination": editor.publishDestinationURL(p)?.path ?? NSNull()]
     }
 
     func timelineInfo() -> [String: Any] {

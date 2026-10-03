@@ -40,6 +40,7 @@ final class CanvasView: NSView {
         case deformer(DeformerHandle, start: CGPoint, base: DeformerForm, startPivot: RigPoint)
         case deformerGroup(start: CGPoint, bases: [String: DeformerForm])
         case handleMarquee(start: CGPoint, initial: Set<DeformerHandle>)
+        case publishFrame(handle: Int, start: IntRect, startPoint: CGPoint)
     }
 
     enum TransformHandle: Equatable {
@@ -252,6 +253,14 @@ final class CanvasView: NSView {
             drag = .brushSize(start: vp, startSize: editor.currentBrush.size)
             return
         }
+        // 書き出し設定を開いている間は、書き出し枠だけを動かす（手のひら・ズームは使える）
+        if let d = state.publishDraft {
+            if let h = hitPublishFrame(vp) {
+                drag = .publishFrame(handle: h, start: d.resolvedRect(canvas: editor.doc.bounds), startPoint: cp)
+                return
+            }
+            if ![.hand, .zoom].contains(effectiveTool(flags)) { return }
+        }
         // デフォーマのハンドル（形を記録するパラメータを選んでいる間）
         if let h = hitDeformerHandle(vp) {
             if case let .pivot(id) = h, flags.contains(.option) {
@@ -380,6 +389,13 @@ final class CanvasView: NSView {
             dragDeformer(h, start: start, base: base, startPivot: startPivot, cp: cp)
         case let .deformerGroup(start, bases):
             dragDeformerGroup(start: start, bases: bases, cp: cp)
+        case let .publishFrame(handle, start, startPoint):
+            if var d = state.publishDraft {
+                let canvas = editor.doc.bounds
+                d.rect = Publish.dragRect(start, handle: handle, dx: Double(cp.x - startPoint.x), dy: Double(cp.y - startPoint.y),
+                                          aspect: d.aspect(canvas: canvas), canvas: canvas)
+                state.publishDraft = d
+            }
         case let .handleMarquee(start, initial):
             let r = CGRect(x: min(start.x, cp.x), y: min(start.y, cp.y), width: abs(cp.x - start.x), height: abs(cp.y - start.y))
             handleMarquee = r
@@ -798,6 +814,9 @@ final class OverlayView: NSView {
 
         // デフォーマのハンドル
         drawDeformerHandles(ctx, canvas: canvas, t: t)
+
+        // 書き出し枠（書き出し設定を開いている間）
+        drawPublishFrame(ctx, canvas: canvas, t: t)
 
         // ファイルのドロップ受付
         if canvas.isDropTarget {

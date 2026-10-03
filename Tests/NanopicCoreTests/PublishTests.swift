@@ -152,3 +152,55 @@ final class PublishTests: XCTestCase {
         XCTAssertEqual(size.height, 32)
     }
 }
+
+extension PublishTests {
+    func testDragRectKeepsAspectAndCanvas() {
+        let canvas = IntRect(x: 0, y: 0, width: 100, height: 100)
+        let start = IntRect(x: 20, y: 20, width: 40, height: 20) // 2:1
+        // 右下の角を広げる（左上を止める）
+        var r = Publish.dragRect(start, handle: 2, dx: 20, dy: 0, aspect: 2, canvas: canvas)
+        XCTAssertEqual(r, IntRect(x: 20, y: 20, width: 60, height: 30))
+        // キャンバスの外までは広げない
+        r = Publish.dragRect(start, handle: 2, dx: 500, dy: 500, aspect: 2, canvas: canvas)
+        XCTAssertEqual(r.maxX, 100)
+        XCTAssertEqual(r.width, 2 * r.height)
+        // 左上の角（右下を止める）
+        r = Publish.dragRect(start, handle: 0, dx: -10, dy: -10, aspect: 2, canvas: canvas)
+        XCTAssertEqual(r.maxX, 60)
+        XCTAssertEqual(r.maxY, 40)
+        XCTAssertEqual(r.width, 2 * r.height)
+        // 右の辺: 幅が変わり、高さは比から、縦の中心は保つ
+        r = Publish.dragRect(start, handle: 5, dx: 20, dy: 0, aspect: 2, canvas: canvas)
+        XCTAssertEqual(r, IntRect(x: 20, y: 15, width: 60, height: 30))
+        // 内側: 動かす。端で止まる
+        r = Publish.dragRect(start, handle: Publish.insideHandle, dx: 100, dy: -100, aspect: 2, canvas: canvas)
+        XCTAssertEqual(r, IntRect(x: 60, y: 0, width: 40, height: 20))
+    }
+
+    func testEditingFieldsKeepsAspect() {
+        let canvas = IntRect(x: 0, y: 0, width: 200, height: 100)
+        var s = PublishSettings().normalized(canvas: canvas)
+        XCTAssertEqual(s.rect, canvas)
+        XCTAssertEqual(s.outputWidth, 200)
+        // 比を保って出力の幅を変える
+        s.setOutputSize(width: 100, lock: true, canvas: canvas)
+        XCTAssertEqual(s.outputHeight, 50)
+        // 比を変える → 範囲も合わせ直す
+        s.setOutputSize(height: 100, lock: false, canvas: canvas)
+        XCTAssertEqual(s.outputWidth, 100)
+        XCTAssertEqual(s.rect!.width, s.rect!.height)
+        // 範囲の幅を変えると高さは比から
+        s.setRectSize(width: 40, canvas: canvas)
+        XCTAssertEqual(s.rect!.width, 40)
+        XCTAssertEqual(s.rect!.height, 40)
+        s.setRectOrigin(x: 500, y: -5, canvas: canvas)
+        XCTAssertEqual(s.rect!.x, 160)
+        XCTAssertEqual(s.rect!.y, 0)
+        // 等倍とキャンバス全体
+        s.setActualSize(canvas: canvas)
+        XCTAssertEqual(s.outputWidth, 40)
+        s.setWholeCanvas(canvas)
+        XCTAssertEqual(s.rect, canvas)
+        XCTAssertEqual(s.outputHeight, 20)
+    }
+}

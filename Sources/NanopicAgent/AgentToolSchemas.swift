@@ -642,6 +642,67 @@ let coreToolSchemas = ##"""
       "type": "object"
     }
   },
+  "publish": {
+    "description": "書き出しの設定どおりに、今見えている状態（表示中のレイヤー、今のコマ）を書き出し先に書き出す（上書き）。",
+    "inputSchema": {
+      "properties": {
+        "destination": {
+          "description": "書き出し先を変えるとき、そのパス（設定にも残る）",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    }
+  },
+  "publish_settings": {
+    "description": "書き出し（publish）の設定を見る・変える。作品ごとに 1 組あり、サイドカーに保存される。範囲を切り抜き、出力の大きさに変えて書き出す（元の絵は変えない）。範囲の縦横比は出力の比に合わせる。引数を省くと今の設定を返すだけ。",
+    "inputSchema": {
+      "properties": {
+        "background": {
+          "description": "透明な所の扱い（JPEG はいつも白）",
+          "enum": [
+            "transparent",
+            "white"
+          ],
+          "type": "string"
+        },
+        "destination": {
+          "description": "書き出し先のファイルのパス",
+          "type": "string"
+        },
+        "format": {
+          "enum": [
+            "png",
+            "jpeg"
+          ],
+          "type": "string"
+        },
+        "output_height": {
+          "description": "出力の高さ",
+          "type": "integer"
+        },
+        "output_width": {
+          "description": "出力の幅。片方だけなら比を保ってもう一方も変える。両方なら範囲をその比に合わせ直す",
+          "type": "integer"
+        },
+        "quality": {
+          "description": "JPEG の品質（1〜100）",
+          "type": "integer"
+        },
+        "rect": {
+          "description": "書き出す範囲 {x, y, width, height}（キャンバスの座標）。出力の高さはこの比に合わせる",
+          "type": "object"
+        },
+        "whole_canvas": {
+          "description": "範囲をキャンバス全体にする",
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "type": "object"
+    }
+  },
   "redo": {
     "description": "やり直す。",
     "inputSchema": {

@@ -92,10 +92,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch e.keyCode {
         case 36, 76: // return
             if state.adjustmentKind != nil { state.closeAdjustment(commit: true); return nil }
+            if state.publishDraft != nil, !(NSApp.keyWindow?.firstResponder is NSText) { state.closePublishSettings(commit: true); return nil }
             if editor.floating != nil { editor.commitTransform(); return nil }
             return e
         case 53: // escape
             if state.adjustmentKind != nil { state.closeAdjustment(commit: false); return nil }
+            if state.publishDraft != nil { state.closePublishSettings(commit: false); return nil }
             if editor.floating != nil { editor.cancelTransform(); return nil }
             canvas.cancelInteraction()
             return nil
@@ -246,6 +248,9 @@ struct AppCommands: Commands {
             Button("別名で保存...") { state.saveAs() }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
             Divider()
+            Button("書き出し設定...") { state.openPublishSettings() }
+            Button("書き出す") { state.publishNow() }
+                .keyboardShortcut("e", modifiers: [.command, .option])
             Button("PNG として書き出し...") { state.exportPNG() }
                 .keyboardShortcut("e", modifiers: [.command, .shift, .option])
             Button("動画を書き出し（MP4）...") { state.exportMovie() }
@@ -284,6 +289,9 @@ struct AppCommands: Commands {
                 .keyboardShortcut("d")
             Button("選択範囲を反転") { editor.invertSelection() }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
+            Divider()
+            Button("書き出し範囲にする") { state.setPublishRectFromSelection() }
+                .disabled(editor.doc.selection == nil)
         }
         CommandMenu("フィルター") {
             Button("色相・彩度・明度...") { state.openAdjustment(.hueSaturation) }

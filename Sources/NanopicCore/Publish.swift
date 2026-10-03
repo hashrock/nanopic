@@ -29,6 +29,15 @@ public enum PublishFormat: String, Codable, CaseIterable, Sendable {
         }
     }
 
+    /// 拡張子から（知らなければ nil）
+    public init?(fileExtension ext: String) {
+        switch ext.lowercased() {
+        case "png": self = .png
+        case "jpg", "jpeg": self = .jpeg
+        default: return nil
+        }
+    }
+
     /// 透明を持てるか（持てなければいつも白で埋める）
     public var supportsAlpha: Bool { self == .png }
     /// 品質を選べるか
@@ -89,7 +98,115 @@ public struct PublishSettings: Codable, Equatable, Sendable {
     public var effectiveBackground: PublishBackground { format.supportsAlpha ? background : .white }
 }
 
+/// 書き出し設定を開いている間の編集（範囲の縦横比は出力の比に固定）
+extension PublishSettings {
+    /// 範囲と出力の大きさを、省略なしの値にする
+    public func normalized(canvas: IntRect) -> PublishSettings {
+        var s = self
+        let r = resolvedRect(canvas: canvas)
+        let o = resolvedOutputSize(canvas: canvas)
+        s.rect = r
+        s.outputWidth = o.width
+        s.outputHeight = o.height
+        return s
+    }
+
+    /// 出力の縦横比（幅 / 高さ）
+    public func aspect(canvas: IntRect) -> Double {
+        let o = resolvedOutputSize(canvas: canvas)
+        return Double(o.width) / Double(o.height)
+    }
+
+    /// 範囲の左上を動かす（キャンバスに収める）
+    public mutating func setRectOrigin(x: Int? = nil, y: Int? = nil, canvas: IntRect) {
+        var r = resolvedRect(canvas: canvas)
+        if let x { r.x = min(max(x, canvas.minX), canvas.maxX - r.width) }
+        if let y { r.y = min(max(y, canvas.minY), canvas.maxY - r.height) }
+        rect = r
+    }
+
+    /// 範囲の幅か高さを変える（もう一方は出力の比から決める。左上を保ち、キャンバスに収める）
+    public mutating func setRectSize(width: Int? = nil, height: Int? = nil, canvas: IntRect) {
+        let r = resolvedRect(canvas: canvas), a = aspect(canvas: canvas)
+        var w = Double(r.width), h = Double(r.height)
+        if let width { w = Double(max(1, width)); h = w / a }
+        if let height { h = Double(max(1, height)); w = h * a }
+        let k = min(1, Double(canvas.maxX - r.x) / w, Double(canvas.maxY - r.y) / h)
+        rect = IntRect(x: r.x, y: r.y, width: max(1, Int((w * k).rounded())), height: max(1, Int((h * k).rounded())))
+    }
+
+    /// 出力の幅か高さを変える。lock なら比を保ってもう一方も変え、そうでなければ比が変わるので範囲を合わせ直す
+    public mutating func setOutputSize(width: Int? = nil, height: Int? = nil, lock: Bool, canvas: IntRect) {
+        let o = resolvedOutputSize(canvas: canvas), a = aspect(canvas: canvas)
+        var w = o.width, h = o.height
+        if let width { w = max(1, width); if lock { h = max(1, Int((Double(w) / a).rounded())) } }
+        if let height { h = max(1, height); if lock { w = max(1, Int((Double(h) * a).rounded())) } }
+        outputWidth = w
+        outputHeight = h
+        if !lock { rect = Publish.fit(resolvedRect(canvas: canvas), aspect: Double(w) / Double(h), canvas: canvas) }
+    }
+
+    /// 範囲をキャンバス全体にする（出力の幅は保ち、高さを新しい比に合わせる）
+    public mutating func setWholeCanvas(_ canvas: IntRect) {
+        let o = resolvedOutputSize(canvas: canvas)
+        rect = canvas
+        outputWidth = o.width
+        outputHeight = max(1, Int((Double(o.width) * Double(canvas.height) / Double(canvas.width)).rounded()))
+    }
+
+    /// 出力を範囲と同じ大きさ（等倍）にする
+    public mutating func setActualSize(canvas: IntRect) {
+        let r = resolvedRect(canvas: canvas)
+        outputWidth = r.width
+        outputHeight = r.height
+    }
+}
+
 public enum Publish {
+    /// 書き出し枠のつまみ: 0〜3 は角（左上・右上・右下・左下）、4〜7 は辺（上・右・下・左）、8 は内側（移動）
+    public static let insideHandle = 8
+
+    /// 枠のつまみを (dx, dy) だけドラッグしたあとの範囲。縦横比 aspect を保ち、キャンバスに収める
+    public static func dragRect(_ start: IntRect, handle: Int, dx: Double, dy: Double, aspect a: Double, canvas: IntRect) -> IntRect {
+        let x0 = Double(start.minX), y0 = Double(start.minY), x1 = Double(start.maxX), y1 = Double(start.maxY)
+        let minSize = 4.0
+        switch handle {
+        case 0...3:
+            // 反対の角を止め、指した所を覆う大きさにする
+            let ax = handle == 0 || handle == 3 ? x1 : x0
+            let ay = handle == 0 || handle == 1 ? y1 : y0
+            let px = (handle == 0 || handle == 3 ? x0 : x1) + dx, py = (handle == 0 || handle == 1 ? y0 : y1) + dy
+            var w = max(abs(px - ax), abs(py - ay) * a, minSize)
+            let maxW = (handle == 0 || handle == 3 ? ax - Double(canvas.minX) : Double(canvas.maxX) - ax)
+            let maxH = (handle == 0 || handle == 1 ? ay - Double(canvas.minY) : Double(canvas.maxY) - ay)
+            w = min(w, maxW, maxH * a)
+            let h = w / a
+            let x = handle == 0 || handle == 3 ? ax - w : ax, y = handle == 0 || handle == 1 ? ay - h : ay
+            return IntRect(x: Int(x.rounded()), y: Int(y.rounded()), width: max(1, Int(w.rounded())), height: max(1, Int(h.rounded())))
+        case 4, 6:
+            // 上下の辺: 高さを変え、幅は比から。反対の辺と横の中心を保つ
+            let ay = handle == 4 ? y1 : y0
+            var h = max(handle == 4 ? y1 - (y0 + dy) : (y1 + dy) - y0, minSize)
+            h = min(h, handle == 4 ? ay - Double(canvas.minY) : Double(canvas.maxY) - ay, Double(canvas.width) / a)
+            let w = h * a, cx = (x0 + x1) / 2
+            let x = min(max(cx - w / 2, Double(canvas.minX)), Double(canvas.maxX) - w)
+            return IntRect(x: Int(x.rounded()), y: Int((handle == 4 ? ay - h : ay).rounded()), width: max(1, Int(w.rounded())), height: max(1, Int(h.rounded())))
+        case 5, 7:
+            // 左右の辺: 幅を変え、高さは比から。反対の辺と縦の中心を保つ
+            let ax = handle == 7 ? x1 : x0
+            var w = max(handle == 7 ? x1 - (x0 + dx) : (x1 + dx) - x0, minSize)
+            w = min(w, handle == 7 ? ax - Double(canvas.minX) : Double(canvas.maxX) - ax, Double(canvas.height) * a)
+            let h = w / a, cy = (y0 + y1) / 2
+            let y = min(max(cy - h / 2, Double(canvas.minY)), Double(canvas.maxY) - h)
+            return IntRect(x: Int((handle == 7 ? ax - w : ax).rounded()), y: Int(y.rounded()), width: max(1, Int(w.rounded())), height: max(1, Int(h.rounded())))
+        default:
+            // 内側: 動かす
+            let x = min(max(Int((x0 + dx).rounded()), canvas.minX), canvas.maxX - start.width)
+            let y = min(max(Int((y0 + dy).rounded()), canvas.minY), canvas.maxY - start.height)
+            return IntRect(x: x, y: y, width: start.width, height: start.height)
+        }
+    }
+
     /// rect を縦横比 aspect（幅 / 高さ）に合わせる。中心を保ち、キャンバスに収まるように縮めたりずらしたりする
     public static func fit(_ rect: IntRect, aspect: Double, canvas: IntRect) -> IntRect {
         guard aspect > 0, rect.width > 0, rect.height > 0 else { return rect.intersection(canvas) }
