@@ -81,19 +81,7 @@ extension Editor {
 
     /// 今のコマの表示状態をレイヤーに当てる
     func applyFrame() {
-        var changed = false
-        for track in doc.timeline.tracks {
-            guard let n = doc.node(psdID: track.layer), let key = track.key(at: currentFrame) else { continue }
-            if let child = key.child, n.isSwitch {
-                guard let c = n.children.first(where: { $0.psdID == child }), !c.visible else { continue }
-                reveal(c.id)
-                changed = true
-            } else if let v = key.visible, n.visible != v {
-                doc.modify(n.id) { $0.visible = v }
-                changed = true
-            }
-        }
-        if changed { structureChanged() }
+        if doc.applyTimeline(frame: currentFrame) { structureChanged() }
     }
 
     /// frame のコマで、レイヤーのいまの状態を表すキー

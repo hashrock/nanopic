@@ -54,6 +54,9 @@ struct ContentView: View {
         .sheet(isPresented: Binding(get: { state.showNewDocumentSheet }, set: { state.showNewDocumentSheet = $0 })) {
             NewDocumentSheet(state: state)
         }
+        .sheet(isPresented: Binding(get: { state.movieExport != nil }, set: { _ in })) {
+            if let p = state.movieExport { MovieExportSheet(progress: p) }
+        }
         .onChange(of: editor.tool) { _, _ in state.canvasView?.requestDisplay() }
         .onChange(of: editor.grid) { _, _ in
             state.canvasView?.requestDisplay()

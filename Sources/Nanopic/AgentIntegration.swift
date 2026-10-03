@@ -92,6 +92,15 @@ extension AppState {
                 }
                 return [.text(String(format: "表示倍率 %.0f%%", zoom * 100))]
             },
+            AgentTool(name: "export_mp4", description: "タイムラインを MP4 動画に書き出す（透明な部分は白。長辺は 3840px まで）。",
+                      properties: ["path": ["type": "string", "description": "絶対パス（.mp4）"]], required: ["path"]) { [unowned self] a in
+                let url = try fileURL(a)
+                editor.commitTransform()
+                guard !editor.timeline.isEmpty else { throw AgentError("タイムラインにトラックがありません") }
+                try MovieExport.export(editor.doc, to: url)
+                let t = editor.timeline
+                return [.text("書き出しました: \(url.path)（\(t.frameCount) コマ、\(t.fps) fps）")]
+            },
             AgentTool(name: "export_png", description: "見た目を 1 枚の PNG に書き出す。",
                       properties: ["path": ["type": "string", "description": "絶対パス（.png）"]], required: ["path"]) { [unowned self] a in
                 let url = try fileURL(a)

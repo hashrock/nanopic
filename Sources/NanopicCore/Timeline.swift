@@ -68,3 +68,26 @@ public struct TimelineKey: Codable, Equatable, Sendable {
         self.child = child
     }
 }
+
+extension DocumentState {
+    /// frame のコマの表示状態をレイヤーに当てる（再生と書き出しで共通）。変わったら true
+    @discardableResult
+    public mutating func applyTimeline(frame: Int) -> Bool {
+        var changed = false
+        for track in timeline.tracks {
+            guard let n = node(psdID: track.layer), let key = track.key(at: frame),
+                  let path = indexPath(of: n.id) else { continue }
+            if let child = key.child, n.isSwitch {
+                guard let k = n.children.firstIndex(where: { $0.psdID == child }), !n.children[k].visible else { continue }
+                modifySiblings(parentPath: path) { kids in
+                    for i in kids.indices { kids[i].visible = i == k }
+                }
+                changed = true
+            } else if let v = key.visible, n.visible != v {
+                modify(n.id) { $0.visible = v }
+                changed = true
+            }
+        }
+        return changed
+    }
+}
