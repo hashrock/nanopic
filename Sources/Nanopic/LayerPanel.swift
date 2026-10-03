@@ -481,7 +481,7 @@ struct LayerRowView: View, Equatable {
                 Button(m.isSwitch ? "ふつうのフォルダーに戻す" : "スイッチフォルダーにする") { editor.setSwitch(m.id, !m.isSwitch) }
             }
             Menu("デフォーマ") {
-                Button("回転デフォーマを付ける") { editor.addDeformer(to: m.id, kind: .rotation) }
+                Button("移動・回転デフォーマを付ける") { editor.addDeformer(to: m.id, kind: .rotation) }
                 Button("ワープデフォーマを付ける") { editor.addDeformer(to: m.id, kind: .warp) }
                 let ds = editor.deformers(on: m.id)
                 if !ds.isEmpty {

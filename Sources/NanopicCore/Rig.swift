@@ -26,7 +26,7 @@ public struct RigRect: Codable, Equatable, Sendable {
 }
 
 public enum DeformerKind: String, Codable, Sendable {
-    /// 中心と角度
+    /// 移動・回転（中心、角度、移動量）。保存データとの互換のため名前は rotation のまま
     case rotation
     /// 範囲を格子に分け、格子の点のずれで面を曲げる
     case warp
@@ -66,23 +66,37 @@ public struct Deformer: Codable, Equatable, Sendable {
 
 /// デフォーマの形（基本の形からのずれ）
 public struct DeformerForm: Codable, Equatable, Sendable {
-    /// 回転: 角度（度、時計回り）
+    /// 移動・回転: 角度（度、時計回り）
     public var angle: Double = 0
+    /// 移動量（移動・回転とワープの両方に効く）
+    public var move = RigPoint.zero
     /// ワープ: 格子の点ごとのずれ（足りない分は 0）
     public var offsets: [RigPoint] = []
 
-    public init(angle: Double = 0, offsets: [RigPoint] = []) {
+    public init(angle: Double = 0, move: RigPoint = .zero, offsets: [RigPoint] = []) {
         self.angle = angle
+        self.move = move
         self.offsets = offsets
     }
 
-    public var isZero: Bool { angle == 0 && offsets.allSatisfy { $0 == .zero } }
+    private enum CodingKeys: String, CodingKey { case angle, move, offsets }
+
+    /// 足りない項目があっても読めるようにする（移動量のなかった頃のデータなど）
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        angle = try c.decodeIfPresent(Double.self, forKey: .angle) ?? 0
+        move = try c.decodeIfPresent(RigPoint.self, forKey: .move) ?? .zero
+        offsets = try c.decodeIfPresent([RigPoint].self, forKey: .offsets) ?? []
+    }
+
+    public var isZero: Bool { angle == 0 && move == .zero && offsets.allSatisfy { $0 == .zero } }
 
     func offset(_ i: Int) -> RigPoint { i < offsets.count ? offsets[i] : .zero }
 
     static func lerp(_ a: DeformerForm, _ b: DeformerForm, _ t: Double) -> DeformerForm {
         let n = max(a.offsets.count, b.offsets.count)
         return DeformerForm(angle: a.angle + (b.angle - a.angle) * t,
+                            move: RigPoint(a.move.x + (b.move.x - a.move.x) * t, a.move.y + (b.move.y - a.move.y) * t),
                             offsets: (0..<n).map { i in
                                 let p = a.offset(i), q = b.offset(i)
                                 return RigPoint(p.x + (q.x - p.x) * t, p.y + (q.y - p.y) * t)
@@ -91,7 +105,7 @@ public struct DeformerForm: Codable, Equatable, Sendable {
 
     static func + (a: DeformerForm, b: DeformerForm) -> DeformerForm {
         let n = max(a.offsets.count, b.offsets.count)
-        return DeformerForm(angle: a.angle + b.angle,
+        return DeformerForm(angle: a.angle + b.angle, move: RigPoint(a.move.x + b.move.x, a.move.y + b.move.y),
                             offsets: (0..<n).map { RigPoint(a.offset($0).x + b.offset($0).x, a.offset($0).y + b.offset($0).y) })
     }
 }
@@ -186,12 +200,12 @@ extension Deformer {
     public func map(_ p: RigPoint, _ form: DeformerForm) -> RigPoint {
         switch kind {
         case .rotation:
-            guard form.angle != 0 else { return p }
+            // 中心を軸に回してから、移動量だけずらす
             let a = form.angle * .pi / 180
             let dx = p.x - pivot.x, dy = p.y - pivot.y
-            return RigPoint(pivot.x + dx * cos(a) - dy * sin(a), pivot.y + dx * sin(a) + dy * cos(a))
+            return RigPoint(pivot.x + dx * cos(a) - dy * sin(a) + form.move.x, pivot.y + dx * sin(a) + dy * cos(a) + form.move.y)
         case .warp:
-            guard rect.width > 0, rect.height > 0, !form.offsets.isEmpty else { return p }
+            guard rect.width > 0, rect.height > 0, !form.offsets.isEmpty else { return RigPoint(p.x + form.move.x, p.y + form.move.y) }
             // 範囲の外は端のずれをそのまま使う
             let u = Swift.min(Swift.max((p.x - rect.x) / rect.width, 0), 1) * Double(cols)
             let v = Swift.min(Swift.max((p.y - rect.y) / rect.height, 0), 1) * Double(rows)
@@ -202,7 +216,7 @@ extension Deformer {
             let o01 = form.offset((r + 1) * w + c), o11 = form.offset((r + 1) * w + c + 1)
             let ox = (o00.x * (1 - fu) + o10.x * fu) * (1 - fv) + (o01.x * (1 - fu) + o11.x * fu) * fv
             let oy = (o00.y * (1 - fu) + o10.y * fu) * (1 - fv) + (o01.y * (1 - fu) + o11.y * fu) * fv
-            return RigPoint(p.x + ox, p.y + oy)
+            return RigPoint(p.x + ox + form.move.x, p.y + oy + form.move.y)
         }
     }
 }

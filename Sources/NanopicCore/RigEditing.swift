@@ -60,7 +60,7 @@ extension Editor {
         guard let n = doc.node(id) else { return nil }
         let b = Self.contentBounds(n) ?? doc.bounds
         var d = Deformer(id: Self.newID("d", existing: doc.rig.deformers.map(\.id)),
-                         name: name ?? "\(n.name)の\(kind == .rotation ? "回転" : "ワープ")", layer: n.psdID, kind: kind)
+                         name: name ?? "\(n.name)の\(kind == .rotation ? "移動・回転" : "ワープ")", layer: n.psdID, kind: kind)
         d.pivot = RigPoint(Double(b.x) + Double(b.width) / 2, Double(b.y) + Double(b.height) / 2)
         d.rect = RigRect(x: Double(b.x), y: Double(b.y), width: Double(b.width), height: Double(b.height))
         d.cols = max(1, min(cols, 16))
@@ -94,12 +94,15 @@ extension Editor {
         for p in doc.rig.parameters.indices {
             for k in doc.rig.parameters[p].keys.indices {
                 guard let f = doc.rig.parameters[p].keys[k].forms[id] else { continue }
+                // 移動量は格子と関係ないので、点のずれだけを写し直す
+                var points = f
+                points.move = .zero
                 let offsets = (0..<new.pointCount).map { i -> RigPoint in
                     let q = new.restPoint(i)
-                    let m = old.map(q, f)
+                    let m = old.map(q, points)
                     return RigPoint(m.x - q.x, m.y - q.y)
                 }
-                doc.rig.parameters[p].keys[k].forms[id] = DeformerForm(angle: f.angle, offsets: offsets)
+                doc.rig.parameters[p].keys[k].forms[id] = DeformerForm(angle: f.angle, move: f.move, offsets: offsets)
             }
         }
         revision += 1

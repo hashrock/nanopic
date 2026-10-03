@@ -3,7 +3,10 @@ import NanopicCore
 
 /// キャンバス上のデフォーマのハンドル。タイムラインで形を記録するパラメータを選んでいる間だけ出す
 enum DeformerHandle: Equatable {
+    /// 中心の点: 移動量を記録する
     case pivot(String)
+    /// Option を押しながら中心の点: 基本の形の中心を置き直す
+    case restPivot(String)
     case arm(String)
     case point(String, Int)
 }
@@ -33,9 +36,11 @@ extension CanvasView {
             let f = forms[d.id] ?? DeformerForm()
             switch d.kind {
             case .rotation:
+                // 中心も腕も、移動したあとの位置に出す
                 let a = f.angle * .pi / 180
-                out.append((.pivot(d.id), CGPoint(x: d.pivot.x, y: d.pivot.y)))
-                out.append((.arm(d.id), CGPoint(x: d.pivot.x + armLength * cos(a), y: d.pivot.y + armLength * sin(a))))
+                let c = CGPoint(x: d.pivot.x + f.move.x, y: d.pivot.y + f.move.y)
+                out.append((.pivot(d.id), c))
+                out.append((.arm(d.id), CGPoint(x: c.x + armLength * cos(a), y: c.y + armLength * sin(a))))
             case .warp:
                 for i in 0..<d.pointCount {
                     let p = d.map(d.restPoint(i), f)
@@ -62,11 +67,18 @@ extension CanvasView {
         guard let (pid, _) = deformerEditing, let p = editor.rig.parameter(pid) else { return }
         let value = editor.parameterValue(pid)
         switch h {
-        case let .pivot(id):
+        case let .restPivot(id):
             editor.updateDeformer(id, label: "回転の中心") { $0.pivot = RigPoint(startPivot.x + cp.x - start.x, startPivot.y + cp.y - start.y) }
+        case let .pivot(id):
+            var f = base
+            f.move = RigPoint(base.move.x + cp.x - start.x, base.move.y + cp.y - start.y)
+            editor.setForm(parameter: p.id, value: value, deformer: id, f)
         case let .arm(id):
             guard let d = editor.rig.deformer(id) else { return }
-            let a0 = atan2(start.y - d.pivot.y, start.x - d.pivot.x), a1 = atan2(cp.y - d.pivot.y, cp.x - d.pivot.x)
+            // 移動したあとの中心を軸に角度を測る
+            let m = editor.showsDeformation ? (editor.rig.forms(values: editor.parameterValues)[id]?.move ?? .zero) : .zero
+            let c = CGPoint(x: d.pivot.x + m.x, y: d.pivot.y + m.y)
+            let a0 = atan2(start.y - c.y, start.x - c.x), a1 = atan2(cp.y - c.y, cp.x - c.x)
             var delta = (a1 - a0) * 180 / .pi
             if delta > 180 { delta -= 360 }
             if delta < -180 { delta += 360 }
@@ -88,7 +100,7 @@ extension CanvasView {
         guard let (pid, _) = deformerEditing, let p = editor.rig.parameter(pid) else { return DeformerForm() }
         let id: String
         switch h {
-        case let .pivot(i), let .arm(i): id = i
+        case let .pivot(i), let .restPivot(i), let .arm(i): id = i
         case let .point(i, _): id = i
         }
         return p.form(for: id, at: editor.parameterValue(pid)) ?? DeformerForm()

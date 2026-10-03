@@ -246,9 +246,13 @@ final class CanvasView: NSView {
             return
         }
         // デフォーマのハンドル（形を記録するパラメータを選んでいる間）
-        if let h = hitDeformerHandle(vp) {
-            let pivot: RigPoint
-            if case let .pivot(id) = h { pivot = editor.rig.deformer(id)?.pivot ?? .zero } else { pivot = .zero }
+        if var h = hitDeformerHandle(vp) {
+            var pivot = RigPoint.zero
+            if case let .pivot(id) = h, flags.contains(.option) {
+                // Option を押しながらなら、基本の形の中心を置き直す
+                h = .restPivot(id)
+                pivot = editor.rig.deformer(id)?.pivot ?? .zero
+            }
             drag = .deformer(h, start: cp, base: baseForm(h), startPivot: pivot)
             return
         }

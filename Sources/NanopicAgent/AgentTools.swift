@@ -1016,6 +1016,7 @@ extension AgentToolbox {
                      ["value": k.value, "forms": k.forms.mapValues { f -> [String: Any] in
                          var o: [String: Any] = [:]
                          if f.angle != 0 { o["angle"] = f.angle }
+                         if f.move != .zero { o["move"] = [f.move.x, f.move.y] }
                          if !f.offsets.isEmpty { o["offsets"] = f.offsets.map { [$0.x, $0.y] } }
                          return o
                      }]
@@ -1032,6 +1033,10 @@ extension AgentToolbox {
         // 今の形（そのキーにあれば）から始めて、渡した所だけ変える
         var form = p.keys.first { abs($0.value - p.clamp(value)) < 1e-9 }?.forms[did] ?? DeformerForm()
         if let angle = try a.double("angle") { form.angle = angle }
+        if a.has("move") {
+            guard let m = a.raw["move"] as? [NSNumber], m.count >= 2 else { throw AgentError("move は [dx, dy]") }
+            form.move = RigPoint(m[0].doubleValue, m[1].doubleValue)
+        }
         if a.has("offsets") {
             guard d.kind == .warp else { throw AgentError("offsets はワープのデフォーマだけ") }
             let pts = try a.points("offsets")

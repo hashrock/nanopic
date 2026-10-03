@@ -42,7 +42,7 @@ struct RigPanel: View {
                     .controlSize(.small)
                     .disabled(editor.parameterValues.isEmpty)
                     .help("すべてのつまみを既定値に戻す")
-                Text("名前を選ぶと、キャンバスのハンドルでそのつまみの今の値の形を記録できます。")
+                Text("名前を選ぶと、キャンバスのハンドルでそのつまみの今の値の形を記録できます。移動・回転は中心の点で移動、腕で回転（Option を押しながら中心を動かすと、回す中心を置き直す）。")
                     .font(.caption2).foregroundStyle(.secondary)
             }
         }
@@ -113,7 +113,7 @@ struct RigPanel: View {
             if let layer = editor.doc.activeLayer {
                 Text("編集中: \(layer.name)").font(.caption).foregroundStyle(.secondary)
                 HStack {
-                    Button("回転を付ける") { editor.addDeformer(to: layer.id, kind: .rotation) }
+                    Button("移動・回転を付ける") { editor.addDeformer(to: layer.id, kind: .rotation) }
                     Button("ワープを付ける") { editor.addDeformer(to: layer.id, kind: .warp) }
                 }
                 .controlSize(.small)

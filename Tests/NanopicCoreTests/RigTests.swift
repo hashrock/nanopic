@@ -157,3 +157,28 @@ extension RigTests {
         XCTAssertEqual(ed.rig.deformer(d)!.pointCount, 9)
     }
 }
+
+extension RigTests {
+    func testMoveFormTranslatesAndInterpolates() throws {
+        let (ed, bar) = editor()
+        let d = ed.addDeformer(to: bar, kind: .rotation)!
+        XCTAssertTrue(ed.rig.deformer(d)!.name.hasSuffix("移動・回転"))
+        let p = ed.addParameter(name: "上下")
+        ed.setForm(parameter: p, value: 1, deformer: d, DeformerForm(move: RigPoint(0, -20)))
+        XCTAssertEqual(ed.rig.forms(values: [p: 0.5])[d]?.move, RigPoint(0, -10))
+        let posed = ed.doc.posed(values: [p: 1])
+        XCTAssertGreaterThan(alpha(posed, "棒", 50, 30), 200, "20px 上に動く")
+        XCTAssertEqual(alpha(posed, "棒", 50, 50), 0)
+        // 回転と移動を一緒に
+        ed.setForm(parameter: p, value: 1, deformer: d, DeformerForm(angle: 90, move: RigPoint(20, 0)))
+        XCTAssertGreaterThan(alpha(ed.doc.posed(values: [p: 1]), "棒", 70, 35), 200)
+
+        // 移動量のなかった頃のデータも読める
+        let old = try JSONDecoder().decode(DeformerForm.self, from: Data(#"{"angle": 30, "offsets": []}"#.utf8))
+        XCTAssertEqual(old, DeformerForm(angle: 30))
+
+        let tb = AgentToolbox(editor: ed)
+        _ = try tb.call("set_form", ["parameter": p, "value": -1, "deformer": d, "move": [5, 6]])
+        XCTAssertEqual(ed.rig.parameter(p)!.keys.first!.forms[d]!.move, RigPoint(5, 6))
+    }
+}

@@ -4,7 +4,7 @@
 let coreToolSchemas = ##"""
 {
   "add_deformer": {
-    "description": "レイヤーかフォルダーにデフォーマを付ける。rotation は中心と角度、warp は範囲を格子に分けて点をずらす。フォルダーに付けると中のレイヤー全部に効き、内側から外側の順にかかる。範囲と中心は省くと描かれている所から決める。",
+    "description": "レイヤーかフォルダーにデフォーマを付ける。rotation は移動・回転（中心を軸に回し、移動量だけずらす）、warp は範囲を格子に分けて点をずらす。フォルダーに付けると中のレイヤー全部に効き、内側から外側の順にかかる。範囲と中心は省くと描かれている所から決める。",
     "inputSchema": {
       "properties": {
         "cols": {
@@ -827,7 +827,7 @@ let coreToolSchemas = ##"""
     }
   },
   "set_form": {
-    "description": "パラメータが value のときのデフォーマの形を決める（キーがなければ作る）。形は基本の形からのずれ。回転は angle（度、時計回り）。ワープは offsets（格子の点ごとの [dx, dy]、左上から右へ行ごと、点の数は (cols+1)*(rows+1)）か、points（{点の番号: [dx, dy]} で一部だけ）。値の間は直線で補間される。既定値にキーがなければずれ 0 とみなす。",
+    "description": "パラメータが value のときのデフォーマの形を決める（キーがなければ作る）。形は基本の形からのずれ。移動・回転（rotation）は angle（度、時計回り）と move（[dx, dy]、移動量）。ワープは offsets（格子の点ごとの [dx, dy]、左上から右へ行ごと、点の数は (cols+1)*(rows+1)）か、points（{点の番号: [dx, dy]} で一部だけ）。move はワープにも効く（全体をずらす）。値の間は直線で補間される。既定値にキーがなければずれ 0 とみなす。",
     "inputSchema": {
       "properties": {
         "angle": {
@@ -835,6 +835,13 @@ let coreToolSchemas = ##"""
         },
         "deformer": {
           "type": "string"
+        },
+        "move": {
+          "description": "移動量 [dx, dy]",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
         },
         "offsets": {
           "items": {
