@@ -55,8 +55,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "クリッピング") { $0.clipping.toggle() } }
             return nil
         }
-        // アニメーションモードでは、タイムラインのキーのコピー・貼り付け
-        if state.mode == .animate && flags == [.command] {
+        // タイムラインのキーのコピー・貼り付け（アニメーションモード、または描くモードでタイムラインを触った直後）
+        let keysFocused = state.mode == .animate || (state.timelineOpen && state.timelineFocused)
+        if keysFocused && flags == [.command] {
             if e.keyCode == 8, !state.timelineSelection.isEmpty { // ⌘C
                 state.timelineClipboard = editor.copyKeys(state.timelineSelection)
                 return nil
@@ -94,7 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             canvas.cancelInteraction()
             return nil
         case 51, 117: // delete
-            if state.mode == .animate {
+            if keysFocused {
                 // タイムラインで選んでいるキーを消す
                 editor.deleteKeys(state.timelineSelection)
                 state.timelineSelection = []
@@ -121,6 +122,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             break
         }
         guard let chord = KeyChord(event: e) else { return e }
+        // タイムラインを出していれば「,」「.」で前後のコマへ（ショートカットに割り当てていなければ）
+        if state.timelineOpen, ["," , "."].contains(chord.key), chord == KeyChord(chord.key), state.shortcuts.target(for: chord) == nil {
+            let t = editor.timeline
+            var f = editor.currentFrame + (chord.key == "," ? -1 : 1)
+            if t.loop { f = (f + t.frameCount) % t.frameCount } else { f = min(max(f, 0), t.frameCount - 1) }
+            state.stopPlayback()
+            editor.goToFrame(f)
+            return nil
+        }
         // アニメーションモードでは描くツールに切り替えない
         if state.mode == .animate {
             if case let .tool(t)? = state.shortcuts.target(for: chord), AppState.animationTools.contains(t), !e.isARepeat {
@@ -279,6 +289,9 @@ struct AppCommands: Commands {
             Button("新規ラスターレイヤー") { editor.addLayer() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("新規レイヤーフォルダー") { editor.addFolder() }
+            Button("新しいセル（今のコマ）") { editor.addCel() }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+                .disabled(!state.timelineOpen || state.mode == .animate)
             Button("フォルダーを作成してレイヤーを挿入") { editor.groupSelectedLayers() }
                 .keyboardShortcut("g")
             Button("レイヤーを複製") { editor.duplicateActiveLayer() }
@@ -318,6 +331,8 @@ struct AppCommands: Commands {
             Divider()
             Toggle("アニメーションモード", isOn: Binding(get: { state.mode == .animate }, set: { state.setMode($0 ? .animate : .draw) }))
                 .keyboardShortcut("t", modifiers: [.command, .option])
+            Toggle("タイムラインを表示（描くモード）", isOn: Binding(get: { state.showsTimelineInDraw }, set: { state.showsTimelineInDraw = $0 }))
+                .keyboardShortcut("l", modifiers: [.command, .option])
             Divider()
             Button(editor.grid.visible ? "グリッドを隠す" : "グリッドを表示") {
                 editor.grid.visible.toggle()

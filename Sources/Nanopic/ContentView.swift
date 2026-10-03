@@ -34,7 +34,7 @@ struct ContentView: View {
                                 .padding(12)
                         }
                     }
-                if state.mode == .animate {
+                if state.timelineOpen {
                     Divider()
                     TimelineView(state: state, editor: editor)
                 }
@@ -114,6 +114,11 @@ struct StatusBar: View {
                     .frame(width: 90, alignment: .leading)
             }
             Spacer()
+            if state.mode == .draw {
+                Toggle("タイムライン", isOn: Binding(get: { state.showsTimelineInDraw }, set: { state.showsTimelineInDraw = $0 }))
+                    .toggleStyle(.checkbox)
+                    .help("描くモードでもタイムラインを出す（パラパラ用、⌥⌘L）")
+            }
             Toggle("グリッド", isOn: $editor.grid.visible)
                 .toggleStyle(.checkbox)
             Button {

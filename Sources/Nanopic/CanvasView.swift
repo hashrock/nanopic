@@ -242,6 +242,7 @@ final class CanvasView: NSView {
 
     override func mouseDown(with e: NSEvent) {
         window?.makeFirstResponder(self)
+        state.timelineFocused = false
         let vp = viewPoint(e)
         let cp = vp.applying(viewToCanvas)
         mouseViewPoint = vp

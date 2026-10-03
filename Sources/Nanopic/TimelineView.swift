@@ -78,6 +78,9 @@ struct TimelineView: View {
     }
     @State private var gridDrag: GridDrag?
     @State private var showsOnionSettings = false
+
+    /// パラメータの行はアニメーションモードだけ（描くモードでは変形を表示しないので出さない）
+    private var parameters: [RigParameter] { state.mode == .animate ? editor.rig.parameters : [] }
     /// コマ 1 つの幅（拡大縮小できる）
     @State private var cell: CGFloat = 18
 
@@ -93,7 +96,7 @@ struct TimelineView: View {
             HStack(alignment: .top, spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     Color.clear.frame(height: 20)
-                    ForEach(editor.rig.parameters, id: \.id) { p in parameterName(p) }
+                    ForEach(parameters, id: \.id) { p in parameterName(p) }
                     ForEach(t.tracks, id: \.layer) { track in trackName(track) }
                 }
                 .frame(width: nameWidth)
@@ -101,7 +104,7 @@ struct TimelineView: View {
                 ScrollView(.horizontal) {
                     VStack(alignment: .leading, spacing: 0) {
                         ruler(t)
-                        ForEach(editor.rig.parameters, id: \.id) { p in parameterRow(p, t) }
+                        ForEach(parameters, id: \.id) { p in parameterRow(p, t) }
                         ForEach(t.tracks, id: \.layer) { track in trackRow(track, t) }
                     }
                     .overlay(alignment: .topLeading) { gridOverlay(t) }
@@ -109,9 +112,9 @@ struct TimelineView: View {
                     .gesture(DragGesture(minimumDistance: 0).onChanged(gridChanged).onEnded(gridEnded))
                 }
             }
-            .frame(height: 20 + CGFloat(max(t.tracks.count + editor.rig.parameters.count, 2)) * rowHeight)
-            if t.tracks.isEmpty && editor.rig.parameters.isEmpty {
-                Text("レイヤーやスイッチフォルダーを選んで「＋ トラック」で足します。表示を切り替えると今のコマにキーが打たれます。パラメータは左のリグパネルで足します。")
+            .frame(height: 20 + CGFloat(max(t.tracks.count + parameters.count, 2)) * rowHeight)
+            if t.tracks.isEmpty && parameters.isEmpty {
+                Text("「＋ セル」で今のコマに新しいセルを作って描きます（「,」「.」で前後のコマへ）。レイヤーやスイッチフォルダーを選んで「＋ トラック」で足すこともできます。")
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(.horizontal, 10).padding(.bottom, 8)
             }
@@ -147,6 +150,9 @@ struct TimelineView: View {
             Button { cell = min(48, cell * 1.25) } label: { Image(systemName: "plus.magnifyingglass") }
                 .help("タイムラインを広げる")
             Spacer()
+            Button { editor.addCel() } label: { Label("セル", systemImage: "plus.rectangle.on.rectangle") }
+                .help("今のコマに新しいセルを作って描く（⌥⌘N）。編集中のレイヤーがスイッチフォルダーになければ、包んでスイッチフォルダーにする")
+                .disabled(editor.activeLayerID == nil || state.mode == .animate)
             Button {
                 if let id = editor.activeLayerID { editor.addTrack(trackTarget(id)) }
             } label: {
@@ -245,7 +251,7 @@ struct TimelineView: View {
 
     /// 行の並び（パラメータ、レイヤーのトラックの順）
     private var rowIDs: [TimelineKeyRef] {
-        editor.rig.parameters.map { .parameter($0.id, frame: 0) } + editor.timeline.tracks.map { .layer($0.layer, frame: 0) }
+        parameters.map { .parameter($0.id, frame: 0) } + editor.timeline.tracks.map { .layer($0.layer, frame: 0) }
     }
 
     /// 行 row のコマ frame にキーがあれば、その参照
@@ -273,6 +279,7 @@ struct TimelineView: View {
     private func frame(at x: CGFloat) -> Int { max(0, Int(x / cell)) }
 
     private func gridChanged(_ v: DragGesture.Value) {
+        state.timelineFocused = true
         let shift = NSEvent.modifierFlags.contains(.shift)
         if gridDrag == nil {
             let loc = v.startLocation

@@ -81,13 +81,16 @@ extension Editor {
 
     /// 今のコマの表示状態をレイヤーに当てる
     func applyFrame() {
+        // 変形を表示していなければ（描くモード）値だけ合わせる
         let values = doc.timeline.parameterValues(at: currentFrame)
         if !values.isEmpty {
             parameterValues.merge(values) { _, new in new }
-            showsDeformation = true
-            markAllDirty()
+            if showsDeformation { markAllDirty() }
         }
-        if doc.applyTimeline(frame: currentFrame) { structureChanged() }
+        if doc.applyTimeline(frame: currentFrame) {
+            followCel()
+            structureChanged()
+        }
     }
 
     /// frame のコマで、レイヤーのいまの状態を表すキー

@@ -1,7 +1,8 @@
 import AppKit
 import NanopicCore
 
-/// 画面のモード。アニメーションモードでは変形を表示し、描けない（描くツールを出さない）
+/// 画面のモード。アニメーションモードでは変形を表示し、描けない（描くツールを出さない）。
+/// 描くモードでもタイムラインは出せる（変形は表示しないので、パラパラを描ける）
 enum WorkMode: String {
     case draw, animate
 
@@ -23,14 +24,14 @@ extension AppState {
             editor.timelineOpen = true
             editor.setShowsDeformation(true)
         } else {
-            stopPlayback()
+            if !showsTimelineInDraw { stopPlayback() }
             canvasView?.selectedDeformerHandles = []
             timelineSelection = []
-            editor.timelineOpen = false
             editor.setShowsDeformation(false)
             if let t = toolBeforeAnimation { editor.selectTool(t) }
         }
         mode = m
+        editor.timelineOpen = timelineOpen
         canvasView?.requestDisplay()
     }
 }

@@ -189,3 +189,37 @@ extension TimelineTests {
         XCTAssertEqual(ed.onionSkinVersion, v)
     }
 }
+
+extension TimelineTests {
+    func testAddCelWrapsLayerAndFollowsFrame() {
+        let ed = Editor(width: 32, height: 32)
+        ed.timelineOpen = true
+        let first = ed.activeLayerID!
+        // 1 コマ目はそのまま描いたレイヤー。3 コマ目で新しいセル
+        ed.goToFrame(2)
+        let second = ed.addCel()!
+        let sw = ed.doc.indexPath(of: first).map { ed.doc.node(at: Array($0.dropLast()))! }!
+        XCTAssertTrue(sw.isSwitch, "スイッチフォルダーで包む")
+        XCTAssertEqual(sw.children.map(\.id), [first, second], "新しいセルは今出ているセルの上")
+        XCTAssertEqual(ed.activeLayerID, second)
+        let track = ed.timeline.track(for: sw.psdID)!
+        XCTAssertEqual(track.keys.map(\.frame), [0, 2])
+        XCTAssertEqual(track.keys.map(\.child), [ed.doc.node(first)!.psdID, ed.doc.node(second)!.psdID])
+
+        // コマを移ると、描く対象が出ているセルについてくる
+        ed.goToFrame(1)
+        XCTAssertEqual(ed.activeLayerID, first)
+        ed.goToFrame(3)
+        XCTAssertEqual(ed.activeLayerID, second)
+
+        // 5 コマ目でもう 1 枚。同じスイッチに番号の名前で足す
+        ed.goToFrame(4)
+        let third = ed.addCel()!
+        XCTAssertEqual(ed.doc.node(third)!.name, "3")
+        XCTAssertEqual(ed.timeline.track(for: sw.psdID)!.keys.map(\.frame), [0, 2, 4])
+
+        // 1 回で戻せる
+        ed.undo()
+        XCTAssertNil(ed.doc.node(third))
+    }
+}

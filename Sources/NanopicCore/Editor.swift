@@ -847,7 +847,7 @@ public final class Editor {
     // MARK: - レイヤーの複数選択
 
     /// 編集レイヤーに加えて選択しているレイヤー（編集レイヤー自身は含まない）
-    public private(set) var selectedLayerIDs: Set<UUID> = []
+    public internal(set) var selectedLayerIDs: Set<UUID> = []
 
     public func isLayerSelected(_ id: UUID) -> Bool {
         id == doc.activeLayerID || selectedLayerIDs.contains(id)
@@ -892,7 +892,7 @@ public final class Editor {
         return out
     }
 
-    private func nextLayerName(prefix: String) -> String {
+    func nextLayerName(prefix: String) -> String {
         var maxN = 0
         doc.forEachNode { n in
             if n.name.hasPrefix(prefix + " "), let v = Int(n.name.dropFirst(prefix.count + 1)) { maxN = max(maxN, v) }
