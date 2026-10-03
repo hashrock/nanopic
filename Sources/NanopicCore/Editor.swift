@@ -80,6 +80,8 @@ public final class Editor {
     /// 色調補正のプレビュー中（確定するまでレイヤーの中身は変えず、表示だけに補正をかける）
     public private(set) var adjustment: (layerID: UUID, value: ColorAdjustment)?
     public var fileURL: URL?
+    /// PSD の隣に置くサイドカーの中身
+    public var sidecar = Sidecar()
     public private(set) var isDirty = false
 
     // MARK: 履歴
@@ -132,11 +134,12 @@ public final class Editor {
         selectedLayerIDs = []
         resetHistory()
         fileURL = nil
+        sidecar = Sidecar()
         isDirty = false
         structureChanged()
     }
 
-    public func load(_ state: DocumentState, url: URL?) {
+    public func load(_ state: DocumentState, url: URL?, sidecar: Sidecar = Sidecar()) {
         cancelTransform()
         cancelAdjustment()
         gen += 1
@@ -152,6 +155,7 @@ public final class Editor {
         selectedLayerIDs = []
         resetHistory()
         fileURL = url
+        self.sidecar = sidecar
         isDirty = false
         structureChanged()
     }
@@ -162,6 +166,11 @@ public final class Editor {
             if let id = firstRasterID(n.children.reversed()) { return id }
         }
         return nil
+    }
+
+    /// 保存の直前に呼ぶ: PSD のレイヤー ID がないレイヤーに振る（履歴には残さない）
+    public func assignPSDIDs() {
+        doc.assignPSDIDs()
     }
 
     public func markSaved(url: URL?) {

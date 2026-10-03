@@ -56,6 +56,9 @@ public enum PSD {
     // MARK: Write
 
     static func write(_ doc: DocumentState, options: PSDWriteOptions) throws -> Data {
+        // 呼び出し側で振っていなくても、PSD には必ずレイヤー ID を入れる
+        var doc = doc
+        doc.assignPSDIDs()
         guard doc.width > 0, doc.height > 0 else { throw PSDError.corrupt("empty canvas") }
         guard options.depth == 8 || options.depth == 16 else { throw PSDError.unsupportedDepth(options.depth) }
         var w = PSDByteWriter()
@@ -169,6 +172,7 @@ public enum PSD {
     }
 
     private static func applyCommon(_ n: LayerNode, _ rec: inout PSDOutRecord) {
+        rec.layerID = n.psdID == 0 ? nil : n.psdID
         rec.opacity = UInt8(clamping: Int((min(max(n.opacity, 0), 1) * 255).rounded()))
         rec.clipping = n.clipping ? 1 : 0
         var f: UInt8 = 0
@@ -236,6 +240,11 @@ public enum PSD {
                 var s = PSDByteWriter()
                 s.u32(p)
                 w.infoBlock("lspf", s.b)
+            }
+            if let id = rec.layerID {
+                var s = PSDByteWriter()
+                s.u32(id)
+                w.infoBlock("lyid", s.b)
             }
             w.patch(extraStart, wide: false)
         }
@@ -501,6 +510,7 @@ private struct PSDOutRecord {
     var sectionType: UInt32?
     var sectionBlend: String?
     var protection: UInt32?
+    var layerID: UInt32?
     var channels: [(Int16, [UInt8])] = []
 
     init(name: String) { self.name = name }
@@ -604,6 +614,7 @@ private struct PSDInRecord {
     var sectionType: UInt32?
     var sectionBlend: String?
     var protection: UInt32?
+    var layerID: UInt32?
     var fillOpacity: UInt8?
     var maskRect = IntRect.zero
     var maskDefault: UInt8 = 0
@@ -901,6 +912,8 @@ private struct PSDReader {
                     }
                 case "lspf":
                     if len >= 4 { rec.protection = try u32() }
+                case "lyid":
+                    if len >= 4 { rec.layerID = try u32() }
                 case "iOpa":
                     if len >= 1 { rec.fillOpacity = try u8() }
                 default:
@@ -1085,6 +1098,7 @@ private struct PSDReader {
             let prot = rec.protection ?? 0
             node.lockAlpha = rec.flags & 0x01 != 0 || prot & 1 != 0
             node.locked = prot & 0x8000_0000 != 0 || prot & 0x6 == 0x6
+            node.psdID = rec.layerID ?? 0
             stack[stack.count - 1].append(node)
         }
         // Unterminated groups: splice their contents into the parent.

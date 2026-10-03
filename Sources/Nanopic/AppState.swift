@@ -222,7 +222,9 @@ final class AppState {
         if ext == "psd" || ext == "psb" {
             let data = try Data(contentsOf: url)
             let doc = try PSD.read(data)
-            editor.load(doc, url: url)
+            // サイドカーが読めなくても PSD は開く（壊れたサイドカーは、次に保存するとき書き直す）
+            let sidecar = (try? Sidecar.read(for: url)) ?? nil
+            editor.load(doc, url: url, sidecar: sidecar ?? Sidecar())
         } else {
             guard let img = ImageUtil.loadImage(url: url),
                   let doc = Editor.document(from: img, name: url.deletingPathExtension().lastPathComponent) else {
@@ -262,8 +264,10 @@ final class AppState {
     /// PSD で保存する（警告は出さない）
     func writePSD(to url: URL) throws {
         editor.commitTransform()
+        editor.assignPSDIDs()
         let data = try PSD.write(editor.doc)
         try data.write(to: url, options: .atomic)
+        try editor.sidecar.write(for: url)
         editor.markSaved(url: url)
         canvasView?.window?.title = url.lastPathComponent
     }
