@@ -121,3 +121,38 @@ extension TimelineTests {
         XCTAssertEqual(old.easing, .linear)
     }
 }
+
+extension TimelineTests {
+    func testMultiKeyEditing() {
+        let (ed, mouth, _, open, sweat) = editor()
+        ed.addTrack(mouth)
+        ed.addTrack(sweat)
+        let m = ed.doc.node(mouth)!.psdID, s = ed.doc.node(sweat)!.psdID
+        ed.setKey(layer: m, TimelineKey(frame: 4, child: ed.doc.node(open)!.psdID))
+        ed.setKey(layer: s, TimelineKey(frame: 4, visible: false))
+        let p = ed.addParameter(name: "首")
+        ed.setParameterKey(p, frame: 2, value: 0.5)
+        ed.setParameterKeyEasing(p, frame: 2, easing: .easeOut)
+
+        // 3 つをまとめて 3 コマ後ろへ（1 回で戻せる）
+        let sel: Set<TimelineKeyRef> = [.layer(m, frame: 4), .layer(s, frame: 4), .parameter(p, frame: 2)]
+        let moved = ed.moveKeys(sel, by: 3)
+        XCTAssertEqual(moved, [.layer(m, frame: 7), .layer(s, frame: 7), .parameter(p, frame: 5)])
+        XCTAssertEqual(ed.timeline.parameterTracks[0].keys.first?.easing, .easeOut, "動き方も一緒に動く")
+        ed.undo()
+        XCTAssertEqual(ed.timeline.track(for: m)!.keys.map(\.frame), [0, 4])
+        // 前へ動かしすぎても 0 で止まる
+        XCTAssertEqual(ed.moveKeys([.parameter(p, frame: 2)], by: -10), [.parameter(p, frame: 0)])
+        ed.undo()
+
+        // コピーして 10 コマ目に貼り付け
+        let clip = ed.copyKeys(sel)
+        let pasted = ed.pasteKeys(clip, at: 10)
+        XCTAssertEqual(pasted, [.layer(m, frame: 12), .layer(s, frame: 12), .parameter(p, frame: 10)])
+        XCTAssertEqual(ed.timeline.track(for: s)!.keys.first { $0.frame == 12 }?.visible, false)
+
+        // まとめて消す（キーがなくなったトラックも消える）
+        ed.deleteKeys([.parameter(p, frame: 2), .parameter(p, frame: 10)])
+        XCTAssertTrue(ed.timeline.parameterTracks.isEmpty)
+    }
+}

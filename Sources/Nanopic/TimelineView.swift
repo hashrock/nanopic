@@ -69,10 +69,18 @@ extension AppState {
 struct TimelineView: View {
     let state: AppState
     @Bindable var editor: Editor
-    @State private var dragging: (layer: UInt32, from: Int)?
-    @State private var paramDragging: (id: String, from: Int)?
+    /// マスの上のドラッグ
+    private enum GridDrag {
+        case scrub
+        case toggled
+        case moving(offset: Int)
+        case marquee(start: CGPoint, current: CGPoint, initial: Set<TimelineKeyRef>)
+    }
+    @State private var gridDrag: GridDrag?
+    /// コマ 1 つの幅（拡大縮小できる）
+    @State private var cell: CGFloat = 18
 
-    private let cell: CGFloat = 18
+    private let rulerHeight: CGFloat = 20
     private let nameWidth: CGFloat = 170
     private let rowHeight: CGFloat = 26
 
@@ -95,6 +103,9 @@ struct TimelineView: View {
                         ForEach(editor.rig.parameters, id: \.id) { p in parameterRow(p, t) }
                         ForEach(t.tracks, id: \.layer) { track in trackRow(track, t) }
                     }
+                    .overlay(alignment: .topLeading) { gridOverlay(t) }
+                    .contentShape(Rectangle())
+                    .gesture(DragGesture(minimumDistance: 0).onChanged(gridChanged).onEnded(gridEnded))
                 }
             }
             .frame(height: 20 + CGFloat(max(t.tracks.count + editor.rig.parameters.count, 2)) * rowHeight)
@@ -127,6 +138,11 @@ struct TimelineView: View {
             }
             Toggle("ループ", isOn: Binding(get: { t.loop }, set: { editor.setTimeline(loop: $0) }))
                 .toggleStyle(.checkbox).font(.caption)
+            Divider().frame(height: 16)
+            Button { cell = max(6, cell / 1.25) } label: { Image(systemName: "minus.magnifyingglass") }
+                .help("タイムラインを縮める")
+            Button { cell = min(48, cell * 1.25) } label: { Image(systemName: "plus.magnifyingglass") }
+                .help("タイムラインを広げる")
             Spacer()
             Button {
                 if let id = editor.activeLayerID { editor.addTrack(trackTarget(id)) }
@@ -190,6 +206,7 @@ struct TimelineView: View {
                 ZStack {
                     Rectangle().fill(f == editor.currentFrame ? Color.accentColor.opacity(0.18) : (f % 2 == 0 ? Color.primary.opacity(0.03) : Color.clear))
                     if let key {
+                        selectionMark(.parameter(p.id, frame: f))
                         Image(systemName: Self.easingSymbol(key.easing)).font(.system(size: 9)).foregroundStyle(Color.orange)
                             .help("動き方: \(key.easing.displayName)")
                     } else if track == nil {
@@ -198,16 +215,6 @@ struct TimelineView: View {
                 }
                 .frame(width: cell, height: rowHeight)
                 .overlay(alignment: .bottom) { Divider() }
-                .contentShape(Rectangle())
-                .onTapGesture { editor.goToFrame(f) }
-                .gesture(DragGesture(minimumDistance: 3)
-                    .onChanged { _ in if key != nil, paramDragging == nil { paramDragging = (p.id, f) } }
-                    .onEnded { v in
-                        if let d = paramDragging {
-                            editor.moveParameterKey(d.id, from: d.from, to: d.from + Int((v.translation.width / cell).rounded()))
-                        }
-                        paramDragging = nil
-                    })
                 .contextMenu {
                     Button("ここにキーを打つ（今の値）") {
                         let v = editor.parameterValue(p.id)
@@ -229,6 +236,138 @@ struct TimelineView: View {
                 }
             }
         }
+    }
+
+    // MARK: マスの操作（キーの選択・移動・範囲選択・再生位置）
+
+    /// 行の並び（パラメータ、レイヤーのトラックの順）
+    private var rowIDs: [TimelineKeyRef] {
+        editor.rig.parameters.map { .parameter($0.id, frame: 0) } + editor.timeline.tracks.map { .layer($0.layer, frame: 0) }
+    }
+
+    /// 行 row のコマ frame にキーがあれば、その参照
+    private func keyRef(row: Int, frame: Int) -> TimelineKeyRef? {
+        let rows = rowIDs
+        guard rows.indices.contains(row), frame >= 0 else { return nil }
+        let ref: TimelineKeyRef
+        switch rows[row] {
+        case let .parameter(p, _): ref = .parameter(p, frame: frame)
+        case let .layer(l, _): ref = .layer(l, frame: frame)
+        }
+        return editor.existingKeys([ref]).isEmpty ? nil : ref
+    }
+
+    private func rowIndex(_ ref: TimelineKeyRef) -> Int? {
+        rowIDs.firstIndex { r in
+            switch (r, ref) {
+            case let (.parameter(a, _), .parameter(b, _)): return a == b
+            case let (.layer(a, _), .layer(b, _)): return a == b
+            default: return false
+            }
+        }
+    }
+
+    private func frame(at x: CGFloat) -> Int { max(0, Int(x / cell)) }
+
+    private func gridChanged(_ v: DragGesture.Value) {
+        let shift = NSEvent.modifierFlags.contains(.shift)
+        if gridDrag == nil {
+            let loc = v.startLocation
+            if loc.y < rulerHeight {
+                gridDrag = .scrub
+            } else if let ref = keyRef(row: Int((loc.y - rulerHeight) / rowHeight), frame: frame(at: loc.x)) {
+                if shift {
+                    if state.timelineSelection.contains(ref) { state.timelineSelection.remove(ref) } else { state.timelineSelection.insert(ref) }
+                    gridDrag = .toggled
+                } else {
+                    if !state.timelineSelection.contains(ref) { state.timelineSelection = [ref] }
+                    gridDrag = .moving(offset: 0)
+                }
+            } else {
+                let initial = shift ? state.timelineSelection : []
+                state.timelineSelection = initial
+                gridDrag = .marquee(start: loc, current: loc, initial: initial)
+            }
+        }
+        switch gridDrag {
+        case .scrub:
+            editor.goToFrame(frame(at: v.location.x))
+        case .moving:
+            gridDrag = .moving(offset: Int((v.translation.width / cell).rounded()))
+        case let .marquee(start, _, initial):
+            gridDrag = .marquee(start: start, current: v.location, initial: initial)
+            let r = CGRect(x: min(start.x, v.location.x), y: min(start.y, v.location.y),
+                           width: abs(v.location.x - start.x), height: abs(v.location.y - start.y))
+            var sel = initial
+            for (i, row) in rowIDs.enumerated() {
+                let cy = rulerHeight + CGFloat(i) * rowHeight + rowHeight / 2
+                guard cy >= r.minY && cy <= r.maxY else { continue }
+                let f0 = max(0, Int(ceil(r.minX / cell - 0.5))), f1 = Int(floor(r.maxX / cell - 0.5))
+                guard f0 <= f1 else { continue }
+                for f in f0...f1 {
+                    let ref: TimelineKeyRef
+                    switch row {
+                    case let .parameter(p, _): ref = .parameter(p, frame: f)
+                    case let .layer(l, _): ref = .layer(l, frame: f)
+                    }
+                    sel.insert(ref)
+                }
+            }
+            state.timelineSelection = editor.existingKeys(sel)
+        default:
+            break
+        }
+    }
+
+    private func gridEnded(_ v: DragGesture.Value) {
+        switch gridDrag {
+        case let .moving(offset):
+            if offset != 0 {
+                state.timelineSelection = editor.moveKeys(state.timelineSelection, by: offset)
+            } else {
+                editor.goToFrame(frame(at: v.startLocation.x))
+            }
+        case let .marquee(start, current, _):
+            // ほとんど動かさなければクリック: 選択を外して再生位置を動かす
+            if hypot(current.x - start.x, current.y - start.y) < 3 { editor.goToFrame(frame(at: start.x)) }
+        default:
+            break
+        }
+        gridDrag = nil
+    }
+
+    /// 選んだキーの下地
+    private func selectionMark(_ ref: TimelineKeyRef) -> some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(state.timelineSelection.contains(ref) ? Color.accentColor.opacity(0.45) : Color.clear)
+            .frame(width: min(cell, 16), height: 16)
+            .frame(width: cell)
+    }
+
+    /// 範囲選択の枠と、動かしている間の行き先
+    @ViewBuilder
+    private func gridOverlay(_ t: Timeline) -> some View {
+        ZStack(alignment: .topLeading) {
+            if case let .marquee(start, current, _) = gridDrag {
+                Rectangle()
+                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .background(Color.accentColor.opacity(0.08))
+                    .frame(width: abs(current.x - start.x), height: abs(current.y - start.y))
+                    .offset(x: min(start.x, current.x), y: min(start.y, current.y))
+            }
+            if case let .moving(offset) = gridDrag, offset != 0 {
+                ForEach(Array(state.timelineSelection), id: \.self) { ref in
+                    if let row = rowIndex(ref) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.accentColor, lineWidth: 1.5)
+                            .frame(width: min(cell, 16), height: 16)
+                            .offset(x: CGFloat(ref.frame + offset) * cell + (cell - min(cell, 16)) / 2,
+                                    y: rulerHeight + CGFloat(row) * rowHeight + (rowHeight - 16) / 2)
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
     }
 
     /// キーの印: 直線は ◆、緩急ありは ●、止めるは ■
@@ -265,17 +404,18 @@ struct TimelineView: View {
             ForEach(0..<t.frameCount, id: \.self) { f in
                 ZStack(alignment: .leading) {
                     Rectangle().fill(f == editor.currentFrame ? Color.accentColor.opacity(0.5) : Color.clear)
-                    if f % 6 == 0 {
+                    if f % labelEvery == 0 {
                         Text("\(f + 1)").font(.system(size: 9).monospacedDigit()).foregroundStyle(.secondary).padding(.leading, 2)
                             .fixedSize()
                     }
                 }
-                .frame(width: cell, height: 20)
-                .contentShape(Rectangle())
-                .onTapGesture { editor.goToFrame(f) }
+                .frame(width: cell, height: rulerHeight)
             }
         }
     }
+
+    /// 目盛りの数字の間隔（狭いほど間引く）
+    private var labelEvery: Int { cell >= 14 ? 6 : cell >= 9 ? 12 : 24 }
 
     private func trackRow(_ track: TimelineTrack, _ t: Timeline) -> some View {
         let node = editor.doc.node(psdID: track.layer)
@@ -285,11 +425,13 @@ struct TimelineView: View {
                 ZStack(alignment: .leading) {
                     Rectangle().fill(f == editor.currentFrame ? Color.accentColor.opacity(0.18) : (f % 2 == 0 ? Color.primary.opacity(0.03) : Color.clear))
                     if let key {
+                        selectionMark(.layer(track.layer, frame: f))
                         Image(systemName: "diamond.fill")
                             .font(.system(size: 9))
                             .foregroundStyle(key.visible == false ? Color.secondary : Color.accentColor)
                             .frame(width: cell)
-                        if let child = key.child, let name = node?.children.first(where: { $0.psdID == child })?.name {
+                        // コマが狭いときは重なるので名前を出さない
+                        if cell >= 14, let child = key.child, let name = node?.children.first(where: { $0.psdID == child })?.name {
                             Text(name).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1).fixedSize()
                                 .offset(x: cell)
                                 .allowsHitTesting(false)
@@ -298,16 +440,6 @@ struct TimelineView: View {
                 }
                 .frame(width: cell, height: rowHeight)
                 .overlay(alignment: .bottom) { Divider() }
-                .contentShape(Rectangle())
-                .onTapGesture { editor.goToFrame(f) }
-                .gesture(DragGesture(minimumDistance: 3)
-                    .onChanged { _ in if key != nil, dragging == nil { dragging = (track.layer, f) } }
-                    .onEnded { v in
-                        if let d = dragging {
-                            editor.moveKey(layer: d.layer, from: d.from, to: d.from + Int((v.translation.width / cell).rounded()))
-                        }
-                        dragging = nil
-                    })
                 .contextMenu {
                     Button("ここにキーを打つ（今の表示）") {
                         editor.goToFrame(f)

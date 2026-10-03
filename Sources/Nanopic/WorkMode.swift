@@ -25,6 +25,7 @@ extension AppState {
         } else {
             stopPlayback()
             canvasView?.selectedDeformerHandles = []
+            timelineSelection = []
             editor.timelineOpen = false
             editor.setShowsDeformation(false)
             if let t = toolBeforeAnimation { editor.selectTool(t) }

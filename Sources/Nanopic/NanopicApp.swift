@@ -55,6 +55,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "クリッピング") { $0.clipping.toggle() } }
             return nil
         }
+        // アニメーションモードでは、タイムラインのキーのコピー・貼り付け
+        if state.mode == .animate && flags == [.command] {
+            if e.keyCode == 8, !state.timelineSelection.isEmpty { // ⌘C
+                state.timelineClipboard = editor.copyKeys(state.timelineSelection)
+                return nil
+            }
+            if e.keyCode == 9, let clip = state.timelineClipboard, !clip.isEmpty { // ⌘V: 今のコマを先頭に
+                state.timelineSelection = editor.pasteKeys(clip, at: editor.currentFrame)
+                return nil
+            }
+        }
         if flags == [.command] {
             switch e.keyCode {
             case 39: // ⌘'（JIS では ⌘:）: グリッド
@@ -83,7 +94,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             canvas.cancelInteraction()
             return nil
         case 51, 117: // delete
-            if state.mode == .animate { return nil }
+            if state.mode == .animate {
+                // タイムラインで選んでいるキーを消す
+                editor.deleteKeys(state.timelineSelection)
+                state.timelineSelection = []
+                return nil
+            }
             editor.clearSelectionContent()
             return nil
         case 123, 124, 125, 126: // 矢印: 変形中なら 1px 移動

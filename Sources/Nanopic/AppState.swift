@@ -18,6 +18,9 @@ final class AppState {
     var mode = WorkMode.draw
     var timelineOpen: Bool { mode == .animate }
     @ObservationIgnored var toolBeforeAnimation: Tool?
+    /// タイムラインで選んでいるキーと、コピーしたキー
+    var timelineSelection: Set<TimelineKeyRef> = []
+    @ObservationIgnored var timelineClipboard: TimelineClipboard?
     /// 形を記録する対象のパラメータ（キャンバス上のデフォーマのハンドルで形を決める）
     var editingParameter: String?
     /// 動画の書き出し中（シートを出す）
