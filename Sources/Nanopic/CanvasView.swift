@@ -38,6 +38,8 @@ final class CanvasView: NSView {
         case move(startCanvas: CGPoint, startParams: TransformParams)
         case eyedropper
         case deformer(DeformerHandle, start: CGPoint, base: DeformerForm, startPivot: RigPoint)
+        case deformerGroup(start: CGPoint, bases: [String: DeformerForm])
+        case handleMarquee(start: CGPoint, initial: Set<DeformerHandle>)
     }
 
     enum TransformHandle: Equatable {
@@ -48,6 +50,10 @@ final class CanvasView: NSView {
     }
 
     private var drag: Drag = .none
+    /// 選んでいるデフォーマのハンドル（まとめて動かす）
+    var selectedDeformerHandles: Set<DeformerHandle> = []
+    /// ハンドルを囲んでいる枠（キャンバス座標）
+    private(set) var handleMarquee: CGRect?
     private(set) var spaceHeld = false
     private var eraserInProximity = false
     private var toolBeforeEraser: Tool?
@@ -246,14 +252,33 @@ final class CanvasView: NSView {
             return
         }
         // デフォーマのハンドル（形を記録するパラメータを選んでいる間）
-        if var h = hitDeformerHandle(vp) {
-            var pivot = RigPoint.zero
+        if let h = hitDeformerHandle(vp) {
             if case let .pivot(id) = h, flags.contains(.option) {
                 // Option を押しながらなら、基本の形の中心を置き直す
-                h = .restPivot(id)
-                pivot = editor.rig.deformer(id)?.pivot ?? .zero
+                let pivot = editor.rig.deformer(id)?.pivot ?? .zero
+                drag = .deformer(.restPivot(id), start: cp, base: baseForm(h), startPivot: pivot)
+                return
             }
-            drag = .deformer(h, start: cp, base: baseForm(h), startPivot: pivot)
+            if case .arm = h {
+                drag = .deformer(h, start: cp, base: baseForm(h), startPivot: .zero)
+                return
+            }
+            // Shift なら選択に足す・外すだけ
+            if flags.contains(.shift) {
+                if selectedDeformerHandles.contains(h) { selectedDeformerHandles.remove(h) } else { selectedDeformerHandles.insert(h) }
+                overlay.needsDisplay = true
+                return
+            }
+            if !selectedDeformerHandles.contains(h) { selectedDeformerHandles = [h] }
+            drag = .deformerGroup(start: cp, bases: baseForms(for: selectedDeformerHandles))
+            return
+        }
+        // アニメーションモードの矩形選択は、ハンドルを囲んで選ぶ（画素の選択範囲は作らない）
+        if state.mode == .animate && effectiveTool(flags) == .selectRect {
+            let initial = flags.contains(.shift) ? selectedDeformerHandles : []
+            selectedDeformerHandles = initial
+            if deformerEditing != nil { drag = .handleMarquee(start: cp, initial: initial) }
+            overlay.needsDisplay = true
             return
         }
         temporaryTool?.used = true
@@ -352,6 +377,12 @@ final class CanvasView: NSView {
             pick(at: cp, flags: e.modifierFlags)
         case let .deformer(h, start, base, startPivot):
             dragDeformer(h, start: start, base: base, startPivot: startPivot, cp: cp)
+        case let .deformerGroup(start, bases):
+            dragDeformerGroup(start: start, bases: bases, cp: cp)
+        case let .handleMarquee(start, initial):
+            let r = CGRect(x: min(start.x, cp.x), y: min(start.y, cp.y), width: abs(cp.x - start.x), height: abs(cp.y - start.y))
+            handleMarquee = r
+            selectedDeformerHandles = initial.union(deformerHandles(in: r))
         case .none:
             break
         }
@@ -359,6 +390,7 @@ final class CanvasView: NSView {
     }
 
     override func mouseUp(with e: NSEvent) {
+        handleMarquee = nil
         switch drag {
         case .stroke:
             editor.endStroke()
@@ -526,6 +558,8 @@ final class CanvasView: NSView {
         case .stroke: editor.endStroke()
         default: break
         }
+        selectedDeformerHandles = []
+        handleMarquee = nil
         drag = .none
         lassoPoints = []
         shapePreview = nil

@@ -10,7 +10,8 @@ enum WorkMode: String {
 
 extension AppState {
     /// アニメーションモードで使えるツール
-    static let animationTools: [Tool] = [.hand, .zoom]
+    /// 矩形選択はデフォーマのハンドルを囲んで選ぶのに使う
+    static let animationTools: [Tool] = [.selectRect, .hand, .zoom]
 
     func setMode(_ m: WorkMode) {
         guard m != mode else { return }
@@ -18,11 +19,12 @@ extension AppState {
         if m == .animate {
             if adjustmentKind != nil { closeAdjustment(commit: false) }
             toolBeforeAnimation = editor.tool
-            if !Self.animationTools.contains(editor.tool) { editor.selectTool(.hand) }
+            if !Self.animationTools.contains(editor.tool) { editor.selectTool(.selectRect) }
             editor.timelineOpen = true
             editor.setShowsDeformation(true)
         } else {
             stopPlayback()
+            canvasView?.selectedDeformerHandles = []
             editor.timelineOpen = false
             editor.setShowsDeformation(false)
             if let t = toolBeforeAnimation { editor.selectTool(t) }

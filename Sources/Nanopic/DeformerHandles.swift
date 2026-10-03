@@ -2,7 +2,7 @@ import AppKit
 import NanopicCore
 
 /// キャンバス上のデフォーマのハンドル。タイムラインで形を記録するパラメータを選んでいる間だけ出す
-enum DeformerHandle: Equatable {
+enum DeformerHandle: Hashable {
     /// 中心の点: 移動量を記録する
     case pivot(String)
     /// Option を押しながら中心の点: 基本の形の中心を置き直す
@@ -95,6 +95,53 @@ extension CanvasView {
         }
     }
 
+    /// 選んだハンドル（中心の点・ワープの点）をまとめて動かす。bases は始めたときの各デフォーマの形
+    func dragDeformerGroup(start: CGPoint, bases: [String: DeformerForm], cp: CGPoint) {
+        guard let (pid, _) = deformerEditing, let p = editor.rig.parameter(pid) else { return }
+        let value = editor.parameterValue(pid)
+        let dx = cp.x - start.x, dy = cp.y - start.y
+        for (id, base) in bases {
+            guard let d = editor.rig.deformer(id) else { continue }
+            var f = base
+            if f.offsets.count < d.pointCount { f.offsets += Array(repeating: .zero, count: d.pointCount - f.offsets.count) }
+            for h in selectedDeformerHandles {
+                switch h {
+                case .pivot(id):
+                    f.move = RigPoint(base.move.x + dx, base.move.y + dy)
+                case let .point(hid, i) where hid == id:
+                    let o = base.offsets.indices.contains(i) ? base.offsets[i] : .zero
+                    f.offsets[i] = RigPoint(o.x + dx, o.y + dy)
+                default:
+                    break
+                }
+            }
+            editor.setForm(parameter: p.id, value: value, deformer: id, f)
+        }
+    }
+
+    /// 選んだハンドルが属するデフォーマの、記録先のパラメータでの形
+    func baseForms(for handles: Set<DeformerHandle>) -> [String: DeformerForm] {
+        guard let (pid, _) = deformerEditing, let p = editor.rig.parameter(pid) else { return [:] }
+        var out: [String: DeformerForm] = [:]
+        for h in handles {
+            let id: String
+            switch h {
+            case let .pivot(i), let .point(i, _): id = i
+            default: continue
+            }
+            out[id] = p.form(for: id, at: editor.parameterValue(pid)) ?? DeformerForm()
+        }
+        return out
+    }
+
+    /// 範囲選択の枠（キャンバス座標）に入るハンドル。腕は選ばない
+    func deformerHandles(in rect: CGRect) -> Set<DeformerHandle> {
+        Set(deformerHandlePositions().compactMap { h, p in
+            if case .arm = h { return nil }
+            return rect.contains(p) ? h : nil
+        })
+    }
+
     /// 始めたときの、記録先のパラメータの形
     func baseForm(_ h: DeformerHandle) -> DeformerForm {
         guard let (pid, _) = deformerEditing, let p = editor.rig.parameter(pid) else { return DeformerForm() }
@@ -112,6 +159,8 @@ extension OverlayView {
     func drawDeformerHandles(_ ctx: CGContext, canvas: CanvasView, t: CGAffineTransform) {
         guard let (_, ds) = canvas.deformerEditing else { return }
         let handles = canvas.deformerHandlePositions()
+        let selected = canvas.selectedDeformerHandles
+        func fill(_ h: DeformerHandle, _ normal: NSColor) -> NSColor { selected.contains(h) ? .controlAccentColor : normal }
         func pos(_ h: DeformerHandle) -> CGPoint? { handles.first { $0.0 == h }?.1.applying(t) }
         ctx.saveGState()
         ctx.setLineWidth(1)
@@ -122,7 +171,7 @@ extension OverlayView {
                 ctx.setStrokeColor(NSColor.systemOrange.cgColor)
                 ctx.strokeLineSegments(between: [c, a])
                 ctx.strokeEllipse(in: CGRect(x: c.x - 70, y: c.y - 70, width: 140, height: 140))
-                dot(ctx, c, fill: .systemOrange)
+                dot(ctx, c, fill: fill(.pivot(d.id), .systemOrange))
                 dot(ctx, a, fill: .white)
             case .warp:
                 let w = d.cols + 1
@@ -134,8 +183,16 @@ extension OverlayView {
                         if r < d.rows, let q = pos(.point(d.id, (r + 1) * w + c)) { ctx.strokeLineSegments(between: [p, q]) }
                     }
                 }
-                for i in 0..<d.pointCount { if let p = pos(.point(d.id, i)) { dot(ctx, p, fill: .white) } }
+                for i in 0..<d.pointCount { if let p = pos(.point(d.id, i)) { dot(ctx, p, fill: fill(.point(d.id, i), .white)) } }
             }
+        }
+        // 範囲選択の枠
+        if let r = canvas.handleMarquee {
+            var tt = t
+            ctx.addPath(CGPath(rect: r, transform: &tt))
+            ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+            ctx.setLineDash(phase: 0, lengths: [4, 3])
+            ctx.strokePath()
         }
         ctx.restoreGState()
     }
