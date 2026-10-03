@@ -213,7 +213,7 @@ struct TimelineView: View {
             ForEach(0..<t.frameCount, id: \.self) { f in
                 let key = track?.keys.first { $0.frame == f }
                 ZStack {
-                    Rectangle().fill(f == editor.currentFrame ? Color.accentColor.opacity(0.18) : (f % 2 == 0 ? Color.primary.opacity(0.03) : Color.clear))
+                    cellBox(f)
                     if let key {
                         selectionMark(.parameter(p.id, frame: f))
                         Image(systemName: Self.easingSymbol(key.easing)).font(.system(size: 9)).foregroundStyle(Color.orange)
@@ -223,7 +223,6 @@ struct TimelineView: View {
                     }
                 }
                 .frame(width: cell, height: rowHeight)
-                .overlay(alignment: .bottom) { Divider() }
                 .contextMenu {
                     Button("ここにキーを打つ（今の値）") {
                         let v = editor.parameterValue(p.id)
@@ -414,7 +413,10 @@ struct TimelineView: View {
             ForEach(0..<t.frameCount, id: \.self) { f in
                 ZStack(alignment: .leading) {
                     Rectangle().fill(f == editor.currentFrame ? Color.accentColor.opacity(0.5) : Color.clear)
-                    if f % labelEvery == 0 {
+                        .overlay(alignment: .bottomTrailing) {
+                            Rectangle().fill(Color.primary.opacity(0.25)).frame(width: 1, height: (f + 1) % 5 == 0 ? 6 : 3)
+                        }
+                    if f == 0 || (f + 1) % labelEvery == 0 {
                         Text("\(f + 1)").font(.system(size: 9).monospacedDigit()).foregroundStyle(.secondary).padding(.leading, 2)
                             .fixedSize()
                     }
@@ -448,7 +450,15 @@ struct TimelineView: View {
     }
 
     /// 目盛りの数字の間隔（狭いほど間引く）
-    private var labelEvery: Int { cell >= 14 ? 6 : cell >= 9 ? 12 : 24 }
+    private var labelEvery: Int { cell >= 14 ? 5 : cell >= 9 ? 10 : 20 }
+
+    /// 1 コマのマス（Flash のタイムラインのように枠で区切る）。5 コマごとに少し濃く、今のコマは色をつける
+    private func cellBox(_ f: Int) -> some View {
+        Rectangle()
+            .fill(f == editor.currentFrame ? Color.accentColor.opacity(0.18) : ((f + 1) % 5 == 0 ? Color.primary.opacity(0.06) : Color.clear))
+            .overlay(alignment: .trailing) { Rectangle().fill(Color.primary.opacity(0.1)).frame(width: 1) }
+            .overlay(alignment: .bottom) { Rectangle().fill(Color.primary.opacity(0.12)).frame(height: 1) }
+    }
 
     /// キーから次のキーまでの区間。最初のキーより前は、最初のキーの状態が続く（lead）
     private func spans(_ track: TimelineTrack, _ count: Int) -> [(start: Int, end: Int, key: TimelineKey, lead: Bool)] {
@@ -467,10 +477,10 @@ struct TimelineView: View {
             ForEach(spans(track, count), id: \.start) { s in
                 if s.key.visible != false {
                     let w = CGFloat(s.end - s.start) * cell
-                    RoundedRectangle(cornerRadius: 3)
+                    Rectangle()
                         .fill(Color.accentColor.opacity(s.lead ? 0.07 : 0.16))
-                        .frame(width: max(w - 2, 1), height: rowHeight - 8)
-                        .offset(x: CGFloat(s.start) * cell + 1, y: 4)
+                        .frame(width: w, height: rowHeight - 1)
+                        .offset(x: CGFloat(s.start) * cell)
                     if !s.lead, w - cell >= 12, let child = s.key.child,
                        let name = node?.children.first(where: { $0.psdID == child })?.name {
                         Text(name).font(.system(size: 9)).foregroundStyle(.secondary)
@@ -491,7 +501,7 @@ struct TimelineView: View {
             ForEach(0..<t.frameCount, id: \.self) { f in
                 let key = track.keys.first { $0.frame == f }
                 ZStack(alignment: .leading) {
-                    Rectangle().fill(f == editor.currentFrame ? Color.accentColor.opacity(0.18) : (f % 2 == 0 ? Color.primary.opacity(0.03) : Color.clear))
+                    cellBox(f)
                     if let key {
                         selectionMark(.layer(track.layer, frame: f))
                         Image(systemName: "diamond.fill")
@@ -501,7 +511,6 @@ struct TimelineView: View {
                     }
                 }
                 .frame(width: cell, height: rowHeight)
-                .overlay(alignment: .bottom) { Divider() }
                 .contextMenu {
                     if let node, node.isSwitch {
                         // セルを選んでこのコマに出す（上のセルから）
