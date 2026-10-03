@@ -123,16 +123,23 @@ struct RigPanel: View {
                 Text("フォルダーに付けると、中のレイヤー全部が一緒に動きます。").font(.caption).foregroundStyle(.secondary)
             }
             ForEach(ds, id: \.0.id) { d, layerName in deformerRow(d, layerName) }
+            if !ds.isEmpty {
+                Text(state.editingParameter == nil
+                     ? "パラメータの名前を選ぶと、キャンバスにハンドルが出ます。"
+                     : "デフォーマをクリックすると、そのハンドルだけを出します。")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
         }
     }
 
     private func deformerRow(_ d: Deformer, _ layerName: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let selected = state.selectedDeformer == d.id
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: d.kind == .rotation ? "arrow.triangle.2.circlepath" : "squareshape.split.2x2")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(selected ? Color.accentColor : .secondary)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(d.name).font(.callout).lineLimit(1)
+                    Text(d.name).font(.callout.weight(selected ? .semibold : .regular)).lineLimit(1)
                     Text(layerName).font(.caption2).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -146,12 +153,19 @@ struct RigPanel: View {
                         editor.fitDeformerToContent(d.id)
                     }
                     Divider()
-                    Button("外す") { editor.removeDeformer(d.id) }
+                    Button("外す") {
+                        if selected { state.selectedDeformer = nil }
+                        editor.removeDeformer(d.id)
+                    }
                 } label: { Image(systemName: "ellipsis") }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .fixedSize()
             }
+            // クリックでこのデフォーマのハンドルだけを出す（もう一度で全部に戻す）
+            .contentShape(Rectangle())
+            .onTapGesture { state.selectedDeformer = selected ? nil : d.id }
+            .help("クリックでこのデフォーマのハンドルだけを出す")
             if d.kind == .warp {
                 HStack(spacing: 8) {
                     Text("格子").font(.caption).foregroundStyle(.secondary)
@@ -163,6 +177,6 @@ struct RigPanel: View {
             }
         }
         .padding(6)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.04)))
+        .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04)))
     }
 }

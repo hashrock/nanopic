@@ -34,6 +34,10 @@ final class AppState {
     @ObservationIgnored var timelineClipboard: TimelineClipboard?
     /// 形を記録する対象のパラメータ（キャンバス上のデフォーマのハンドルで形を決める）
     var editingParameter: String?
+    /// ハンドルを出すデフォーマを 1 つに絞る（nil なら編集中のレイヤーと親フォルダーのデフォーマ全部）
+    var selectedDeformer: String? {
+        didSet { if selectedDeformer != oldValue { canvasView?.selectedDeformerHandles = []; canvasView?.requestDisplay() } }
+    }
     /// 動画の書き出し中（シートを出す）
     var movieExport: MovieExportProgress?
     var isPlaying = false

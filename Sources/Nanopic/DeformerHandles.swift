@@ -12,14 +12,16 @@ enum DeformerHandle: Hashable {
 }
 
 extension CanvasView {
-    /// 形を記録する対象（パラメータと、編集中のレイヤーとその親フォルダーのデフォーマ）
+    /// 形を記録する対象（パラメータと、編集中のレイヤーとその親フォルダーのデフォーマ。左の一覧で選んでいればそれだけ）。
+    /// アニメーションモードだけ（描くモードでタイムラインを出していても、変形は表示しないので出さない）
     var deformerEditing: (parameter: String, deformers: [Deformer])? {
-        guard state.timelineOpen, let pid = state.editingParameter, editor.rig.parameter(pid) != nil,
+        guard state.mode == .animate, let pid = state.editingParameter, editor.rig.parameter(pid) != nil,
               let active = editor.activeLayerID, let path = editor.doc.indexPath(of: active) else { return nil }
         var ds: [Deformer] = []
         for depth in stride(from: path.count, through: 1, by: -1) {
             if let n = editor.doc.node(at: Array(path.prefix(depth))) { ds += editor.deformers(on: n.id) }
         }
+        if let sel = state.selectedDeformer, ds.contains(where: { $0.id == sel }) { ds = ds.filter { $0.id == sel } }
         return ds.isEmpty ? nil : (pid, ds)
     }
 
