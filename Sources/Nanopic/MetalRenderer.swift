@@ -58,6 +58,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     private var needsMipmaps = false
     private var lastCommand: MTLCommandBuffer?
     private var lastOnionVersion = -1
+    private var lastPlaybackKey: String?
     weak var canvas: CanvasView?
 
     init?(view: MTKView) {
@@ -134,10 +135,27 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             dirty = doc.bounds
         }
         guard let texture, let composite else { return }
+        // 再生中は、コマごとにキャッシュした絵をそのまま出す（合成もオニオンスキンもしない）
+        let playbackFrame = editor.playbackImage()
+        if let frame = playbackFrame, frame.image.count == w * h * 4 {
+            if frame.key != lastPlaybackKey {
+                lastCommand?.waitUntilCompleted()
+                frame.image.withUnsafeBytes { p in
+                    texture.replace(region: MTLRegionMake2D(0, 0, w, h), mipmapLevel: 0, withBytes: p.baseAddress!, bytesPerRow: w * 4)
+                }
+                needsMipmaps = true
+                lastPlaybackKey = frame.key
+            }
+            dirty = .zero
+        } else if lastPlaybackKey != nil {
+            // 再生を止めたら合成し直す
+            lastPlaybackKey = nil
+            dirty = doc.bounds
+        }
         // オニオンスキン（再生中は出さない）。作り直したら全体を描き直す
         let onion = canvas.state.isPlaying ? nil : editor.onionSkinImage()
         let onionVersion = onion == nil ? -1 : editor.onionSkinVersion
-        if onionVersion != lastOnionVersion {
+        if playbackFrame == nil, onionVersion != lastOnionVersion {
             dirty = doc.bounds
             lastOnionVersion = onionVersion
         }

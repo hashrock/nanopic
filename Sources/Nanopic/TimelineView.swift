@@ -46,6 +46,7 @@ extension AppState {
         let t = editor.timeline
         if !t.loop && editor.currentFrame >= t.frameCount - 1 { editor.goToFrame(0) }
         isPlaying = true
+        editor.beginPlayback()
         playTimer = Timer.scheduledTimer(withTimeInterval: 1 / Double(max(t.fps, 1)), repeats: true) { [weak self] _ in
             guard let self else { return }
             let t = self.editor.timeline
@@ -62,6 +63,7 @@ extension AppState {
         playTimer?.invalidate()
         playTimer = nil
         isPlaying = false
+        editor.endPlayback()
     }
 }
 

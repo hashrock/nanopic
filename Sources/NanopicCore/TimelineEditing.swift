@@ -95,6 +95,11 @@ extension Editor {
     public func goToFrame(_ frame: Int) {
         let f = min(max(frame, 0), max(doc.timeline.frameCount - 1, 0))
         currentFrame = f
+        // 再生中はレイヤーを書き換えず、キャッシュした絵を出すだけ（止めたときに合わせる）
+        if isPlayingBack {
+            onNeedsDisplay?()
+            return
+        }
         applyFrame()
     }
 

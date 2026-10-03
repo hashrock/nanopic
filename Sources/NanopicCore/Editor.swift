@@ -96,6 +96,8 @@ public final class Editor {
         didSet { if onionSkin != oldValue { markAllDirty() } }
     }
     @ObservationIgnored var onionCache: (key: OnionCacheKey, image: [UInt8])?
+    /// 再生中（始めたときの内容の版と、合成した絵のキャッシュ）
+    @ObservationIgnored var playback: (revision: Int, cache: PlaybackCache)?
     /// オニオンスキンの絵を作り直すたびに増える（表示側で描き直すかの判断に使う）
     @ObservationIgnored public internal(set) var onionSkinVersion = 0
     public private(set) var isDirty = false

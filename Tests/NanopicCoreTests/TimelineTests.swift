@@ -264,3 +264,33 @@ extension TimelineTests {
         XCTAssertFalse(ed.hasTrack(mouth))
     }
 }
+
+extension TimelineTests {
+    func testPlaybackUsesCacheWithoutTouchingLayers() {
+        let (ed, mouth, _, open, _) = editor()
+        ed.timelineOpen = true
+        ed.addTrack(mouth)
+        let m = ed.doc.node(mouth)!.psdID
+        ed.setKey(layer: m, TimelineKey(frame: 2, child: ed.doc.node(open)!.psdID))
+        ed.setKey(layer: m, TimelineKey(frame: 4, child: ed.doc.node(ed.doc.node(mouth)!.children[0].id)!.psdID))
+        ed.goToFrame(0)
+        let rev = ed.revision
+
+        ed.beginPlayback()
+        XCTAssertTrue(ed.isPlayingBack)
+        let a = ed.playbackImage()!
+        ed.goToFrame(2)
+        XCTAssertEqual(shown(ed, mouth), "閉じ", "再生中はレイヤーを書き換えない")
+        XCTAssertEqual(ed.revision, rev)
+        let b = ed.playbackImage()!
+        XCTAssertNotEqual(a.key, b.key)
+        ed.goToFrame(5)
+        XCTAssertEqual(ed.playbackImage()!.key, a.key, "同じ見た目のコマは同じ絵")
+
+        ed.goToFrame(3)
+        ed.endPlayback()
+        XCTAssertFalse(ed.isPlayingBack)
+        XCTAssertEqual(shown(ed, mouth), "あ", "止めたら今のコマに合わせる")
+        XCTAssertNil(ed.playbackImage())
+    }
+}
