@@ -16,7 +16,7 @@ struct ContentView: View {
             ToolBarView(state: state, editor: editor)
             Divider()
             Group {
-                if state.mode == .animate {
+                if state.mode == .rig {
                     RigPanel(state: state, editor: editor)
                 } else {
                     ToolOptionsView(state: state, editor: editor)
@@ -43,7 +43,7 @@ struct ContentView: View {
             }
             Divider()
             VStack(spacing: 0) {
-                // アニメーションモードでは描かないので、色は出さない
+                // リグモードでは描かないので、色は出さない
                 if state.mode == .draw {
                     ColorPickerView(editor: editor)
                         .padding(10)
@@ -57,13 +57,15 @@ struct ContentView: View {
             .frame(width: 270)
         }
         .toolbar {
+            // リグモードの間だけ、今のモードと戻るボタンを出す
             ToolbarItem(placement: .principal) {
-                Picker("モード", selection: Binding(get: { state.mode }, set: { state.setMode($0) })) {
-                    Text(WorkMode.draw.title).tag(WorkMode.draw)
-                    Text(WorkMode.animate.title).tag(WorkMode.animate)
+                if state.mode == .rig {
+                    HStack(spacing: 8) {
+                        Text("リグモード").font(.callout.weight(.semibold))
+                        Button("描くモードに戻る") { state.setMode(.draw) }
+                            .help("描くモードに戻る（⌥⌘T）")
+                    }
                 }
-                .pickerStyle(.segmented)
-                .help("描くモードとアニメーションモードを切り替える（⌥⌘T）")
             }
         }
         // キャンバス以外（パネル）へのドロップでも開けるように

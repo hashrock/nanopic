@@ -14,9 +14,16 @@ final class AppState {
     var showNewDocumentSheet = false
     /// 開いている補正パネル
     var adjustmentKind: AdjustmentKind?
-    /// 描くモード／アニメーションモード
+    /// 描くモード／リグモード
     var mode = WorkMode.draw
-    /// 描くモードでもタイムラインを出す（パラパラ用）。アニメーションモードではいつも出す
+    /// 実験的な機能: リグモードを使えるようにする（設定で入れる）
+    var rigEnabled = UserDefaults.standard.bool(forKey: "experimental.rig") {
+        didSet {
+            UserDefaults.standard.set(rigEnabled, forKey: "experimental.rig")
+            if !rigEnabled && mode == .rig { setMode(.draw) }
+        }
+    }
+    /// 描くモードでもタイムラインを出す（パラパラ用）。リグモードではいつも出す
     var showsTimelineInDraw = false {
         didSet {
             UserDefaults.standard.set(showsTimelineInDraw, forKey: "drawTimeline.v1")
@@ -25,10 +32,10 @@ final class AppState {
             canvasView?.requestDisplay()
         }
     }
-    var timelineOpen: Bool { mode == .animate || showsTimelineInDraw }
+    var timelineOpen: Bool { mode == .rig || showsTimelineInDraw }
     /// 最後に触ったのがタイムライン（このときは ⌘C・⌘V・Delete がキーに効く）。キャンバスを触ると外れる
     @ObservationIgnored var timelineFocused = false
-    @ObservationIgnored var toolBeforeAnimation: Tool?
+    @ObservationIgnored var toolBeforeRig: Tool?
     /// タイムラインで選んでいるキーと、コピーしたキー
     var timelineSelection: Set<TimelineKeyRef> = []
     @ObservationIgnored var timelineClipboard: TimelineClipboard?

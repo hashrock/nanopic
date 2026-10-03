@@ -79,8 +79,8 @@ struct TimelineView: View {
     @State private var gridDrag: GridDrag?
     @State private var showsOnionSettings = false
 
-    /// パラメータの行はアニメーションモードだけ（描くモードでは変形を表示しないので出さない）
-    private var parameters: [RigParameter] { state.mode == .animate ? editor.rig.parameters : [] }
+    /// パラメータの行はリグモードだけ（描くモードでは変形を表示しないので出さない）
+    private var parameters: [RigParameter] { state.mode == .rig ? editor.rig.parameters : [] }
     /// コマ 1 つの幅（拡大縮小できる）
     @State private var cell: CGFloat = 18
 
@@ -152,7 +152,7 @@ struct TimelineView: View {
             Spacer()
             Button { editor.addCel() } label: { Label("セル", systemImage: "plus.rectangle.on.rectangle") }
                 .help("今のコマに新しいセルを作って描く（⌥⌘N）。編集中のレイヤーがスイッチフォルダーになければ、包んでスイッチフォルダーにする")
-                .disabled(editor.activeLayerID == nil || state.mode == .animate)
+                .disabled(editor.activeLayerID == nil || state.mode == .rig)
             Button {
                 if let id = editor.activeLayerID { editor.addTrack(trackTarget(id)) }
             } label: {

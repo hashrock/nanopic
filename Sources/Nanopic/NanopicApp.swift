@@ -55,8 +55,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "クリッピング") { $0.clipping.toggle() } }
             return nil
         }
-        // タイムラインのキーのコピー・貼り付け（アニメーションモード、または描くモードでタイムラインを触った直後）
-        let keysFocused = state.mode == .animate || (state.timelineOpen && state.timelineFocused)
+        // ⌥⌘T: リグモードの入り切り（設定で入れた直後はメニューのショートカットがまだ効かないことがあるので、ここでも受ける）
+        if flags == [.command, .option], e.charactersIgnoringModifiers?.lowercased() == "t", state.rigEnabled {
+            state.setMode(state.mode == .rig ? .draw : .rig)
+            return nil
+        }
+        // タイムラインのキーのコピー・貼り付け（リグモード、または描くモードでタイムラインを触った直後）
+        let keysFocused = state.mode == .rig || (state.timelineOpen && state.timelineFocused)
         if keysFocused && flags == [.command] {
             if e.keyCode == 8, !state.timelineSelection.isEmpty { // ⌘C
                 state.timelineClipboard = editor.copyKeys(state.timelineSelection)
@@ -131,9 +136,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             editor.goToFrame(f)
             return nil
         }
-        // アニメーションモードでは描くツールに切り替えない
-        if state.mode == .animate {
-            if case let .tool(t)? = state.shortcuts.target(for: chord), AppState.animationTools.contains(t), !e.isARepeat {
+        // リグモードでは描くツールに切り替えない
+        if state.mode == .rig {
+            if case let .tool(t)? = state.shortcuts.target(for: chord), AppState.rigTools.contains(t), !e.isARepeat {
                 canvas.toolKeyDown(e, target: .tool(t))
                 return nil
             }
@@ -291,7 +296,7 @@ struct AppCommands: Commands {
             Button("新規レイヤーフォルダー") { editor.addFolder() }
             Button("新しいセル（今のコマ）") { editor.addCel() }
                 .keyboardShortcut("n", modifiers: [.command, .option])
-                .disabled(!state.timelineOpen || state.mode == .animate)
+                .disabled(!state.timelineOpen || state.mode == .rig)
             Button("フォルダーを作成してレイヤーを挿入") { editor.groupSelectedLayers() }
                 .keyboardShortcut("g")
             Button("レイヤーを複製") { editor.duplicateActiveLayer() }
@@ -329,9 +334,11 @@ struct AppCommands: Commands {
                 .keyboardShortcut("1")
             Button("回転をリセット") { state.canvasView?.resetRotation() }
             Divider()
-            Toggle("アニメーションモード", isOn: Binding(get: { state.mode == .animate }, set: { state.setMode($0 ? .animate : .draw) }))
-                .keyboardShortcut("t", modifiers: [.command, .option])
-            Toggle("タイムラインを表示（描くモード）", isOn: Binding(get: { state.showsTimelineInDraw }, set: { state.showsTimelineInDraw = $0 }))
+            if state.rigEnabled {
+                Toggle("リグモード（実験的）", isOn: Binding(get: { state.mode == .rig }, set: { state.setMode($0 ? .rig : .draw) }))
+                    .keyboardShortcut("t", modifiers: [.command, .option])
+            }
+            Toggle("タイムラインを表示", isOn: Binding(get: { state.showsTimelineInDraw }, set: { state.showsTimelineInDraw = $0 }))
                 .keyboardShortcut("l", modifiers: [.command, .option])
             Divider()
             Button(editor.grid.visible ? "グリッドを隠す" : "グリッドを表示") {

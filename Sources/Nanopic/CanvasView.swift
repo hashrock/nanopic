@@ -274,8 +274,8 @@ final class CanvasView: NSView {
             drag = .deformerGroup(start: cp, bases: baseForms(for: selectedDeformerHandles))
             return
         }
-        // アニメーションモードの矩形選択は、ハンドルを囲んで選ぶ（画素の選択範囲は作らない）
-        if state.mode == .animate && effectiveTool(flags) == .selectRect {
+        // リグモードの矩形選択は、ハンドルを囲んで選ぶ（画素の選択範囲は作らない）
+        if state.mode == .rig && effectiveTool(flags) == .selectRect {
             let initial = flags.contains(.shift) ? selectedDeformerHandles : []
             selectedDeformerHandles = initial
             if deformerEditing != nil { drag = .handleMarquee(start: cp, initial: initial) }

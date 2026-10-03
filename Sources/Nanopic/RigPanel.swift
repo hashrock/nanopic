@@ -1,7 +1,7 @@
 import NanopicCore
 import SwiftUI
 
-/// アニメーションモードの左パネル。パラメータ（つまみ）と、編集中のレイヤーのデフォーマを扱う
+/// リグモードの左パネル。パラメータ（つまみ）と、編集中のレイヤーのデフォーマを扱う
 struct RigPanel: View {
     let state: AppState
     @Bindable var editor: Editor

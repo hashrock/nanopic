@@ -8,9 +8,9 @@ struct ToolBarView: View {
     @Bindable var editor: Editor
     @State private var editingShortcut: Tool?
 
-    /// アニメーションモードでは描くツールを出さない
+    /// リグモードでは描くツールを出さない
     private var visibleGroups: [[Tool]] {
-        state.mode == .animate ? [AppState.animationTools] : groups
+        state.mode == .rig ? [AppState.rigTools] : groups
     }
 
     private let groups: [[Tool]] = [
