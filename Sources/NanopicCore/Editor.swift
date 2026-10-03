@@ -57,7 +57,7 @@ public struct GridSettings: Codable, Equatable, Sendable {
 
 @Observable
 public final class Editor {
-    public private(set) var doc: DocumentState
+    public internal(set) var doc: DocumentState
     /// ドキュメントの構造・内容が変わるたびに増加（UI の再描画用）
     public private(set) var revision = 0
 
@@ -156,6 +156,7 @@ public final class Editor {
         resetHistory()
         fileURL = url
         self.sidecar = sidecar
+        applySidecar()
         isDirty = false
         structureChanged()
     }
@@ -274,6 +275,7 @@ public final class Editor {
     /// 並べ替え後の再描画。見た目が変わり得るのは、移動したレイヤーの範囲と
     /// クリッピング関係が変わるクリッピングレイヤーの範囲だけなので、全体を再合成しない。
     private func reorderChanged(_ moved: [LayerNode]) {
+        normalizeSwitches()
         revision += 1
         var r = moved.reduce(IntRect.zero) { $0.union(tileBounds($1)) }
         doc.forEachNode { n in
@@ -282,7 +284,8 @@ public final class Editor {
         markDirty(r.intersection(doc.bounds))
     }
 
-    private func structureChanged() {
+    func structureChanged() {
+        normalizeSwitches()
         revision += 1
         markAllDirty()
     }
@@ -805,6 +808,15 @@ public final class Editor {
         guard doc.activeLayerID != id || !selectedLayerIDs.isEmpty else { return }
         commitTransform()
         cancelAdjustment()
+        // スイッチフォルダーの隠れている子を選んだら、その子に切り替える（描き直せるように）
+        if isHiddenBySwitch(id) {
+            checkpoint("表示の切り替え")
+            reveal(id)
+            doc.activeLayerID = id
+            selectedLayerIDs = []
+            structureChanged()
+            return
+        }
         doc.activeLayerID = id
         selectedLayerIDs = []
         revision += 1

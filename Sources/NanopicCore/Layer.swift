@@ -118,6 +118,8 @@ public struct LayerNode: Identifiable {
     public var contentVersion: Int = 0
     /// PSD のレイヤー ID（lyid）。開き直しても変わらないので、サイドカーはこれでレイヤーを指す。0 は未割り当て
     public var psdID: UInt32 = 0
+    /// スイッチフォルダー（子を常に 1 つだけ表示する）。フォルダーのときだけ意味がある
+    public var isSwitch = false
 
     public init(id: UUID = UUID(), name: String, kind: LayerKind = .raster) {
         self.id = id

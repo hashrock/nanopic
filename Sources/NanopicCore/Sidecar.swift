@@ -6,11 +6,13 @@ public struct Sidecar: Codable, Equatable, Sendable {
     public static let currentVersion = 1
 
     public var version = Sidecar.currentVersion
+    /// スイッチフォルダーにしたフォルダーの PSD レイヤー ID
+    public var switchFolders: [UInt32] = []
 
     public init() {}
 
     /// 持つものがなければファイルを作らない
-    public var isEmpty: Bool { true }
+    public var isEmpty: Bool { switchFolders.isEmpty }
 
     /// `作品.psd` → `作品.nanopic.json`
     public static func url(for psd: URL) -> URL {
@@ -38,11 +40,12 @@ public struct Sidecar: Codable, Equatable, Sendable {
         try enc.encode(s).write(to: url, options: .atomic)
     }
 
-    private enum CodingKeys: String, CodingKey { case version }
+    private enum CodingKeys: String, CodingKey { case version, switchFolders }
 
     /// 知らない項目や足りない項目があっても読めるようにする
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         version = try c.decodeIfPresent(Int.self, forKey: .version) ?? Self.currentVersion
+        switchFolders = try c.decodeIfPresent([UInt32].self, forKey: .switchFolders) ?? []
     }
 }

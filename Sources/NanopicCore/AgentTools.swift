@@ -286,7 +286,8 @@ public final class AgentToolbox {
                                    "opacity": ["type": "number", "description": "0〜1"],
                                    "blend_mode": ["type": "string", "enum": BlendMode.allCases.map(\.rawValue)],
                                    "clipping": ["type": "boolean"], "lock_alpha": ["type": "boolean", "description": "透明ピクセルをロック"],
-                                   "locked": ["type": "boolean"], "reference": ["type": "boolean", "description": "参照レイヤー"]],
+                                   "locked": ["type": "boolean"], "reference": ["type": "boolean", "description": "参照レイヤー"],
+                                   "switch": ["type": "boolean", "description": "フォルダーをスイッチフォルダー（子を常に 1 つだけ表示。表情の差分など）にする。子を表示するには、その子を visible: true にする"]],
                       required: ["layer_id"]) { [unowned self] a in
                 try updateLayer(a)
             },
@@ -351,6 +352,7 @@ public final class AgentToolbox {
             if n.locked { o["locked"] = true }
             if n.isReference { o["reference"] = true }
             if n.isFolder {
+                if n.isSwitch { o["switch"] = true }
                 o["children"] = n.children.reversed().map(node)
             } else {
                 o["content_bounds"] = n.tiles.contentBounds().map(Self.rectJSON) as Any? ?? NSNull()
@@ -871,8 +873,19 @@ public final class AgentToolbox {
             guard let b = BlendMode(rawValue: s) else { throw AgentError("blend_mode が不明です: \(s)") }
             blend = b
         }
-        let name = try a.string("name"), visible = try a.bool("visible"), opacity = try a.double("opacity")
+        let name = try a.string("name"), visibleArg = try a.bool("visible"), opacity = try a.double("opacity")
         let clipping = try a.bool("clipping"), lockAlpha = try a.bool("lock_alpha"), locked = try a.bool("locked"), ref = try a.bool("reference")
+        if let sw = try a.bool("switch") {
+            guard editor.doc.node(id)?.isFolder == true else { throw AgentError("switch はフォルダーにだけ指定できます") }
+            editor.setSwitch(id, sw)
+        }
+        // スイッチフォルダーの子は、表示するとほかの子が隠れる（隠すことはできない）
+        var visible = visibleArg
+        if editor.isInSwitch(id), let v = visible {
+            guard v else { throw AgentError("スイッチフォルダーの子は隠せません。表示したい子を visible: true にしてください") }
+            editor.showSwitchChild(id)
+            visible = nil
+        }
         editor.setLayerProperty(id, label: "レイヤーの設定") { n in
             if let name { n.name = name }
             if let visible { n.visible = visible }

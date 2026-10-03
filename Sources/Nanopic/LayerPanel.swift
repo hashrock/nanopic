@@ -106,7 +106,7 @@ struct LayerPanel: View {
     private func rowModels() -> [LayerRowModel] {
         let activeID = editor.doc.activeLayerID
         return editor.doc.flattenedForDisplay().map { node, depth in
-            LayerRowModel(node: node, depth: depth, active: node.id == activeID,
+            LayerRowModel(node: node, depth: depth, inSwitch: editor.isInSwitch(node.id), active: node.id == activeID,
                           selected: editor.selectedLayerIDs.contains(node.id), renaming: node.id == rename.id,
                           thumbnail: node.isFolder ? nil : state.thumbnail(for: node))
         }
@@ -162,6 +162,9 @@ struct LayerRowModel: Equatable {
     let id: UUID
     let name: String
     let isFolder: Bool
+    let isSwitch: Bool
+    /// 親がスイッチフォルダー（目のアイコンをラジオボタン風にする）
+    let inSwitch: Bool
     let expanded: Bool
     let visible: Bool
     let clipping: Bool
@@ -176,10 +179,12 @@ struct LayerRowModel: Equatable {
     let renaming: Bool
     let thumbnail: NSImage?
 
-    init(node: LayerNode, depth: Int, active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
+    init(node: LayerNode, depth: Int, inSwitch: Bool, active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
         id = node.id
         name = node.name
         isFolder = node.isFolder
+        isSwitch = node.isFolder && node.isSwitch
+        self.inSwitch = inSwitch
         expanded = node.expanded
         visible = node.visible
         clipping = node.clipping
@@ -196,7 +201,8 @@ struct LayerRowModel: Equatable {
     }
 
     static func == (a: LayerRowModel, b: LayerRowModel) -> Bool {
-        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.expanded == b.expanded
+        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.isSwitch == b.isSwitch && a.inSwitch == b.inSwitch
+            && a.expanded == b.expanded
             && a.visible == b.visible && a.clipping == b.clipping && a.lockAlpha == b.lockAlpha
             && a.locked == b.locked && a.isReference == b.isReference && a.opacity == b.opacity
             && a.blendMode == b.blendMode && a.depth == b.depth && a.active == b.active && a.selected == b.selected
@@ -344,15 +350,22 @@ struct LayerRowView: View, Equatable {
             // 表示・非表示
             Button {
                 rename.commit(editor)
-                editor.setLayerProperty(m.id, label: "表示切替") { $0.visible.toggle() }
+                editor.toggleVisibility(m.id)
             } label: {
-                Image(systemName: m.visible ? "eye" : "eye.slash")
-                    .foregroundStyle(m.visible ? .primary : .tertiary)
-                    .frame(width: 26, height: Self.height)
-                    .contentShape(Rectangle())
+                Group {
+                    if m.inSwitch {
+                        // スイッチフォルダーの子は 1 つだけ表示するので、ラジオボタン風に
+                        Image(systemName: m.visible ? "largecircle.fill.circle" : "circle")
+                    } else {
+                        Image(systemName: m.visible ? "eye" : "eye.slash")
+                    }
+                }
+                .foregroundStyle(m.visible ? .primary : .tertiary)
+                .frame(width: 26, height: Self.height)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("表示・非表示")
+            .help(m.inSwitch ? "この子に切り替える" : "表示・非表示")
             Divider()
             // 複数選択（編集レイヤーはペンのマーク）
             Button {
@@ -393,8 +406,9 @@ struct LayerRowView: View, Equatable {
                             .frame(width: 14)
                     }
                     .buttonStyle(.plain)
-                    Image(systemName: m.expanded ? "folder" : "folder.fill")
+                    Image(systemName: m.isSwitch ? "switch.2" : m.expanded ? "folder" : "folder.fill")
                         .frame(width: 20)
+                        .help(m.isSwitch ? "スイッチフォルダー（子を 1 つだけ表示）" : "")
                 } else {
                     ZStack {
                         CheckerboardView()
@@ -456,6 +470,9 @@ struct LayerRowView: View, Equatable {
             Button("複製") { editor.setActiveLayer(m.id); editor.duplicateActiveLayer() }
             Button("下のレイヤーに結合") { editor.setActiveLayer(m.id); editor.mergeDown() }
             Button("フォルダーを作成して挿入") { targetThis(); editor.groupSelectedLayers() }
+            if m.isFolder {
+                Button(m.isSwitch ? "ふつうのフォルダーに戻す" : "スイッチフォルダーにする") { editor.setSwitch(m.id, !m.isSwitch) }
+            }
             Divider()
             Button("削除") { targetThis(); editor.deleteSelectedLayers() }
         }

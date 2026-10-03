@@ -264,7 +264,7 @@ final class AppState {
     /// PSD で保存する（警告は出さない）
     func writePSD(to url: URL) throws {
         editor.commitTransform()
-        editor.assignPSDIDs()
+        editor.prepareForSave()
         let data = try PSD.write(editor.doc)
         try data.write(to: url, options: .atomic)
         try editor.sidecar.write(for: url)
