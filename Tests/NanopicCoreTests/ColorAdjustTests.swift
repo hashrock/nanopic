@@ -1,5 +1,6 @@
 import XCTest
 @testable import NanopicCore
+@testable import NanopicAgent
 import simd
 
 final class ColorAdjustTests: XCTestCase {

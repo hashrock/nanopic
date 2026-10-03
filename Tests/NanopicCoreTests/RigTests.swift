@@ -1,5 +1,6 @@
 import XCTest
 @testable import NanopicCore
+@testable import NanopicAgent
 
 final class RigTests: XCTestCase {
     /// 100×100 の真ん中に、横長の赤い棒（x 30〜70、y 48〜52）を描いたレイヤー「棒」

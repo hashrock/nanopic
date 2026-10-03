@@ -1,5 +1,6 @@
 import XCTest
 @testable import NanopicCore
+@testable import NanopicAgent
 
 final class SwitchFolderTests: XCTestCase {
     /// 「表情」フォルダーに 通常・笑顔・驚き（下から）

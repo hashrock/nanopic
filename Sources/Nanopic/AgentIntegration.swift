@@ -1,4 +1,5 @@
 import AppKit
+import NanopicAgent
 import NanopicCore
 import UniformTypeIdentifiers
 

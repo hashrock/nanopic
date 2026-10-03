@@ -1,6 +1,7 @@
 import CoreGraphics
 import CoreText
 import Foundation
+import NanopicCore
 
 /// エージェントに見せる画像を作る（縮小・座標グリッド・領域の番号）
 enum AgentRender {

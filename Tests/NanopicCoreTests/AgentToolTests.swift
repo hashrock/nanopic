@@ -1,5 +1,6 @@
 import XCTest
 @testable import NanopicCore
+@testable import NanopicAgent
 import ImageIO
 
 final class AgentToolTests: XCTestCase {

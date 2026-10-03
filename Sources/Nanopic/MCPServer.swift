@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import NanopicAgent
 import NanopicCore
 import Network
 

@@ -12,13 +12,18 @@ let package = Package(
             name: "NanopicCore",
             swiftSettings: [.unsafeFlags(["-Ounchecked"], .when(configuration: .release))]
         ),
+        // エージェント（MCP）向けのツール。コアの描画とは独立しているので、別のモジュールにして並列にビルドする
+        .target(
+            name: "NanopicAgent",
+            dependencies: ["NanopicCore"]
+        ),
         .executableTarget(
             name: "Nanopic",
-            dependencies: ["NanopicCore"]
+            dependencies: ["NanopicCore", "NanopicAgent"]
         ),
         .testTarget(
             name: "NanopicCoreTests",
-            dependencies: ["NanopicCore"]
+            dependencies: ["NanopicCore", "NanopicAgent"]
         ),
     ]
 )
