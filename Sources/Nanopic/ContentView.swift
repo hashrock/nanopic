@@ -57,14 +57,15 @@ struct ContentView: View {
             .frame(width: 270)
         }
         .toolbar {
-            // リグモードの間だけ、今のモードと戻るボタンを出す
+            // 設定でリグモードを入れているときだけ、「描く｜リグ」の切り替えを出す
             ToolbarItem(placement: .principal) {
-                if state.mode == .rig {
-                    HStack(spacing: 8) {
-                        Text("リグモード").font(.callout.weight(.semibold))
-                        Button("描くモードに戻る") { state.setMode(.draw) }
-                            .help("描くモードに戻る（⌥⌘T）")
+                if state.rigEnabled {
+                    Picker("モード", selection: Binding(get: { state.mode }, set: { state.setMode($0) })) {
+                        Text(WorkMode.draw.title).tag(WorkMode.draw)
+                        Text(WorkMode.rig.title).tag(WorkMode.rig)
                     }
+                    .pickerStyle(.segmented)
+                    .help("描くモードとリグモードを切り替える（⌥⌘T）")
                 }
             }
         }
