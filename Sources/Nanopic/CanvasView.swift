@@ -37,6 +37,7 @@ final class CanvasView: NSView {
         case transform(handle: TransformHandle, startCanvas: CGPoint, startParams: TransformParams)
         case move(startCanvas: CGPoint, startParams: TransformParams)
         case eyedropper
+        case deformer(DeformerHandle, start: CGPoint, base: DeformerForm, startPivot: RigPoint)
     }
 
     enum TransformHandle: Equatable {
@@ -244,6 +245,17 @@ final class CanvasView: NSView {
             drag = .brushSize(start: vp, startSize: editor.currentBrush.size)
             return
         }
+        // デフォーマのハンドル（形を記録するパラメータを選んでいる間）
+        if let h = hitDeformerHandle(vp) {
+            guard canRecordForm(h) else {
+                NSSound.beep()
+                return
+            }
+            let pivot: RigPoint
+            if case let .pivot(id) = h { pivot = editor.rig.deformer(id)?.pivot ?? .zero } else { pivot = .zero }
+            drag = .deformer(h, start: cp, base: baseForm(h), startPivot: pivot)
+            return
+        }
         temporaryTool?.used = true
         let tool = effectiveTool(flags)
         switch tool {
@@ -338,6 +350,8 @@ final class CanvasView: NSView {
             dragTransform(handle: handle, startCanvas: startCanvas, startParams: startParams, cp: cp, shift: e.modifierFlags.contains(.shift))
         case .eyedropper:
             pick(at: cp, flags: e.modifierFlags)
+        case let .deformer(h, start, base, startPivot):
+            dragDeformer(h, start: start, base: base, startPivot: startPivot, cp: cp)
         case .none:
             break
         }
@@ -746,6 +760,9 @@ final class OverlayView: NSView {
                 ctx.stroke(r)
             }
         }
+
+        // デフォーマのハンドル
+        drawDeformerHandles(ctx, canvas: canvas, t: t)
 
         // ファイルのドロップ受付
         if canvas.isDropTarget {

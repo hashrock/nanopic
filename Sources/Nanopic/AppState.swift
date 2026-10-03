@@ -14,6 +14,8 @@ final class AppState {
     /// 開いている補正パネル
     var adjustmentKind: AdjustmentKind?
     var timelineOpen = false
+    /// 形を記録する対象のパラメータ（キャンバス上のデフォーマのハンドルで形を決める）
+    var editingParameter: String?
     /// 動画の書き出し中（シートを出す）
     var movieExport: MovieExportProgress?
     var isPlaying = false
