@@ -81,6 +81,40 @@ extension Editor {
         markAllDirty()
     }
 
+    /// ワープの格子のマス数を変える。記録済みの形は、古い格子のずれを新しい格子の点の位置で読み取って写し直す
+    public func setWarpGrid(_ id: String, cols: Int, rows: Int) {
+        guard let di = doc.rig.deformers.firstIndex(where: { $0.id == id }), doc.rig.deformers[di].kind == .warp else { return }
+        let old = doc.rig.deformers[di]
+        var new = old
+        new.cols = max(1, min(cols, 16))
+        new.rows = max(1, min(rows, 16))
+        guard new.cols != old.cols || new.rows != old.rows else { return }
+        checkpoint("格子のマス数")
+        doc.rig.deformers[di] = new
+        for p in doc.rig.parameters.indices {
+            for k in doc.rig.parameters[p].keys.indices {
+                guard let f = doc.rig.parameters[p].keys[k].forms[id] else { continue }
+                let offsets = (0..<new.pointCount).map { i -> RigPoint in
+                    let q = new.restPoint(i)
+                    let m = old.map(q, f)
+                    return RigPoint(m.x - q.x, m.y - q.y)
+                }
+                doc.rig.parameters[p].keys[k].forms[id] = DeformerForm(angle: f.angle, offsets: offsets)
+            }
+        }
+        revision += 1
+        markAllDirty()
+    }
+
+    /// デフォーマの範囲と中心を、付けているレイヤーの描かれている所に合わせ直す
+    public func fitDeformerToContent(_ id: String) {
+        guard let d = doc.rig.deformer(id), let n = doc.node(psdID: d.layer), let b = Self.contentBounds(n) else { return }
+        updateDeformer(id, label: "範囲を合わせる") { d in
+            d.rect = RigRect(x: Double(b.x), y: Double(b.y), width: Double(b.width), height: Double(b.height))
+            if d.kind == .rotation { d.pivot = RigPoint(Double(b.x) + Double(b.width) / 2, Double(b.y) + Double(b.height) / 2) }
+        }
+    }
+
     public func removeDeformer(_ id: String) {
         guard doc.rig.deformer(id) != nil else { return }
         checkpoint("デフォーマを外す")

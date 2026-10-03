@@ -15,8 +15,14 @@ struct ContentView: View {
         HStack(spacing: 0) {
             ToolBarView(state: state, editor: editor)
             Divider()
-            ToolOptionsView(state: state, editor: editor)
-                .frame(width: 230)
+            Group {
+                if state.mode == .animate {
+                    RigPanel(state: state, editor: editor)
+                } else {
+                    ToolOptionsView(state: state, editor: editor)
+                }
+            }
+            .frame(width: 230)
             Divider()
             VStack(spacing: 0) {
                 CanvasRepresentable(state: state)
@@ -28,7 +34,7 @@ struct ContentView: View {
                                 .padding(12)
                         }
                     }
-                if state.timelineOpen {
+                if state.mode == .animate {
                     Divider()
                     TimelineView(state: state, editor: editor)
                 }
@@ -37,15 +43,28 @@ struct ContentView: View {
             }
             Divider()
             VStack(spacing: 0) {
-                ColorPickerView(editor: editor)
-                    .padding(10)
-                PaletteView(state: state, editor: editor)
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 10)
-                Divider()
+                // アニメーションモードでは描かないので、色は出さない
+                if state.mode == .draw {
+                    ColorPickerView(editor: editor)
+                        .padding(10)
+                    PaletteView(state: state, editor: editor)
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 10)
+                    Divider()
+                }
                 LayerPanel(state: state, editor: editor)
             }
             .frame(width: 270)
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("モード", selection: Binding(get: { state.mode }, set: { state.setMode($0) })) {
+                    Text(WorkMode.draw.title).tag(WorkMode.draw)
+                    Text(WorkMode.animate.title).tag(WorkMode.animate)
+                }
+                .pickerStyle(.segmented)
+                .help("描くモードとアニメーションモードを切り替える（⌥⌘T）")
+            }
         }
         // キャンバス以外（パネル）へのドロップでも開けるように
         .dropDestination(for: URL.self) { urls, _ in

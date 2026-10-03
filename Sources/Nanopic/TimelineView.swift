@@ -37,12 +37,6 @@ extension AppState {
         return (a, b, d)
     }
 
-    func setTimelineOpen(_ open: Bool) {
-        if !open { stopPlayback() }
-        editor.timelineOpen = open
-        timelineOpen = open
-    }
-
     func togglePlayback() {
         isPlaying ? stopPlayback() : startPlayback()
     }
@@ -79,7 +73,7 @@ struct TimelineView: View {
     @State private var paramDragging: (id: String, from: Int)?
 
     private let cell: CGFloat = 18
-    private let nameWidth: CGFloat = 230
+    private let nameWidth: CGFloat = 170
     private let rowHeight: CGFloat = 26
 
     var body: some View {
@@ -105,7 +99,7 @@ struct TimelineView: View {
             }
             .frame(height: 20 + CGFloat(max(t.tracks.count + editor.rig.parameters.count, 2)) * rowHeight)
             if t.tracks.isEmpty && editor.rig.parameters.isEmpty {
-                Text("レイヤーやスイッチフォルダーを選んで「＋ トラック」で足します。開いている間は、表示を切り替えると今のコマにキーが打たれます。")
+                Text("レイヤーやスイッチフォルダーを選んで「＋ トラック」で足します。表示を切り替えると今のコマにキーが打たれます。パラメータは左のリグパネルで足します。")
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(.horizontal, 10).padding(.bottom, 8)
             }
@@ -134,25 +128,6 @@ struct TimelineView: View {
             Toggle("ループ", isOn: Binding(get: { t.loop }, set: { editor.setTimeline(loop: $0) }))
                 .toggleStyle(.checkbox).font(.caption)
             Spacer()
-            if !editor.rig.isEmpty {
-                Toggle("変形を表示", isOn: Binding(get: { editor.showsDeformation }, set: { editor.setShowsDeformation($0) }))
-                    .toggleStyle(.checkbox).font(.caption)
-                    .help("切ると描いた絵そのままを表示し、描けるようになる")
-                if editor.isPosed {
-                    Text("描けません").font(.caption).foregroundStyle(.orange)
-                        .help("変形を表示している間は描けません。描くときは「変形を表示」を切ります")
-                }
-                Button("既定値に戻す") { editor.resetPose() }
-                    .help("すべてのパラメータを既定値に戻す")
-                    .disabled(editor.parameterValues.isEmpty)
-            }
-            Button {
-                let id = editor.addParameter(name: "パラメータ\(editor.rig.parameters.count + 1)")
-                state.editingParameter = id
-            } label: {
-                Label("パラメータ", systemImage: "plus")
-            }
-            .help("パラメータ（名前つきのつまみ）を足す。デフォーマの形をつまみの値ごとに記録して動かす")
             Button {
                 if let id = editor.activeLayerID { editor.addTrack(trackTarget(id)) }
             } label: {
@@ -162,8 +137,6 @@ struct TimelineView: View {
             .disabled(editor.activeLayerID.map { id in
                 editor.doc.node(trackTarget(id)).map { editor.timeline.track(for: $0.psdID) != nil && $0.psdID != 0 } ?? true
             } ?? true)
-            Button { state.setTimelineOpen(false) } label: { Image(systemName: "xmark") }
-                .help("タイムラインを閉じる")
         }
         .buttonStyle(.borderless)
         .controlSize(.small)
@@ -186,12 +159,13 @@ struct TimelineView: View {
 
     private func parameterName(_ p: RigParameter) -> some View {
         let editing = state.editingParameter == p.id
-        let value = editor.parameterValue(p.id)
-        return HStack(spacing: 6) {
+        let hasTrack = editor.timeline.parameterTracks.contains { $0.parameter == p.id }
+        return HStack(spacing: 4) {
             Image(systemName: "slider.horizontal.3").font(.caption).foregroundStyle(editing ? Color.accentColor : .secondary).frame(width: 16)
-            Text(p.name).font(.caption.weight(editing ? .semibold : .regular)).lineLimit(1).frame(width: 64, alignment: .leading)
-            ParameterSlider(editor: editor, parameter: p, value: value)
-            Text(String(format: "%.2f", value)).font(.system(size: 9).monospacedDigit()).foregroundStyle(.secondary).frame(width: 30)
+            Text(p.name).font(.caption.weight(editing ? .semibold : .regular)).lineLimit(1)
+                .foregroundStyle(hasTrack ? .primary : .secondary)
+            Spacer(minLength: 0)
+            Text(String(format: "%.2f", editor.parameterValue(p.id))).font(.system(size: 9).monospacedDigit()).foregroundStyle(.secondary)
         }
         .padding(.horizontal, 8)
         .frame(height: rowHeight)
@@ -199,28 +173,11 @@ struct TimelineView: View {
         .overlay(alignment: .bottom) { Divider() }
         .contentShape(Rectangle())
         .onTapGesture { state.editingParameter = editing ? nil : p.id }
-        .help("名前をクリックすると、このパラメータの形を記録する対象になる（キャンバス上のデフォーマのハンドルで形を決める）")
         .contextMenu {
-            Button("名前を変える...") {
-                if let name = state.promptText("パラメータの名前", value: p.name), !name.isEmpty {
-                    editor.updateParameter(p.id) { $0.name = name }
-                }
-            }
-            Button("範囲と既定値...") {
-                if let r = state.promptRange(min: p.min, max: p.max, defaultValue: p.defaultValue) {
-                    editor.updateParameter(p.id) { $0.min = r.min; $0.max = r.max; $0.defaultValue = $0.clamp(r.defaultValue) }
-                }
-            }
-            Divider()
-            if editor.timeline.parameterTracks.contains(where: { $0.parameter == p.id }) {
+            if hasTrack {
                 Button("トラックを削除") { editor.removeParameterTrack(p.id) }
             } else {
                 Button("トラックに追加") { editor.addParameterTrack(p.id) }
-            }
-            Divider()
-            Button("パラメータを削除") {
-                if state.editingParameter == p.id { state.editingParameter = nil }
-                editor.removeParameter(p.id)
             }
         }
     }

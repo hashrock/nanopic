@@ -14,7 +14,10 @@ final class AppState {
     var showNewDocumentSheet = false
     /// 開いている補正パネル
     var adjustmentKind: AdjustmentKind?
-    var timelineOpen = false
+    /// 描くモード／アニメーションモード
+    var mode = WorkMode.draw
+    var timelineOpen: Bool { mode == .animate }
+    @ObservationIgnored var toolBeforeAnimation: Tool?
     /// 形を記録する対象のパラメータ（キャンバス上のデフォーマのハンドルで形を決める）
     var editingParameter: String?
     /// 動画の書き出し中（シートを出す）

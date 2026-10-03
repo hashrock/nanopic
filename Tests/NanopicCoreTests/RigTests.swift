@@ -138,3 +138,22 @@ extension RigTests {
         XCTAssertTrue(ed.showsDeformation, "つまみを動かすと入る")
     }
 }
+
+extension RigTests {
+    /// 格子のマス数を変えても、記録済みの形の見た目は保たれる（一様なずれなら完全に同じ）
+    func testWarpGridResampleKeepsForm() {
+        let (ed, bar) = editor()
+        let d = ed.addDeformer(to: bar, kind: .warp, cols: 2, rows: 2)!
+        let p = ed.addParameter(name: "ずらす")
+        ed.setForm(parameter: p, value: 1, deformer: d, DeformerForm(offsets: Array(repeating: RigPoint(10, 0), count: 9)))
+        let before = ed.doc.posed(values: [p: 1])
+        ed.setWarpGrid(d, cols: 4, rows: 3)
+        XCTAssertEqual(ed.rig.deformer(d)!.pointCount, 20)
+        XCTAssertEqual(ed.rig.parameter(p)!.keys[0].forms[d]!.offsets.count, 20)
+        XCTAssertTrue(ed.rig.parameter(p)!.keys[0].forms[d]!.offsets.allSatisfy { abs($0.x - 10) < 1e-9 && abs($0.y) < 1e-9 })
+        let after = ed.doc.posed(values: [p: 1])
+        XCTAssertEqual(alpha(after, "棒", 75, 50), alpha(before, "棒", 75, 50))
+        ed.undo()
+        XCTAssertEqual(ed.rig.deformer(d)!.pointCount, 9)
+    }
+}

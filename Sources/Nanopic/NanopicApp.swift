@@ -83,6 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             canvas.cancelInteraction()
             return nil
         case 51, 117: // delete
+            if state.mode == .animate { return nil }
             editor.clearSelectionContent()
             return nil
         case 123, 124, 125, 126: // 矢印: 変形中なら 1px 移動
@@ -104,6 +105,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             break
         }
         guard let chord = KeyChord(event: e) else { return e }
+        // アニメーションモードでは描くツールに切り替えない
+        if state.mode == .animate {
+            if case let .tool(t)? = state.shortcuts.target(for: chord), AppState.animationTools.contains(t), !e.isARepeat {
+                canvas.toolKeyDown(e, target: .tool(t))
+                return nil
+            }
+            return ["x", "[", "]"].contains(chord.key) ? nil : e
+        }
         if let target = state.shortcuts.target(for: chord) {
             if !e.isARepeat { canvas.toolKeyDown(e, target: target) }
             canvas.requestDisplay()
@@ -291,7 +300,7 @@ struct AppCommands: Commands {
                 .keyboardShortcut("1")
             Button("回転をリセット") { state.canvasView?.resetRotation() }
             Divider()
-            Button(state.timelineOpen ? "タイムラインを隠す" : "タイムラインを表示") { state.setTimelineOpen(!state.timelineOpen) }
+            Toggle("アニメーションモード", isOn: Binding(get: { state.mode == .animate }, set: { state.setMode($0 ? .animate : .draw) }))
                 .keyboardShortcut("t", modifiers: [.command, .option])
             Divider()
             Button(editor.grid.visible ? "グリッドを隠す" : "グリッドを表示") {
