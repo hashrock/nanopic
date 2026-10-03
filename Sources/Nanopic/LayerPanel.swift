@@ -106,7 +106,9 @@ struct LayerPanel: View {
     private func rowModels() -> [LayerRowModel] {
         let activeID = editor.doc.activeLayerID
         return editor.doc.flattenedForDisplay().map { node, depth in
-            LayerRowModel(node: node, depth: depth, inSwitch: editor.isInSwitch(node.id), deformers: editor.deformers(on: node.id).map(\.name),
+            // リグモード（実験的な機能）を切っていれば、デフォーマは出さない
+            LayerRowModel(node: node, depth: depth, inSwitch: editor.isInSwitch(node.id), showsRig: state.rigEnabled,
+                          deformers: state.rigEnabled ? editor.deformers(on: node.id).map(\.name) : [],
                           active: node.id == activeID,
                           selected: editor.selectedLayerIDs.contains(node.id), renaming: node.id == rename.id,
                           thumbnail: node.isFolder ? nil : state.thumbnail(for: node))
@@ -166,6 +168,8 @@ struct LayerRowModel: Equatable {
     let isSwitch: Bool
     /// 親がスイッチフォルダー（目のアイコンをラジオボタン風にする）
     let inSwitch: Bool
+    /// リグモードを使う（デフォーマのメニューを出す）
+    let showsRig: Bool
     /// 付いているデフォーマの名前
     let deformers: [String]
     let expanded: Bool
@@ -182,12 +186,13 @@ struct LayerRowModel: Equatable {
     let renaming: Bool
     let thumbnail: NSImage?
 
-    init(node: LayerNode, depth: Int, inSwitch: Bool, deformers: [String], active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
+    init(node: LayerNode, depth: Int, inSwitch: Bool, showsRig: Bool, deformers: [String], active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
         id = node.id
         name = node.name
         isFolder = node.isFolder
         isSwitch = node.isFolder && node.isSwitch
         self.inSwitch = inSwitch
+        self.showsRig = showsRig
         self.deformers = deformers
         expanded = node.expanded
         visible = node.visible
@@ -205,7 +210,7 @@ struct LayerRowModel: Equatable {
     }
 
     static func == (a: LayerRowModel, b: LayerRowModel) -> Bool {
-        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.isSwitch == b.isSwitch && a.inSwitch == b.inSwitch && a.deformers == b.deformers
+        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.isSwitch == b.isSwitch && a.inSwitch == b.inSwitch && a.showsRig == b.showsRig && a.deformers == b.deformers
             && a.expanded == b.expanded
             && a.visible == b.visible && a.clipping == b.clipping && a.lockAlpha == b.lockAlpha
             && a.locked == b.locked && a.isReference == b.isReference && a.opacity == b.opacity
@@ -480,14 +485,16 @@ struct LayerRowView: View, Equatable {
             if m.isFolder {
                 Button(m.isSwitch ? "ふつうのフォルダーに戻す" : "スイッチフォルダーにする") { editor.setSwitch(m.id, !m.isSwitch) }
             }
-            Menu("デフォーマ") {
-                Button("移動・回転デフォーマを付ける") { editor.addDeformer(to: m.id, kind: .rotation) }
-                Button("ワープデフォーマを付ける") { editor.addDeformer(to: m.id, kind: .warp) }
-                let ds = editor.deformers(on: m.id)
-                if !ds.isEmpty {
-                    Divider()
-                    ForEach(ds, id: \.id) { d in
-                        Button("「\(d.name)」を外す") { editor.removeDeformer(d.id) }
+            if m.showsRig {
+                Menu("デフォーマ") {
+                    Button("移動・回転デフォーマを付ける") { editor.addDeformer(to: m.id, kind: .rotation) }
+                    Button("ワープデフォーマを付ける") { editor.addDeformer(to: m.id, kind: .warp) }
+                    let ds = editor.deformers(on: m.id)
+                    if !ds.isEmpty {
+                        Divider()
+                        ForEach(ds, id: \.id) { d in
+                            Button("「\(d.name)」を外す") { editor.removeDeformer(d.id) }
+                        }
                     }
                 }
             }
