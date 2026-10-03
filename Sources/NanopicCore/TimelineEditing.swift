@@ -13,6 +13,25 @@ extension Editor {
         revision += 1
     }
 
+    /// タイムラインの行にするレイヤー（スイッチフォルダーの子なら、そのフォルダー）
+    public func timelineTarget(_ id: UUID) -> UUID {
+        guard isInSwitch(id), let path = doc.indexPath(of: id),
+              let parent = doc.node(at: Array(path.dropLast())) else { return id }
+        return parent.id
+    }
+
+    /// id（スイッチの子ならそのフォルダー）がタイムラインに行を持っているか
+    public func hasTrack(_ id: UUID) -> Bool {
+        guard let n = doc.node(timelineTarget(id)), n.psdID != 0 else { return false }
+        return doc.timeline.track(for: n.psdID) != nil
+    }
+
+    /// id（スイッチの子ならそのフォルダー）の行をタイムラインから外す（キーも消える）
+    public func removeTrack(of id: UUID) {
+        guard let n = doc.node(timelineTarget(id)), n.psdID != 0 else { return }
+        removeTrack(layer: n.psdID)
+    }
+
     public func removeTrack(layer: UInt32) {
         guard doc.timeline.track(for: layer) != nil else { return }
         checkpoint("トラックを削除")

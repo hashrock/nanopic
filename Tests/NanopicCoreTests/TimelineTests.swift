@@ -249,3 +249,18 @@ extension TimelineTests {
         XCTAssertEqual(ed.timeline.track(for: m)!.keys.first { $0.frame == 6 }, TimelineKey(frame: 6, visible: false))
     }
 }
+
+extension TimelineTests {
+    func testTrackOfSwitchChildIsFolder() {
+        let (ed, mouth, closed, _, sweat) = editor()
+        XCTAssertEqual(ed.timelineTarget(closed), mouth, "スイッチの子はフォルダーの行")
+        XCTAssertEqual(ed.timelineTarget(sweat), sweat)
+        XCTAssertFalse(ed.hasTrack(closed))
+        ed.addTrack(ed.timelineTarget(closed))
+        XCTAssertTrue(ed.hasTrack(closed))
+        XCTAssertTrue(ed.hasTrack(mouth))
+        XCTAssertFalse(ed.hasTrack(sweat))
+        ed.removeTrack(of: closed)
+        XCTAssertFalse(ed.hasTrack(mouth))
+    }
+}

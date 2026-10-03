@@ -114,7 +114,7 @@ struct TimelineView: View {
             }
             .frame(height: 20 + CGFloat(max(t.tracks.count + parameters.count, 2)) * rowHeight)
             if t.tracks.isEmpty && parameters.isEmpty {
-                Text("「＋ セル」で今のコマに新しいセルを作って描きます（「,」「.」で前後のコマへ）。レイヤーやスイッチフォルダーを選んで「＋ トラック」で足すこともできます。")
+                Text("「＋ セル」で今のコマに新しいセルを作って描きます（「,」「.」で前後のコマへ）。ほかのレイヤーの表示を切り替えるには、レイヤーの右クリックで「タイムラインに足す」。")
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(.horizontal, 10).padding(.bottom, 8)
             }
@@ -153,15 +153,6 @@ struct TimelineView: View {
             Button { editor.addCel() } label: { Label("セル", systemImage: "plus.rectangle.on.rectangle") }
                 .help("今のコマに新しいセルを作って描く（⌥⌘N）。編集中のレイヤーがスイッチフォルダーになければ、包んでスイッチフォルダーにする")
                 .disabled(editor.activeLayerID == nil || state.mode == .rig)
-            Button {
-                if let id = editor.activeLayerID { editor.addTrack(trackTarget(id)) }
-            } label: {
-                Label("トラック", systemImage: "plus")
-            }
-            .help("編集中のレイヤーをトラックに足す（スイッチフォルダーの子なら、そのフォルダー）")
-            .disabled(editor.activeLayerID.map { id in
-                editor.doc.node(trackTarget(id)).map { editor.timeline.track(for: $0.psdID) != nil && $0.psdID != 0 } ?? true
-            } ?? true)
         }
         .buttonStyle(.borderless)
         .controlSize(.small)
@@ -171,13 +162,6 @@ struct TimelineView: View {
 
     private func restartIfPlaying() {
         if state.isPlaying { state.startPlayback() }
-    }
-
-    /// スイッチフォルダーの子を選んでいるときは、フォルダーのトラックにする
-    private func trackTarget(_ id: UUID) -> UUID {
-        guard editor.isInSwitch(id), let path = editor.doc.indexPath(of: id),
-              let parent = editor.doc.node(at: Array(path.dropLast())) else { return id }
-        return parent.id
     }
 
     // MARK: パラメータ
@@ -404,7 +388,7 @@ struct TimelineView: View {
         .overlay(alignment: .bottom) { Divider() }
         .contentShape(Rectangle())
         .contextMenu {
-            Button("トラックを削除") { editor.removeTrack(layer: track.layer) }
+            Button("タイムラインから外す") { editor.removeTrack(layer: track.layer) }
         }
     }
 

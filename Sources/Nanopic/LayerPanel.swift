@@ -108,6 +108,7 @@ struct LayerPanel: View {
         return editor.doc.flattenedForDisplay().map { node, depth in
             // リグモード（実験的な機能）を切っていれば、デフォーマは出さない
             LayerRowModel(node: node, depth: depth, inSwitch: editor.isInSwitch(node.id), showsRig: state.rigEnabled,
+                          timelineOpen: state.timelineOpen, hasTrack: editor.hasTrack(node.id),
                           deformers: state.rigEnabled ? editor.deformers(on: node.id).map(\.name) : [],
                           active: node.id == activeID,
                           selected: editor.selectedLayerIDs.contains(node.id), renaming: node.id == rename.id,
@@ -170,6 +171,10 @@ struct LayerRowModel: Equatable {
     let inSwitch: Bool
     /// リグモードを使う（デフォーマのメニューを出す）
     let showsRig: Bool
+    /// タイムラインを出している（「タイムラインに足す」を出す）
+    let timelineOpen: Bool
+    /// タイムラインに行がある（スイッチの子ならそのフォルダーの行）
+    let hasTrack: Bool
     /// 付いているデフォーマの名前
     let deformers: [String]
     let expanded: Bool
@@ -186,13 +191,15 @@ struct LayerRowModel: Equatable {
     let renaming: Bool
     let thumbnail: NSImage?
 
-    init(node: LayerNode, depth: Int, inSwitch: Bool, showsRig: Bool, deformers: [String], active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
+    init(node: LayerNode, depth: Int, inSwitch: Bool, showsRig: Bool, timelineOpen: Bool, hasTrack: Bool, deformers: [String], active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
         id = node.id
         name = node.name
         isFolder = node.isFolder
         isSwitch = node.isFolder && node.isSwitch
         self.inSwitch = inSwitch
         self.showsRig = showsRig
+        self.timelineOpen = timelineOpen
+        self.hasTrack = hasTrack
         self.deformers = deformers
         expanded = node.expanded
         visible = node.visible
@@ -210,7 +217,8 @@ struct LayerRowModel: Equatable {
     }
 
     static func == (a: LayerRowModel, b: LayerRowModel) -> Bool {
-        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.isSwitch == b.isSwitch && a.inSwitch == b.inSwitch && a.showsRig == b.showsRig && a.deformers == b.deformers
+        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.isSwitch == b.isSwitch && a.inSwitch == b.inSwitch && a.showsRig == b.showsRig && a.timelineOpen == b.timelineOpen && a.hasTrack == b.hasTrack
+            && a.deformers == b.deformers
             && a.expanded == b.expanded
             && a.visible == b.visible && a.clipping == b.clipping && a.lockAlpha == b.lockAlpha
             && a.locked == b.locked && a.isReference == b.isReference && a.opacity == b.opacity
@@ -484,6 +492,13 @@ struct LayerRowView: View, Equatable {
             Button("フォルダーを作成して挿入") { targetThis(); editor.groupSelectedLayers() }
             if m.isFolder {
                 Button(m.isSwitch ? "ふつうのフォルダーに戻す" : "スイッチフォルダーにする") { editor.setSwitch(m.id, !m.isSwitch) }
+            }
+            if m.timelineOpen {
+                if m.hasTrack {
+                    Button("タイムラインから外す") { editor.removeTrack(of: m.id) }
+                } else {
+                    Button("タイムラインに足す") { editor.addTrack(editor.timelineTarget(m.id)) }
+                }
             }
             if m.showsRig {
                 Menu("デフォーマ") {
