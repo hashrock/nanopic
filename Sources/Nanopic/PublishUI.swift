@@ -58,7 +58,8 @@ extension AppState {
         guard let sel = editor.doc.selection, !sel.bounds.isEmpty else { NSSound.beep(); return }
         if var d = publishDraft {
             let canvas = editor.doc.bounds
-            d.rect = Publish.expand(sel.bounds.intersection(canvas), aspect: d.aspect(canvas: canvas), canvas: canvas)
+            let r = sel.bounds.intersection(canvas)
+            d.rect = d.aspect.map { Publish.expand(r, aspect: $0.ratio, canvas: canvas) } ?? r
             publishDraft = d
             canvasView?.requestDisplay()
         } else {
@@ -77,14 +78,15 @@ extension AppState {
     }
 }
 
-/// キャンバスの隅に浮かぶ書き出し設定のパネル
+/// キャンバスの隅に浮かぶ書き出し設定のパネル。左にラベル、右に入力の 2 列でそろえる
 struct PublishPanel: View {
     let state: AppState
-    @State private var lock = true
 
     private var canvas: IntRect { state.editor.doc.bounds }
-
     private var draft: PublishSettings { state.publishDraft ?? PublishSettings() }
+
+    private let labelWidth: CGFloat = 64
+    private let fieldWidth: CGFloat = 64
 
     private func update(_ body: (inout PublishSettings) -> Void) {
         guard var d = state.publishDraft else { return }
@@ -97,84 +99,121 @@ struct PublishPanel: View {
         let d = draft
         let r = d.resolvedRect(canvas: canvas)
         let o = d.resolvedOutputSize(canvas: canvas)
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("書き出し設定").font(.headline)
 
-            section("範囲") {
-                HStack(spacing: 6) {
-                    number("X", r.x) { v in update { $0.setRectOrigin(x: v, canvas: canvas) } }
-                    number("Y", r.y) { v in update { $0.setRectOrigin(y: v, canvas: canvas) } }
-                }
-                HStack(spacing: 6) {
-                    number("幅", r.width) { v in update { $0.setRectSize(width: v, canvas: canvas) } }
-                    number("高さ", r.height) { v in update { $0.setRectSize(height: v, canvas: canvas) } }
-                }
-                HStack {
-                    Button("キャンバス全体") { update { $0.setWholeCanvas(canvas) } }
-                    Button("選択範囲から") { state.setPublishRectFromSelection() }
-                        .disabled(state.editor.doc.selection == nil)
-                }
-                .controlSize(.small)
-            }
-
-            section("出力の大きさ") {
-                HStack(spacing: 6) {
-                    number("幅", o.width) { v in update { $0.setOutputSize(width: v, lock: lock, canvas: canvas) } }
-                    Text("×").foregroundStyle(.secondary)
-                    number("高さ", o.height) { v in update { $0.setOutputSize(height: v, lock: lock, canvas: canvas) } }
-                }
-                HStack {
-                    Toggle("比率を保つ", isOn: $lock).toggleStyle(.checkbox)
-                    Spacer()
-                    Button("等倍") { update { $0.setActualSize(canvas: canvas) } }
-                        .controlSize(.small)
-                        .help("出力を範囲と同じ大きさにする")
-                }
-                .font(.caption)
-            }
-
-            section("形式") {
-                Picker("", selection: Binding(get: { d.format }, set: { f in
-                    update { s in
-                        s.format = f
-                        // 書き出し先の拡張子も合わせる
-                        if let dest = s.destination, !dest.isEmpty {
-                            s.destination = (dest as NSString).deletingPathExtension + "." + f.fileExtension
-                        }
-                    }
-                })) {
-                    ForEach(PublishFormat.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                if d.format.hasQuality {
-                    HStack {
-                        Text("品質").font(.caption)
-                        Slider(value: Binding(get: { Double(d.quality) }, set: { v in update { $0.quality = Int(v.rounded()) } }), in: 1...100)
-                            .controlSize(.small)
-                        Text("\(d.quality)").font(.caption.monospacedDigit()).frame(width: 28, alignment: .trailing)
+            Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 8) {
+                GridRow {
+                    label("範囲")
+                    HStack(spacing: 8) {
+                        number("X", r.x) { v in update { $0.setRectOrigin(x: v, canvas: canvas) } }
+                        number("Y", r.y) { v in update { $0.setRectOrigin(y: v, canvas: canvas) } }
                     }
                 }
-                Picker("透明な所", selection: Binding(get: { d.effectiveBackground }, set: { b in update { $0.background = b } })) {
-                    ForEach(PublishBackground.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                GridRow {
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                    HStack(spacing: 8) {
+                        number("幅", r.width) { v in update { $0.setRectSize(width: v, canvas: canvas) } }
+                        number("高さ", r.height) { v in update { $0.setRectSize(height: v, canvas: canvas) } }
+                    }
                 }
-                .font(.caption)
-                .disabled(!d.format.supportsAlpha)
-            }
-
-            section("書き出し先") {
-                HStack {
-                    Text(state.editor.publishDestinationURL(d)?.lastPathComponent ?? "（初回に選びます）")
-                        .font(.caption).lineLimit(1).truncationMode(.middle)
-                        .foregroundStyle(d.destination == nil ? .secondary : .primary)
-                        .help(state.editor.publishDestinationURL(d)?.path ?? "")
-                    Spacer()
-                    Button("変える...") {
-                        if let url = state.choosePublishDestination(d) {
-                            update { $0.destination = state.editor.publishDestinationString(for: url) }
+                GridRow {
+                    label("比率")
+                    HStack(spacing: 8) {
+                        Picker("", selection: Binding(get: { d.aspect }, set: { a in update { $0.setAspect(a, canvas: canvas) } })) {
+                            Text("自由").tag(PublishAspect?.none)
+                            Divider()
+                            ForEach(PublishAspect.presets, id: \.self) { Text($0.displayName).tag(PublishAspect?.some($0)) }
                         }
+                        .labelsHidden()
+                        .frame(width: 90)
+                        .help("範囲の縦横比を固定する。自由のときも Shift を押しながらドラッグすると比を保つ")
+                        Spacer(minLength: 0)
+                    }
+                }
+                GridRow {
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                    HStack(spacing: 6) {
+                        Button("キャンバス全体") { update { $0.setWholeCanvas(canvas) } }
+                        Button("選択範囲から") { state.setPublishRectFromSelection() }
+                            .disabled(state.editor.doc.selection == nil)
                     }
                     .controlSize(.small)
+                }
+
+                Divider().gridCellColumns(2)
+
+                GridRow {
+                    label("出力")
+                    HStack(spacing: 8) {
+                        number("幅", o.width) { v in update { $0.setOutputSize(width: v, canvas: canvas) } }
+                        number("高さ", o.height) { v in update { $0.setOutputSize(height: v, canvas: canvas) } }
+                    }
+                }
+                GridRow {
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                    HStack(spacing: 6) {
+                        Button("等倍") { update { $0.setActualSize(canvas: canvas) } }
+                            .controlSize(.small)
+                            .disabled(d.isActualSize)
+                            .help("出力を範囲と同じ大きさにする（範囲を変えても等倍のまま）")
+                        Text(scaleText(r, o)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    }
+                }
+
+                Divider().gridCellColumns(2)
+
+                GridRow {
+                    label("形式")
+                    Picker("", selection: Binding(get: { d.format }, set: { f in
+                        update { s in
+                            s.format = f
+                            // 書き出し先の拡張子も合わせる
+                            if let dest = s.destination, !dest.isEmpty {
+                                s.destination = (dest as NSString).deletingPathExtension + "." + f.fileExtension
+                            }
+                        }
+                    })) {
+                        ForEach(PublishFormat.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 140)
+                }
+                if d.format.hasQuality {
+                    GridRow {
+                        label("品質")
+                        HStack(spacing: 6) {
+                            Slider(value: Binding(get: { Double(d.quality) }, set: { v in update { $0.quality = Int(v.rounded()) } }), in: 1...100)
+                                .controlSize(.small)
+                            Text("\(d.quality)").font(.caption.monospacedDigit()).frame(width: 26, alignment: .trailing)
+                        }
+                    }
+                }
+                GridRow {
+                    label("透明な所")
+                    Picker("", selection: Binding(get: { d.effectiveBackground }, set: { b in update { $0.background = b } })) {
+                        ForEach(PublishBackground.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .frame(width: 140)
+                    .disabled(!d.format.supportsAlpha)
+                }
+                GridRow {
+                    label("書き出し先")
+                    HStack(spacing: 6) {
+                        Text(state.editor.publishDestinationURL(d)?.lastPathComponent ?? "（初回に選びます）")
+                            .font(.callout).lineLimit(1).truncationMode(.middle)
+                            .foregroundStyle(d.destination == nil ? .secondary : .primary)
+                            .help(state.editor.publishDestinationURL(d)?.path ?? "")
+                        Spacer(minLength: 4)
+                        Button("変える...") {
+                            if let url = state.choosePublishDestination(d) {
+                                update { $0.destination = state.editor.publishDestinationString(for: url) }
+                            }
+                        }
+                        .controlSize(.small)
+                    }
                 }
             }
 
@@ -188,25 +227,31 @@ struct PublishPanel: View {
             }
         }
         .padding(14)
-        .frame(width: 300)
+        .frame(width: 320)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
         .shadow(radius: 8)
     }
 
-    private func section<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            content()
-        }
+    /// 範囲から出力への倍率
+    private func scaleText(_ r: IntRect, _ o: (width: Int, height: Int)) -> String {
+        String(format: "%.0f%%", Double(o.width) / Double(max(r.width, 1)) * 100)
     }
 
+    private func label(_ text: String) -> some View {
+        Text(text).font(.callout).foregroundStyle(.secondary)
+            .frame(width: labelWidth, alignment: .trailing)
+    }
+
+    /// 小さいラベルつきの数値の欄（ラベルの幅をそろえる）
     private func number(_ label: String, _ value: Int, _ set: @escaping (Int) -> Void) -> some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 4) {
             Text(label).font(.caption).foregroundStyle(.secondary)
+                .frame(width: 22, alignment: .trailing)
             TextField("", value: Binding(get: { value }, set: { set($0) }), format: .number.grouping(.never))
                 .textFieldStyle(.roundedBorder)
-                .font(.caption.monospacedDigit())
-                .frame(width: 64)
+                .font(.callout.monospacedDigit())
+                .multilineTextAlignment(.trailing)
+                .frame(width: fieldWidth)
         }
     }
 }

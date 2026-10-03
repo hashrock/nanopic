@@ -48,7 +48,6 @@ final class PublishTests: XCTestCase {
 
         // 縮小（元の絵は変えない）
         s.outputWidth = 2
-        s.outputHeight = 2
         img = ed.publishImage(s)!
         XCTAssertEqual(img.width, 2)
         XCTAssertEqual(img.height, 2)
@@ -89,8 +88,8 @@ final class PublishTests: XCTestCase {
 
         var s = ed.publishSettings
         s.rect = IntRect(x: 1, y: 1, width: 4, height: 2)
+        s.aspect = PublishAspect(2, 1)
         s.outputWidth = 400
-        s.outputHeight = 200
         s.format = .jpeg
         s.destination = ed.publishDestinationString(for: dir.appendingPathComponent("out/作品.jpg"))
         XCTAssertEqual(s.destination, "out/作品.jpg", "PSD と同じフォルダーの下なら相対パス")
@@ -123,8 +122,7 @@ final class PublishTests: XCTestCase {
     func testSelectionBecomesRectWithAspect() {
         let ed = editor()
         var s = PublishSettings()
-        s.outputWidth = 200
-        s.outputHeight = 100
+        s.aspect = PublishAspect(2, 1)
         ed.setPublishSettings(s)
         ed.select(path: CGPath(rect: CGRect(x: 2, y: 0, width: 2, height: 2), transform: nil), op: .replace)
         XCTAssertTrue(ed.setPublishRectFromSelection())
@@ -141,7 +139,6 @@ final class PublishTests: XCTestCase {
         var s = PublishSettings()
         s.rect = IntRect(x: 0, y: 0, width: 32, height: 16)
         s.outputWidth = 64
-        s.outputHeight = 32
         ed.setPublishSettings(s)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp4")
         defer { try? FileManager.default.removeItem(at: url) }
@@ -175,32 +172,55 @@ extension PublishTests {
         // 内側: 動かす。端で止まる
         r = Publish.dragRect(start, handle: Publish.insideHandle, dx: 100, dy: -100, aspect: 2, canvas: canvas)
         XCTAssertEqual(r, IntRect(x: 60, y: 0, width: 40, height: 20))
+        // 自由: 角は 2 辺、辺は 1 辺だけ動く
+        r = Publish.dragRect(start, handle: 2, dx: 10, dy: 30, aspect: nil, canvas: canvas)
+        XCTAssertEqual(r, IntRect(x: 20, y: 20, width: 50, height: 50))
+        r = Publish.dragRect(start, handle: 7, dx: -100, dy: 0, aspect: nil, canvas: canvas)
+        XCTAssertEqual(r, IntRect(x: 0, y: 20, width: 60, height: 20))
+        r = Publish.dragRect(start, handle: 4, dx: 0, dy: 100, aspect: nil, canvas: canvas)
+        XCTAssertEqual(r.height, 4, "小さくしすぎない")
     }
 
-    func testEditingFieldsKeepsAspect() {
+    func testEditingFields() {
         let canvas = IntRect(x: 0, y: 0, width: 200, height: 100)
         var s = PublishSettings().normalized(canvas: canvas)
         XCTAssertEqual(s.rect, canvas)
-        XCTAssertEqual(s.outputWidth, 200)
-        // 比を保って出力の幅を変える
-        s.setOutputSize(width: 100, lock: true, canvas: canvas)
-        XCTAssertEqual(s.outputHeight, 50)
-        // 比を変える → 範囲も合わせ直す
-        s.setOutputSize(height: 100, lock: false, canvas: canvas)
-        XCTAssertEqual(s.outputWidth, 100)
-        XCTAssertEqual(s.rect!.width, s.rect!.height)
-        // 範囲の幅を変えると高さは比から
+        XCTAssertTrue(s.isActualSize)
+        // 等倍なら、範囲を変えても出力は範囲と同じ
+        s.setRectSize(width: 50, canvas: canvas)
+        XCTAssertEqual(s.resolvedOutputSize(canvas: canvas).width, 50)
+        XCTAssertEqual(s.resolvedOutputSize(canvas: canvas).height, 100)
+        s.setRectSize(width: 200, canvas: canvas)
+        // 出力の高さは範囲の比から（ゆがめない）
+        s.setOutputSize(width: 100, canvas: canvas)
+        XCTAssertEqual(s.resolvedOutputSize(canvas: canvas).height, 50)
+        s.setOutputSize(height: 25, canvas: canvas)
+        XCTAssertEqual(s.outputWidth, 50)
+        // 自由: 範囲の幅だけを変えられる。出力の高さは新しい比から
         s.setRectSize(width: 40, canvas: canvas)
-        XCTAssertEqual(s.rect!.width, 40)
-        XCTAssertEqual(s.rect!.height, 40)
+        XCTAssertEqual(s.rect, IntRect(x: 0, y: 0, width: 40, height: 100))
+        XCTAssertEqual(s.resolvedOutputSize(canvas: canvas).height, 125)
         s.setRectOrigin(x: 500, y: -5, canvas: canvas)
         XCTAssertEqual(s.rect!.x, 160)
         XCTAssertEqual(s.rect!.y, 0)
-        // 等倍とキャンバス全体
+        // 比を固定すると範囲をその比に合わせ、幅を変えると高さも変わる
+        s.setAspect(PublishAspect(16, 9), canvas: canvas)
+        XCTAssertEqual(Double(s.rect!.width) / Double(s.rect!.height), 16.0 / 9, accuracy: 0.05)
+        s.setRectOrigin(x: 0, y: 0, canvas: canvas)
+        s.setRectSize(width: 160, canvas: canvas)
+        XCTAssertEqual(s.rect!.height, 90)
+        s.setOutputSize(width: 1920, canvas: canvas)
+        XCTAssertEqual(s.resolvedOutputSize(canvas: canvas).height, 1080, "固定した比で丸める")
+        // キャンバス全体（比を固定していればその比でいちばん大きく）、等倍
+        s.setWholeCanvas(canvas)
+        XCTAssertEqual(s.rect!.height, 100)
+        XCTAssertEqual(s.rect!.width, 178)
         s.setActualSize(canvas: canvas)
-        XCTAssertEqual(s.outputWidth, 40)
+        XCTAssertEqual(s.resolvedOutputSize(canvas: canvas).width, 178)
+        XCTAssertTrue(s.isActualSize)
+        s.setAspect(nil, canvas: canvas)
         s.setWholeCanvas(canvas)
         XCTAssertEqual(s.rect, canvas)
-        XCTAssertEqual(s.outputHeight, 20)
     }
+
 }

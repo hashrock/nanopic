@@ -51,13 +51,32 @@ public enum PublishBackground: String, Codable, CaseIterable, Sendable {
     public var displayName: String { self == .transparent ? "透明のまま" : "白で埋める" }
 }
 
+/// 範囲の縦横比の固定（幅:高さ）
+public struct PublishAspect: Codable, Equatable, Hashable, Sendable {
+    public var width: Int
+    public var height: Int
+
+    public init(_ width: Int, _ height: Int) {
+        self.width = width
+        self.height = height
+    }
+
+    public var ratio: Double { Double(width) / Double(height) }
+    public var displayName: String { "\(width):\(height)" }
+
+    /// 選べる比率
+    public static let presets = [PublishAspect(1, 1), PublishAspect(4, 3), PublishAspect(3, 4), PublishAspect(3, 2), PublishAspect(2, 3),
+                                 PublishAspect(16, 9), PublishAspect(9, 16)]
+}
+
 /// 書き出しの設定。作品ごとに 1 組をサイドカーに持つ。元の絵は変えずに、範囲を切り抜いて大きさを変えて書き出す
 public struct PublishSettings: Codable, Equatable, Sendable {
     /// 書き出す範囲（キャンバスの座標）。nil ならキャンバス全体
     public var rect: IntRect?
-    /// 出力の大きさ。nil なら範囲と同じ。範囲の縦横比はこの比に固定する
+    /// 範囲の縦横比の固定。nil なら自由
+    public var aspect: PublishAspect?
+    /// 出力の幅。nil なら範囲と同じ（等倍。範囲を変えても等倍のまま）。高さは範囲の比から決める（ゆがめない）
     public var outputWidth: Int?
-    public var outputHeight: Int?
     public var format = PublishFormat.png
     /// JPEG の品質（1〜100）
     public var quality = 90
@@ -67,14 +86,14 @@ public struct PublishSettings: Codable, Equatable, Sendable {
 
     public init() {}
 
-    private enum CodingKeys: String, CodingKey { case rect, outputWidth, outputHeight, format, quality, background, destination }
+    private enum CodingKeys: String, CodingKey { case rect, aspect, outputWidth, format, quality, background, destination }
 
     /// 足りない項目があっても読めるようにする
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         rect = try c.decodeIfPresent(IntRect.self, forKey: .rect)
+        aspect = try c.decodeIfPresent(PublishAspect.self, forKey: .aspect)
         outputWidth = try c.decodeIfPresent(Int.self, forKey: .outputWidth)
-        outputHeight = try c.decodeIfPresent(Int.self, forKey: .outputHeight)
         format = try c.decodeIfPresent(PublishFormat.self, forKey: .format) ?? .png
         quality = try c.decodeIfPresent(Int.self, forKey: .quality) ?? 90
         background = try c.decodeIfPresent(PublishBackground.self, forKey: .background) ?? .transparent
@@ -88,34 +107,36 @@ public struct PublishSettings: Codable, Equatable, Sendable {
         return c.isEmpty ? canvas : c
     }
 
-    /// 出力の大きさ
+    /// 範囲の縦横比（幅 / 高さ）。固定していればその比
+    public func ratio(canvas: IntRect) -> Double {
+        if let a = aspect { return a.ratio }
+        let r = resolvedRect(canvas: canvas)
+        return Double(r.width) / Double(r.height)
+    }
+
+    /// 出力の大きさ（高さは比から）
     public func resolvedOutputSize(canvas: IntRect) -> (width: Int, height: Int) {
         let r = resolvedRect(canvas: canvas)
-        return (max(1, outputWidth ?? r.width), max(1, outputHeight ?? r.height))
+        let w = max(1, outputWidth ?? r.width)
+        if outputWidth == nil && aspect == nil { return (w, r.height) }
+        return (w, max(1, Int((Double(w) / ratio(canvas: canvas)).rounded())))
     }
 
     /// 透明の扱い（JPEG はいつも白）
     public var effectiveBackground: PublishBackground { format.supportsAlpha ? background : .white }
 }
 
-/// 書き出し設定を開いている間の編集（範囲の縦横比は出力の比に固定）
+/// 書き出し設定を開いている間の編集
 extension PublishSettings {
-    /// 範囲と出力の大きさを、省略なしの値にする
+    /// 範囲を省略なしの値にする（出力の幅は、等倍なら等倍のまま）
     public func normalized(canvas: IntRect) -> PublishSettings {
         var s = self
-        let r = resolvedRect(canvas: canvas)
-        let o = resolvedOutputSize(canvas: canvas)
-        s.rect = r
-        s.outputWidth = o.width
-        s.outputHeight = o.height
+        s.rect = resolvedRect(canvas: canvas)
         return s
     }
 
-    /// 出力の縦横比（幅 / 高さ）
-    public func aspect(canvas: IntRect) -> Double {
-        let o = resolvedOutputSize(canvas: canvas)
-        return Double(o.width) / Double(o.height)
-    }
+    /// 等倍（出力を範囲に合わせる）か
+    public var isActualSize: Bool { outputWidth == nil }
 
     /// 範囲の左上を動かす（キャンバスに収める）
     public mutating func setRectOrigin(x: Int? = nil, y: Int? = nil, canvas: IntRect) {
@@ -125,40 +146,50 @@ extension PublishSettings {
         rect = r
     }
 
-    /// 範囲の幅か高さを変える（もう一方は出力の比から決める。左上を保ち、キャンバスに収める）
+    /// 範囲の幅か高さを変える（比を固定していればもう一方も比から。左上を保ち、キャンバスに収める）
     public mutating func setRectSize(width: Int? = nil, height: Int? = nil, canvas: IntRect) {
-        let r = resolvedRect(canvas: canvas), a = aspect(canvas: canvas)
-        var w = Double(r.width), h = Double(r.height)
-        if let width { w = Double(max(1, width)); h = w / a }
-        if let height { h = Double(max(1, height)); w = h * a }
-        let k = min(1, Double(canvas.maxX - r.x) / w, Double(canvas.maxY - r.y) / h)
-        rect = IntRect(x: r.x, y: r.y, width: max(1, Int((w * k).rounded())), height: max(1, Int((h * k).rounded())))
-    }
-
-    /// 出力の幅か高さを変える。lock なら比を保ってもう一方も変え、そうでなければ比が変わるので範囲を合わせ直す
-    public mutating func setOutputSize(width: Int? = nil, height: Int? = nil, lock: Bool, canvas: IntRect) {
-        let o = resolvedOutputSize(canvas: canvas), a = aspect(canvas: canvas)
-        var w = o.width, h = o.height
-        if let width { w = max(1, width); if lock { h = max(1, Int((Double(w) / a).rounded())) } }
-        if let height { h = max(1, height); if lock { w = max(1, Int((Double(h) * a).rounded())) } }
-        outputWidth = w
-        outputHeight = h
-        if !lock { rect = Publish.fit(resolvedRect(canvas: canvas), aspect: Double(w) / Double(h), canvas: canvas) }
-    }
-
-    /// 範囲をキャンバス全体にする（出力の幅は保ち、高さを新しい比に合わせる）
-    public mutating func setWholeCanvas(_ canvas: IntRect) {
-        let o = resolvedOutputSize(canvas: canvas)
-        rect = canvas
-        outputWidth = o.width
-        outputHeight = max(1, Int((Double(o.width) * Double(canvas.height) / Double(canvas.width)).rounded()))
-    }
-
-    /// 出力を範囲と同じ大きさ（等倍）にする
-    public mutating func setActualSize(canvas: IntRect) {
         let r = resolvedRect(canvas: canvas)
-        outputWidth = r.width
-        outputHeight = r.height
+        var w = Double(r.width), h = Double(r.height)
+        if let width { w = Double(max(1, width)); if let a = aspect { h = w / a.ratio } }
+        if let height { h = Double(max(1, height)); if let a = aspect { w = h * a.ratio } }
+        let maxW = Double(canvas.maxX - r.x), maxH = Double(canvas.maxY - r.y)
+        if aspect != nil {
+            let k = min(1, maxW / w, maxH / h)
+            w *= k
+            h *= k
+        } else {
+            w = min(w, maxW)
+            h = min(h, maxH)
+        }
+        rect = IntRect(x: r.x, y: r.y, width: max(1, Int(w.rounded())), height: max(1, Int(h.rounded())))
+    }
+
+    /// 出力の幅か高さを変える（もう一方は範囲の比から決まる）
+    public mutating func setOutputSize(width: Int? = nil, height: Int? = nil, canvas: IntRect) {
+        if let width { outputWidth = max(1, width) }
+        if let height { outputWidth = max(1, Int((Double(max(1, height)) * ratio(canvas: canvas)).rounded())) }
+    }
+
+    /// 比率の固定を変える。固定するなら範囲をその比に合わせ直す
+    public mutating func setAspect(_ a: PublishAspect?, canvas: IntRect) {
+        let r = resolvedRect(canvas: canvas)
+        aspect = a
+        if let a { rect = Publish.fit(r, aspect: a.ratio, canvas: canvas) }
+    }
+
+    /// 範囲をキャンバス全体にする（比を固定していれば、その比でいちばん大きく）
+    public mutating func setWholeCanvas(_ canvas: IntRect) {
+        if let a = aspect {
+            let s = min(Double(canvas.width) / a.ratio, Double(canvas.height))
+            rect = Publish.place(width: s * a.ratio, height: s, centerX: Double(canvas.x) + Double(canvas.width) / 2, centerY: Double(canvas.y) + Double(canvas.height) / 2, canvas: canvas)
+        } else {
+            rect = canvas
+        }
+    }
+
+    /// 出力を範囲と同じ大きさ（等倍）にする。範囲を変えても等倍のまま
+    public mutating func setActualSize(canvas: IntRect) {
+        outputWidth = nil
     }
 }
 
@@ -166,8 +197,9 @@ public enum Publish {
     /// 書き出し枠のつまみ: 0〜3 は角（左上・右上・右下・左下）、4〜7 は辺（上・右・下・左）、8 は内側（移動）
     public static let insideHandle = 8
 
-    /// 枠のつまみを (dx, dy) だけドラッグしたあとの範囲。縦横比 aspect を保ち、キャンバスに収める
-    public static func dragRect(_ start: IntRect, handle: Int, dx: Double, dy: Double, aspect a: Double, canvas: IntRect) -> IntRect {
+    /// 枠のつまみを (dx, dy) だけドラッグしたあとの範囲。aspect（幅 / 高さ）を渡せばその比を保つ。キャンバスに収める
+    public static func dragRect(_ start: IntRect, handle: Int, dx: Double, dy: Double, aspect: Double?, canvas: IntRect) -> IntRect {
+        guard let a = aspect else { return dragFree(start, handle: handle, dx: dx, dy: dy, canvas: canvas) }
         let x0 = Double(start.minX), y0 = Double(start.minY), x1 = Double(start.maxX), y1 = Double(start.maxY)
         let minSize = 4.0
         switch handle {
@@ -200,11 +232,27 @@ public enum Publish {
             let y = min(max(cy - h / 2, Double(canvas.minY)), Double(canvas.maxY) - h)
             return IntRect(x: Int((handle == 7 ? ax - w : ax).rounded()), y: Int(y.rounded()), width: max(1, Int(w.rounded())), height: max(1, Int(h.rounded())))
         default:
-            // 内側: 動かす
-            let x = min(max(Int((x0 + dx).rounded()), canvas.minX), canvas.maxX - start.width)
-            let y = min(max(Int((y0 + dy).rounded()), canvas.minY), canvas.maxY - start.height)
+            return dragFree(start, handle: handle, dx: dx, dy: dy, canvas: canvas)
+        }
+    }
+
+    /// 比を保たないドラッグ: 角は 2 辺、辺は 1 辺を動かす。内側は全体を動かす
+    private static func dragFree(_ start: IntRect, handle: Int, dx: Double, dy: Double, canvas: IntRect) -> IntRect {
+        let minSize = 4
+        let ix = Int(dx.rounded()), iy = Int(dy.rounded())
+        var x0 = start.minX, y0 = start.minY, x1 = start.maxX, y1 = start.maxY
+        let left = [0, 3, 7].contains(handle), right = [1, 2, 5].contains(handle)
+        let top = [0, 1, 4].contains(handle), bottom = [2, 3, 6].contains(handle)
+        if handle == insideHandle {
+            let x = min(max(x0 + ix, canvas.minX), canvas.maxX - start.width)
+            let y = min(max(y0 + iy, canvas.minY), canvas.maxY - start.height)
             return IntRect(x: x, y: y, width: start.width, height: start.height)
         }
+        if left { x0 = min(max(x0 + ix, canvas.minX), x1 - minSize) }
+        if right { x1 = max(min(x1 + ix, canvas.maxX), x0 + minSize) }
+        if top { y0 = min(max(y0 + iy, canvas.minY), y1 - minSize) }
+        if bottom { y1 = max(min(y1 + iy, canvas.maxY), y0 + minSize) }
+        return IntRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
     }
 
     /// rect を縦横比 aspect（幅 / 高さ）に合わせる。中心を保ち、キャンバスに収まるように縮めたりずらしたりする
@@ -341,17 +389,14 @@ extension Editor {
         doc.publish.map { MovieExport.Options(publish: $0, canvas: doc.bounds) } ?? MovieExport.Options()
     }
 
-    /// 選択範囲を囲む矩形を、出力の縦横比に合わせて書き出し範囲にする
+    /// 選択範囲を囲む矩形を書き出し範囲にする
     @discardableResult
     public func setPublishRectFromSelection() -> Bool {
         guard let sel = doc.selection, !sel.bounds.isEmpty else { return false }
         var s = publishSettings
         let r = sel.bounds.intersection(doc.bounds)
-        if let w = s.outputWidth, let h = s.outputHeight, w > 0, h > 0 {
-            s.rect = Publish.expand(r, aspect: Double(w) / Double(h), canvas: doc.bounds)
-        } else {
-            s.rect = r
-        }
+        // 比を固定していれば、選択範囲を囲むようにその比で広げる
+        s.rect = s.aspect.map { Publish.expand(r, aspect: $0.ratio, canvas: doc.bounds) } ?? r
         setPublishSettings(s, label: "書き出し範囲")
         return true
     }

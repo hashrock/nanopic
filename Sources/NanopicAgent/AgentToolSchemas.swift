@@ -656,9 +656,13 @@ let coreToolSchemas = ##"""
     }
   },
   "publish_settings": {
-    "description": "書き出し（publish）の設定を見る・変える。作品ごとに 1 組あり、サイドカーに保存される。範囲を切り抜き、出力の大きさに変えて書き出す（元の絵は変えない）。範囲の縦横比は出力の比に合わせる。引数を省くと今の設定を返すだけ。",
+    "description": "書き出し（publish）の設定を見る・変える。作品ごとに 1 組あり、サイドカーに保存される。範囲を切り抜き、出力の大きさに変えて書き出す（元の絵は変えない）。出力の高さは範囲の比から決まる（ゆがめない）。引数を省くと今の設定を返すだけ。",
     "inputSchema": {
       "properties": {
+        "aspect": {
+          "description": "範囲の縦横比の固定。\"16:9\" のような形か、\"free\"（自由）。固定すると範囲をその比に合わせ直す",
+          "type": "string"
+        },
         "background": {
           "description": "透明な所の扱い（JPEG はいつも白）",
           "enum": [
@@ -679,11 +683,11 @@ let coreToolSchemas = ##"""
           "type": "string"
         },
         "output_height": {
-          "description": "出力の高さ",
+          "description": "出力の高さ（幅を範囲の比から決める）",
           "type": "integer"
         },
         "output_width": {
-          "description": "出力の幅。片方だけなら比を保ってもう一方も変える。両方なら範囲をその比に合わせ直す",
+          "description": "出力の幅（高さは範囲の比から）",
           "type": "integer"
         },
         "quality": {
@@ -691,7 +695,7 @@ let coreToolSchemas = ##"""
           "type": "integer"
         },
         "rect": {
-          "description": "書き出す範囲 {x, y, width, height}（キャンバスの座標）。出力の高さはこの比に合わせる",
+          "description": "書き出す範囲 {x, y, width, height}（キャンバスの座標）。比を固定していればその比に合わせる",
           "type": "object"
         },
         "whole_canvas": {

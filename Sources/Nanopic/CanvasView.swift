@@ -392,8 +392,10 @@ final class CanvasView: NSView {
         case let .publishFrame(handle, start, startPoint):
             if var d = state.publishDraft {
                 let canvas = editor.doc.bounds
+                // 比を固定していればその比、Shift を押している間は始めたときの比を保つ
+                let ratio = d.aspect?.ratio ?? (e.modifierFlags.contains(.shift) ? Double(start.width) / Double(start.height) : nil)
                 d.rect = Publish.dragRect(start, handle: handle, dx: Double(cp.x - startPoint.x), dy: Double(cp.y - startPoint.y),
-                                          aspect: d.aspect(canvas: canvas), canvas: canvas)
+                                          aspect: ratio, canvas: canvas)
                 state.publishDraft = d
             }
         case let .handleMarquee(start, initial):

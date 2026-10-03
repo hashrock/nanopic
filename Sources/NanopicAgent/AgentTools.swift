@@ -888,24 +888,24 @@ extension AgentToolbox {
                 let canvas = editor.doc.bounds
                 var p = editor.publishSettings.normalized(canvas: canvas)
                 let before = p
+                if let asp = try a.string("aspect") {
+                    if asp == "free" {
+                        p.setAspect(nil, canvas: canvas)
+                    } else {
+                        let parts = asp.split(separator: ":").compactMap { Int($0) }
+                        guard parts.count == 2, parts[0] > 0, parts[1] > 0 else { throw AgentError("aspect は \"16:9\" のような形か \"free\"") }
+                        p.setAspect(PublishAspect(parts[0], parts[1]), canvas: canvas)
+                    }
+                }
                 if try a.bool("whole_canvas") ?? false { p.setWholeCanvas(canvas) }
                 if let r = try a.rect("rect") {
                     let c = r.intersection(canvas)
                     guard !c.isEmpty else { throw AgentError("rect がキャンバスの外です") }
-                    p.rect = c
-                    // 範囲の比に出力を合わせる（出力の大きさを渡していなければ幅を保つ）
-                    let o = p.resolvedOutputSize(canvas: canvas)
-                    p.outputWidth = o.width
-                    p.outputHeight = max(1, Int((Double(o.width) * Double(c.height) / Double(c.width)).rounded()))
+                    // 比を固定していれば、その比に合わせる
+                    p.rect = p.aspect.map { Publish.fit(c, aspect: $0.ratio, canvas: canvas) } ?? c
                 }
-                let ow = try a.int("output_width"), oh = try a.int("output_height")
-                if let ow, let oh {
-                    p.outputWidth = max(1, ow)
-                    p.outputHeight = max(1, oh)
-                    p.rect = Publish.fit(p.resolvedRect(canvas: canvas), aspect: Double(ow) / Double(oh), canvas: canvas)
-                } else if ow != nil || oh != nil {
-                    p.setOutputSize(width: ow, height: oh, lock: true, canvas: canvas)
-                }
+                if let ow = try a.int("output_width") { p.setOutputSize(width: ow, canvas: canvas) }
+                else if let oh = try a.int("output_height") { p.setOutputSize(height: oh, canvas: canvas) }
                 if let f = try a.string("format") {
                     guard let format = PublishFormat(rawValue: f) else { throw AgentError("format は png か jpeg") }
                     p.format = format
@@ -1115,6 +1115,7 @@ extension AgentToolbox {
         let p = editor.publishSettings
         let r = p.resolvedRect(canvas: canvas), o = p.resolvedOutputSize(canvas: canvas)
         return ["rect": ["x": r.x, "y": r.y, "width": r.width, "height": r.height],
+                "aspect": p.aspect?.displayName ?? "free",
                 "output_width": o.width, "output_height": o.height,
                 "format": p.format.rawValue, "quality": p.quality, "background": p.effectiveBackground.rawValue,
                 "destination": editor.publishDestinationURL(p)?.path ?? NSNull()]
