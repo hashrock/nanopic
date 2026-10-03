@@ -229,6 +229,11 @@ struct AppCommands: Commands {
             Button("拡大・縮小・回転") { editor.selectTool(.transform) }
             .keyboardShortcut("t")
             Button("キャンバスサイズ...") { state.showCanvasSizeDialog() }
+            Button("選択範囲でトリミング") {
+                editor.cropToSelection()
+                state.canvasView?.fitToWindow()
+            }
+            .disabled(editor.doc.selection == nil)
         }
         CommandMenu("選択範囲") {
             Button("すべてを選択") { editor.selectAll() }

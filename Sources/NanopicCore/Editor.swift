@@ -1122,19 +1122,25 @@ public final class Editor {
 
     // MARK: - キャンバス操作
 
-    public func resizeCanvas(width: Int, height: Int) {
+    /// キャンバスの大きさを変える。新しいキャンバスの (0, 0) は元の (originX, originY)（左上基準なら 0, 0）
+    public func resizeCanvas(width: Int, height: Int, originX: Int = 0, originY: Int = 0, label: String = "キャンバスサイズ変更") {
         commitTransform()
+        cancelAdjustment()
         guard width > 0, height > 0 else { return }
-        checkpoint("キャンバスサイズ変更")
+        checkpoint(label)
         let oldW = doc.width, oldH = doc.height
+        // 元と新しいキャンバスで重なる範囲（元の座標）
+        let overlap = IntRect(x: originX, y: originY, width: width, height: height).intersection(doc.bounds)
         func resize(_ n: LayerNode) -> LayerNode {
             var c = n
             if n.kind == .raster {
                 let buf = n.tiles.toBuffer(width: oldW, height: oldH)
                 var nb = [UInt8](repeating: 0, count: width * height * 4)
-                for y in 0..<min(oldH, height) {
-                    for x in 0..<min(oldW, width) {
-                        for k in 0..<4 { nb[(y * width + x) * 4 + k] = buf[(y * oldW + x) * 4 + k] }
+                if !overlap.isEmpty {
+                    for y in overlap.minY..<overlap.maxY {
+                        let src = (y * oldW + overlap.minX) * 4
+                        let dst = ((y - originY) * width + overlap.minX - originX) * 4
+                        nb.replaceSubrange(dst..<(dst + overlap.width * 4), with: buf[src..<(src + overlap.width * 4)])
                     }
                 }
                 c.tiles = nb.withUnsafeBufferPointer { TileMap.from(buffer: $0.baseAddress!, width: width, height: height, gen: gen) }
@@ -1148,5 +1154,14 @@ public final class Editor {
         doc.height = height
         doc.selection = nil
         structureChanged()
+    }
+
+    /// 選択範囲を囲む矩形にキャンバスを切り詰める（全レイヤー）。選択範囲がなければ何もしない
+    @discardableResult
+    public func cropToSelection() -> Bool {
+        guard let sel = doc.selection, !sel.bounds.isEmpty else { return false }
+        let r = sel.bounds
+        resizeCanvas(width: r.width, height: r.height, originX: r.x, originY: r.y, label: "トリミング")
+        return true
     }
 }

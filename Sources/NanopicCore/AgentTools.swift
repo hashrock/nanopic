@@ -1027,6 +1027,19 @@ extension AgentToolbox {
                 if let name = try a.string("name") { editor.setLayerProperty(folder.id, label: "レイヤーの名前") { $0.name = name } }
                 return [.text(json(["folder_id": folder.id.uuidString]))]
             },
+            AgentTool(name: "crop",
+                      description: "キャンバスを切り詰める（全レイヤー）。rect を渡すとその範囲、省略すると選択範囲を囲む矩形。",
+                      properties: ["rect": ["type": "object", "properties": ["x": ["type": "integer"], "y": ["type": "integer"],
+                                                                              "width": ["type": "integer"], "height": ["type": "integer"]]]]) { [unowned self] a in
+                if let r = try a.rect("rect") {
+                    let c = r.intersection(editor.doc.bounds)
+                    guard !c.isEmpty else { throw AgentError("rect がキャンバスの外です") }
+                    editor.resizeCanvas(width: c.width, height: c.height, originX: c.x, originY: c.y, label: "トリミング")
+                } else {
+                    guard editor.cropToSelection() else { throw AgentError("選択範囲がありません。rect を渡すか、先に select で選んでください") }
+                }
+                return [.text("\(editor.doc.width)×\(editor.doc.height) にしました")]
+            },
             AgentTool(name: "resize_canvas", description: "キャンバスの大きさを変える（左上を基準に、絵は拡大縮小しない）。",
                       properties: ["width": ["type": "integer"], "height": ["type": "integer"]], required: ["width", "height"]) { [unowned self] a in
                 let w = try a.requireInt("width"), h = try a.requireInt("height")
