@@ -140,6 +140,8 @@ public struct DocumentState {
     public var selection: SelectionMask?
     /// タイムライン（取り消しに乗るよう、ドキュメントに持つ）
     public var timeline = Timeline()
+    /// デフォーマとパラメータ
+    public var rig = Rig()
     public var activeLayerID: UUID?
 
     public init(width: Int, height: Int) {

@@ -20,7 +20,8 @@ public enum MovieExport {
     }
 
     /// doc の写しにコマごとの表示状態を当てて書き出す。progress は (書いたコマ数, 全コマ数) で、false を返すと中止する
-    public static func export(_ doc: DocumentState, to url: URL, options: Options = Options(),
+    /// values: パラメータの値（トラックのないもの）。トラックのあるパラメータはコマごとの値を使う
+    public static func export(_ doc: DocumentState, to url: URL, values: [String: Double] = [:], options: Options = Options(),
                               progress: (Int, Int) -> Bool = { _, _ in true }) throws {
         let t = doc.timeline
         let (w, h) = outputSize(width: doc.width, height: doc.height, options: options)
@@ -51,7 +52,8 @@ public enum MovieExport {
                 throw Cancelled()
             }
             frameDoc.applyTimeline(frame: f)
-            let buf = Compositor.compositeFull(frameDoc)
+            let pose = values.merging(t.parameterValues(at: f)) { _, new in new }
+            let buf = Compositor.compositeFull(frameDoc.posed(values: pose))
             guard let image = ImageUtil.makeImage(premultiplied: buf, width: doc.width, height: doc.height),
                   let pool = adaptor.pixelBufferPool else { throw CocoaError(.fileWriteUnknown) }
             var pb: CVPixelBuffer?

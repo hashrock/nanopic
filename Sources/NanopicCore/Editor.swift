@@ -86,6 +86,9 @@ public final class Editor {
     public internal(set) var currentFrame = 0
     /// タイムラインを開いている間は、トラックのあるレイヤーの表示を切り替えると、今のコマにキーを打つ
     public var timelineOpen = false
+    /// パラメータの今の値（ないものは既定値）。履歴には残さない
+    public internal(set) var parameterValues: [String: Double] = [:]
+    @ObservationIgnored var poseCache: (revision: Int, values: [String: Double], doc: DocumentState)?
     public private(set) var isDirty = false
 
     // MARK: 履歴
@@ -140,6 +143,7 @@ public final class Editor {
         fileURL = nil
         sidecar = Sidecar()
         currentFrame = 0
+        parameterValues = [:]
         isDirty = false
         structureChanged()
     }
@@ -162,6 +166,7 @@ public final class Editor {
         fileURL = url
         self.sidecar = sidecar
         currentFrame = 0
+        parameterValues = [:]
         applySidecar()
         isDirty = false
         structureChanged()
@@ -384,7 +389,7 @@ public final class Editor {
     /// 描画可能なレイヤーか
     public var canPaintOnActiveLayer: Bool {
         guard let l = doc.activeLayer else { return false }
-        return l.kind == .raster && !l.locked && doc.isEffectivelyVisible(l.id)
+        return l.kind == .raster && !l.locked && doc.isEffectivelyVisible(l.id) && !isPosed
     }
 
     @discardableResult

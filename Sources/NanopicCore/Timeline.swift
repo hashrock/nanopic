@@ -9,10 +9,19 @@ public struct Timeline: Codable, Equatable, Sendable {
     public var frameCount = 24
     public var loop = true
     public var tracks: [TimelineTrack] = []
+    /// パラメータのトラック（値を直線で補間）
+    public var parameterTracks: [ParameterTrack] = []
 
     public init() {}
 
-    public var isEmpty: Bool { tracks.isEmpty }
+    public var isEmpty: Bool { tracks.isEmpty && parameterTracks.isEmpty }
+
+    /// frame でのパラメータの値（トラックのあるものだけ）
+    public func parameterValues(at frame: Int) -> [String: Double] {
+        var out: [String: Double] = [:]
+        for t in parameterTracks { if let v = t.value(at: frame) { out[t.parameter] = v } }
+        return out
+    }
 
     public func track(for layer: UInt32) -> TimelineTrack? {
         tracks.first { $0.layer == layer }
@@ -26,9 +35,10 @@ public struct Timeline: Codable, Equatable, Sendable {
         frameCount = try c.decodeIfPresent(Int.self, forKey: .frameCount) ?? d.frameCount
         loop = try c.decodeIfPresent(Bool.self, forKey: .loop) ?? d.loop
         tracks = try c.decodeIfPresent([TimelineTrack].self, forKey: .tracks) ?? []
+        parameterTracks = try c.decodeIfPresent([ParameterTrack].self, forKey: .parameterTracks) ?? []
     }
 
-    private enum CodingKeys: String, CodingKey { case fps, frameCount, loop, tracks }
+    private enum CodingKeys: String, CodingKey { case fps, frameCount, loop, tracks, parameterTracks }
 }
 
 public struct TimelineTrack: Codable, Equatable, Sendable {
@@ -66,6 +76,44 @@ public struct TimelineKey: Codable, Equatable, Sendable {
         self.frame = frame
         self.visible = visible
         self.child = child
+    }
+}
+
+public struct ParameterTrack: Codable, Equatable, Sendable {
+    public var parameter: String
+    /// コマの順に並べる
+    public var keys: [ParameterKeyframe] = []
+
+    public init(parameter: String, keys: [ParameterKeyframe] = []) {
+        self.parameter = parameter
+        self.keys = keys
+    }
+
+    /// キーの間は直線で補間、外側は端のキーの値
+    public func value(at frame: Int) -> Double? {
+        guard let first = keys.first, let last = keys.last else { return nil }
+        if frame <= first.frame { return first.value }
+        if frame >= last.frame { return last.value }
+        for i in 1..<keys.count where frame <= keys[i].frame {
+            let a = keys[i - 1], b = keys[i]
+            return a.value + (b.value - a.value) * Double(frame - a.frame) / Double(max(b.frame - a.frame, 1))
+        }
+        return last.value
+    }
+
+    public mutating func set(frame: Int, value: Double) {
+        keys.removeAll { $0.frame == frame }
+        keys.append(ParameterKeyframe(frame: frame, value: value))
+        keys.sort { $0.frame < $1.frame }
+    }
+}
+
+public struct ParameterKeyframe: Codable, Equatable, Sendable {
+    public var frame: Int
+    public var value: Double
+    public init(frame: Int, value: Double) {
+        self.frame = frame
+        self.value = value
     }
 }
 

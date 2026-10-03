@@ -81,6 +81,11 @@ extension Editor {
 
     /// 今のコマの表示状態をレイヤーに当てる
     func applyFrame() {
+        let values = doc.timeline.parameterValues(at: currentFrame)
+        if !values.isEmpty {
+            parameterValues.merge(values) { _, new in new }
+            markAllDirty()
+        }
         if doc.applyTimeline(frame: currentFrame) { structureChanged() }
     }
 

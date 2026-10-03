@@ -109,7 +109,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     func draw(in view: MTKView) {
         guard let canvas else { return }
         let editor = canvas.editor
-        let doc = editor.doc
+        // ポーズ中はデフォーマをかけた絵を出す
+        let doc = editor.displayDoc
         let w = doc.width, h = doc.height
         var dirty = editor.takeDirtyRect()
         if ensureTexture(width: w, height: h) {

@@ -96,6 +96,7 @@ extension Editor {
         doc.forEachNode { if $0.isSwitch { ids.append($0.psdID) } }
         sidecar.switchFolders = ids
         sidecar.timeline = doc.timeline.isEmpty ? nil : doc.timeline
+        sidecar.rig = doc.rig.isEmpty ? nil : doc.rig
     }
 
     /// 開いたときに呼ぶ: サイドカーの印をドキュメントに反映する
@@ -105,6 +106,7 @@ extension Editor {
             doc.modify(n.id) { $0.isSwitch = true }
         }
         if let t = sidecar.timeline { doc.timeline = t }
+        if let r = sidecar.rig { doc.rig = r }
         normalizeSwitches()
     }
 }

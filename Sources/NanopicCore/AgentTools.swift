@@ -391,7 +391,7 @@ public final class AgentToolbox {
             buf = Compositor.compositeFull(tmp)
             what = "レイヤー「\(n.name)」だけ（白背景）"
         } else {
-            buf = Compositor.compositeFull(doc)
+            buf = Compositor.compositeFull(editor.displayDoc)
         }
         guard let out = AgentRender.render(buf, width: doc.width, height: doc.height, rect: rect,
                                            maxSize: try a.int("max_size", default: 1024), grid: try a.bool("grid") ?? false) else {
@@ -840,6 +840,7 @@ public final class AgentToolbox {
         }
         guard let l = editor.doc.activeLayer else { throw AgentError("編集レイヤーがありません") }
         if paint {
+            if editor.isPosed { throw AgentError("ポーズ中（パラメータが既定値から動いている）は描けません。rig の reset_pose: true で基本ポーズに戻してください") }
             if l.kind != .raster { throw AgentError("「\(l.name)」はフォルダーなので描けません") }
             if l.locked { throw AgentError("「\(l.name)」はロックされています") }
             // 非表示のレイヤーは、layer_id で明示したときだけ描ける（閉じ線など）
@@ -983,11 +984,70 @@ extension AgentToolbox {
             },
             AgentTool(name: "set_key",
                       description: "タイムラインにキーを打つ。スイッチフォルダーなら child（表示する子のレイヤー ID）、ふつうのレイヤーなら visible を渡す。トラックがなければ作る。",
-                      properties: ["layer_id": ["type": "string"], "frame": ["type": "integer", "description": "0 から"],
+                      properties: ["layer_id": ["type": "string", "description": "レイヤーかスイッチフォルダー（パラメータのキーなら省いて parameter を渡す）"],
+                                   "parameter": ["type": "string", "description": "パラメータ ID（値は value。キーの間は直線で補間）"],
+                                   "value": ["type": "number"],
+                                   "frame": ["type": "integer", "description": "0 から"],
                                    "child": ["type": "string", "description": "スイッチフォルダーで表示する子のレイヤー ID"],
                                    "visible": ["type": "boolean"], "delete": ["type": "boolean", "description": "そのコマのキーを消す"]],
-                      required: ["layer_id", "frame"]) { [unowned self] a in
+                      required: ["frame"]) { [unowned self] a in
                 try setKey(a)
+            },
+            AgentTool(name: "rig",
+                      description: "デフォーマとパラメータを見る。パラメータの値を動かす（values）と、キャンバスにポーズが出る（get_image で見られる）。ポーズ中は描けないので、描く前に reset_pose: true。",
+                      properties: ["values": ["type": "object", "description": "{パラメータ ID: 値} でつまみを動かす"],
+                                   "reset_pose": ["type": "boolean", "description": "すべてのつまみを既定値に戻す"]]) { [unowned self] a in
+                if try a.bool("reset_pose") ?? false { editor.resetPose() }
+                if let vals = a.raw["values"] as? [String: Any] {
+                    for (k, v) in vals {
+                        guard editor.rig.parameter(k) != nil, let n = v as? NSNumber else { throw AgentError("パラメータ \(k) の値が正しくありません") }
+                        editor.setParameterValue(k, n.doubleValue)
+                    }
+                }
+                return [.text(json(rigInfo()))]
+            },
+            AgentTool(name: "add_deformer",
+                      description: "レイヤーかフォルダーにデフォーマを付ける。rotation は中心と角度、warp は範囲を格子に分けて点をずらす。フォルダーに付けると中のレイヤー全部に効き、内側から外側の順にかかる。範囲と中心は省くと描かれている所から決める。",
+                      properties: ["layer_id": ["type": "string"], "kind": ["type": "string", "enum": ["rotation", "warp"]],
+                                   "name": ["type": "string"],
+                                   "pivot": ["type": "array", "items": ["type": "number"], "description": "回転の中心 [x, y]"],
+                                   "rect": ["type": "object", "description": "ワープの範囲 {x, y, width, height}"],
+                                   "cols": ["type": "integer", "description": "ワープの格子の横のマス数（既定 4）"],
+                                   "rows": ["type": "integer", "description": "縦のマス数（既定 4）"]],
+                      required: ["layer_id", "kind"]) { [unowned self] a in
+                let id = try layer(a, "layer_id")
+                guard let kind = DeformerKind(rawValue: try a.requireString("kind")) else { throw AgentError("kind は rotation か warp") }
+                guard let did = editor.addDeformer(to: id, kind: kind, name: try a.string("name"),
+                                                   cols: try a.int("cols", default: 4), rows: try a.int("rows", default: 4)) else {
+                    throw AgentError("デフォーマを付けられませんでした")
+                }
+                let pivot = a.raw["pivot"] as? [NSNumber]
+                let rect = try a.rect("rect")
+                if pivot != nil || rect != nil {
+                    editor.updateDeformer(did) { d in
+                        if let p = pivot, p.count >= 2 { d.pivot = RigPoint(p[0].doubleValue, p[1].doubleValue) }
+                        if let r = rect { d.rect = RigRect(x: Double(r.x), y: Double(r.y), width: Double(r.width), height: Double(r.height)) }
+                    }
+                }
+                return [.text(json(["deformer_id": did, "rig": rigInfo()]))]
+            },
+            AgentTool(name: "add_parameter",
+                      description: "パラメータ（名前つきのつまみ。例: 首の角度 -30〜30、まばたき 0〜1）を足す。形は set_form で、つまみのいくつかの値ごとに決める。",
+                      properties: ["name": ["type": "string"], "min": ["type": "number"], "max": ["type": "number"],
+                                   "default": ["type": "number", "description": "既定値（基本ポーズの値。省くと min）"]],
+                      required: ["name"]) { [unowned self] a in
+                let id = editor.addParameter(name: try a.requireString("name"), min: try a.double("min", default: 0),
+                                             max: try a.double("max", default: 1), defaultValue: try a.double("default"))
+                return [.text(json(["parameter_id": id]))]
+            },
+            AgentTool(name: "set_form",
+                      description: "パラメータが value のときのデフォーマの形を決める（キーがなければ作る）。形は基本の形からのずれ。回転は angle（度、時計回り）。ワープは offsets（格子の点ごとの [dx, dy]、左上から右へ行ごと、点の数は (cols+1)*(rows+1)）か、points（{点の番号: [dx, dy]} で一部だけ）。値の間は直線で補間され、既定値のキーは普通ずれ 0 にしておく。",
+                      properties: ["parameter": ["type": "string"], "value": ["type": "number"], "deformer": ["type": "string"],
+                                   "angle": ["type": "number"],
+                                   "offsets": ["type": "array", "items": ["type": "array", "items": ["type": "number"]]],
+                                   "points": ["type": "object"]],
+                      required: ["parameter", "value", "deformer"]) { [unowned self] a in
+                try setForm(a)
             },
             AgentTool(name: "set_color", description: "描画色（main）とサブカラー（sub）を設定する。",
                       properties: ["main": ["type": "string", "description": "\"#RRGGBB\""], "sub": ["type": "string"]]) { [unowned self] a in
@@ -1079,10 +1139,69 @@ extension AgentToolbox {
         ]
     }
 
+    func rigInfo() -> [String: Any] {
+        let r = editor.rig
+        func uuid(_ psd: UInt32) -> Any { editor.doc.node(psdID: psd)?.id.uuidString as Any? ?? NSNull() }
+        return [
+            "posed": editor.isPosed,
+            "deformers": r.deformers.map { d -> [String: Any] in
+                var o: [String: Any] = ["id": d.id, "name": d.name, "kind": d.kind.rawValue, "layer_id": uuid(d.layer),
+                                        "layer_name": editor.doc.node(psdID: d.layer)?.name ?? ""]
+                if d.kind == .rotation { o["pivot"] = [d.pivot.x, d.pivot.y] } else {
+                    o["rect"] = ["x": d.rect.x, "y": d.rect.y, "width": d.rect.width, "height": d.rect.height]
+                    o["cols"] = d.cols; o["rows"] = d.rows; o["point_count"] = d.pointCount
+                }
+                return o
+            },
+            "parameters": r.parameters.map { p -> [String: Any] in
+                ["id": p.id, "name": p.name, "min": p.min, "max": p.max, "default": p.defaultValue, "value": editor.parameterValue(p.id),
+                 "keys": p.keys.map { k -> [String: Any] in
+                     ["value": k.value, "forms": k.forms.mapValues { f -> [String: Any] in
+                         var o: [String: Any] = [:]
+                         if f.angle != 0 { o["angle"] = f.angle }
+                         if !f.offsets.isEmpty { o["offsets"] = f.offsets.map { [$0.x, $0.y] } }
+                         return o
+                     }]
+                 }]
+            },
+        ]
+    }
+
+    private func setForm(_ a: AgentArgs) throws -> [AgentContent] {
+        let pid = try a.requireString("parameter"), did = try a.requireString("deformer")
+        guard let p = editor.rig.parameter(pid) else { throw AgentError("パラメータがありません: \(pid)") }
+        guard let d = editor.rig.deformer(did) else { throw AgentError("デフォーマがありません: \(did)") }
+        let value = try a.double("value", default: p.defaultValue)
+        // 今の形（そのキーにあれば）から始めて、渡した所だけ変える
+        var form = p.keys.first { abs($0.value - p.clamp(value)) < 1e-9 }?.forms[did] ?? DeformerForm()
+        if let angle = try a.double("angle") { form.angle = angle }
+        if a.has("offsets") {
+            guard d.kind == .warp else { throw AgentError("offsets はワープのデフォーマだけ") }
+            let pts = try a.points("offsets")
+            form.offsets = pts.map { RigPoint($0.x, $0.y) }
+        }
+        if let pts = a.raw["points"] as? [String: Any] {
+            guard d.kind == .warp else { throw AgentError("points はワープのデフォーマだけ") }
+            if form.offsets.count < d.pointCount { form.offsets += Array(repeating: .zero, count: d.pointCount - form.offsets.count) }
+            for (k, v) in pts {
+                guard let i = Int(k), i >= 0, i < d.pointCount, let xy = v as? [NSNumber], xy.count >= 2 else {
+                    throw AgentError("points は {点の番号: [dx, dy]}（番号は 0〜\(d.pointCount - 1)）")
+                }
+                form.offsets[i] = RigPoint(xy[0].doubleValue, xy[1].doubleValue)
+            }
+        }
+        editor.setForm(parameter: pid, value: value, deformer: did, form)
+        return [.text(json(rigInfo()))]
+    }
+
     func timelineInfo() -> [String: Any] {
         let t = editor.timeline
         func uuid(_ psd: UInt32) -> Any { editor.doc.node(psdID: psd)?.id.uuidString as Any? ?? NSNull() }
         return ["fps": t.fps, "frame_count": t.frameCount, "loop": t.loop, "frame": editor.currentFrame,
+                "parameter_tracks": t.parameterTracks.map { tr -> [String: Any] in
+                    ["parameter": tr.parameter, "name": editor.rig.parameter(tr.parameter)?.name ?? "",
+                     "keys": tr.keys.map { ["frame": $0.frame, "value": $0.value] }]
+                },
                 "tracks": t.tracks.map { tr -> [String: Any] in
                     ["layer_id": uuid(tr.layer), "name": editor.doc.node(psdID: tr.layer)?.name ?? "",
                      "keys": tr.keys.map { k -> [String: Any] in
@@ -1095,8 +1214,19 @@ extension AgentToolbox {
     }
 
     private func setKey(_ a: AgentArgs) throws -> [AgentContent] {
-        let id = try layer(a, "layer_id")
         let frame = max(0, try a.requireInt("frame"))
+        if let pid = try a.string("parameter") {
+            guard editor.rig.parameter(pid) != nil else { throw AgentError("パラメータがありません: \(pid)") }
+            if try a.bool("delete") ?? false {
+                editor.deleteParameterKey(pid, frame: frame)
+            } else {
+                guard let v = try a.double("value") else { throw AgentError("value を渡してください") }
+                editor.setParameterKey(pid, frame: frame, value: v)
+            }
+            if frame >= editor.timeline.frameCount { editor.setTimeline(frameCount: frame + 1) }
+            return [.text(json(timelineInfo()))]
+        }
+        let id = try layer(a, "layer_id")
         editor.addTrack(id) // なければ作る（今の表示を 0 コマ目に）
         guard let n = editor.doc.node(id), n.psdID != 0 else { throw AgentError("トラックを作れませんでした") }
         if try a.bool("delete") ?? false {
