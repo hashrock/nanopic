@@ -57,9 +57,9 @@ public struct GridSettings: Codable, Equatable, Sendable {
 
 @Observable
 public final class Editor {
-    public private(set) var doc: DocumentState
+    public internal(set) var doc: DocumentState
     /// ドキュメントの構造・内容が変わるたびに増加（UI の再描画用）
-    public private(set) var revision = 0
+    public internal(set) var revision = 0
 
     // MARK: ツール状態
     public var tool: Tool = .brush
@@ -80,6 +80,26 @@ public final class Editor {
     /// 色調補正のプレビュー中（確定するまでレイヤーの中身は変えず、表示だけに補正をかける）
     public private(set) var adjustment: (layerID: UUID, value: ColorAdjustment)?
     public var fileURL: URL?
+    /// PSD の隣に置くサイドカーの中身
+    public var sidecar = Sidecar()
+    /// タイムラインの再生位置（コマ）
+    public internal(set) var currentFrame = 0
+    /// タイムラインを開いている間は、トラックのあるレイヤーの表示を切り替えると、今のコマにキーを打つ
+    public var timelineOpen = false
+    /// パラメータの今の値（ないものは既定値）。履歴には残さない
+    public internal(set) var parameterValues: [String: Double] = [:]
+    /// デフォーマの変形を表示するか。切っていれば描いた絵そのままを表示し、描ける
+    public internal(set) var showsDeformation = false
+    @ObservationIgnored var poseCache: (revision: Int, values: [String: Double], doc: DocumentState)?
+    /// オニオンスキンの設定（作品には保存しない）
+    public var onionSkin = OnionSkin() {
+        didSet { if onionSkin != oldValue { markAllDirty() } }
+    }
+    @ObservationIgnored var onionCache: (key: OnionCacheKey, image: [UInt8])?
+    /// 再生中（始めたときの内容の版と、合成した絵のキャッシュ）
+    @ObservationIgnored var playback: (revision: Int, cache: PlaybackCache)?
+    /// オニオンスキンの絵を作り直すたびに増える（表示側で描き直すかの判断に使う）
+    @ObservationIgnored public internal(set) var onionSkinVersion = 0
     public private(set) var isDirty = false
 
     // MARK: 履歴
@@ -132,11 +152,15 @@ public final class Editor {
         selectedLayerIDs = []
         resetHistory()
         fileURL = nil
+        sidecar = Sidecar()
+        currentFrame = 0
+        parameterValues = [:]
+        showsDeformation = false
         isDirty = false
         structureChanged()
     }
 
-    public func load(_ state: DocumentState, url: URL?) {
+    public func load(_ state: DocumentState, url: URL?, sidecar: Sidecar = Sidecar()) {
         cancelTransform()
         cancelAdjustment()
         gen += 1
@@ -152,6 +176,11 @@ public final class Editor {
         selectedLayerIDs = []
         resetHistory()
         fileURL = url
+        self.sidecar = sidecar
+        currentFrame = 0
+        parameterValues = [:]
+        showsDeformation = false
+        applySidecar()
         isDirty = false
         structureChanged()
     }
@@ -162,6 +191,11 @@ public final class Editor {
             if let id = firstRasterID(n.children.reversed()) { return id }
         }
         return nil
+    }
+
+    /// 保存の直前に呼ぶ: PSD のレイヤー ID がないレイヤーに振る（履歴には残さない）
+    public func assignPSDIDs() {
+        doc.assignPSDIDs()
     }
 
     public func markSaved(url: URL?) {
@@ -265,6 +299,7 @@ public final class Editor {
     /// 並べ替え後の再描画。見た目が変わり得るのは、移動したレイヤーの範囲と
     /// クリッピング関係が変わるクリッピングレイヤーの範囲だけなので、全体を再合成しない。
     private func reorderChanged(_ moved: [LayerNode]) {
+        normalizeSwitches()
         revision += 1
         var r = moved.reduce(IntRect.zero) { $0.union(tileBounds($1)) }
         doc.forEachNode { n in
@@ -273,7 +308,8 @@ public final class Editor {
         markDirty(r.intersection(doc.bounds))
     }
 
-    private func structureChanged() {
+    func structureChanged() {
+        normalizeSwitches()
         revision += 1
         markAllDirty()
     }
@@ -366,7 +402,7 @@ public final class Editor {
     /// 描画可能なレイヤーか
     public var canPaintOnActiveLayer: Bool {
         guard let l = doc.activeLayer else { return false }
-        return l.kind == .raster && !l.locked && doc.isEffectivelyVisible(l.id)
+        return l.kind == .raster && !l.locked && doc.isEffectivelyVisible(l.id) && !isPosed
     }
 
     @discardableResult
@@ -796,6 +832,15 @@ public final class Editor {
         guard doc.activeLayerID != id || !selectedLayerIDs.isEmpty else { return }
         commitTransform()
         cancelAdjustment()
+        // スイッチフォルダーの隠れている子を選んだら、その子に切り替える（描き直せるように）
+        if isHiddenBySwitch(id) {
+            checkpoint("表示の切り替え")
+            reveal(id)
+            doc.activeLayerID = id
+            selectedLayerIDs = []
+            structureChanged()
+            return
+        }
         doc.activeLayerID = id
         selectedLayerIDs = []
         revision += 1
@@ -804,7 +849,7 @@ public final class Editor {
     // MARK: - レイヤーの複数選択
 
     /// 編集レイヤーに加えて選択しているレイヤー（編集レイヤー自身は含まない）
-    public private(set) var selectedLayerIDs: Set<UUID> = []
+    public internal(set) var selectedLayerIDs: Set<UUID> = []
 
     public func isLayerSelected(_ id: UUID) -> Bool {
         id == doc.activeLayerID || selectedLayerIDs.contains(id)
@@ -849,7 +894,7 @@ public final class Editor {
         return out
     }
 
-    private func nextLayerName(prefix: String) -> String {
+    func nextLayerName(prefix: String) -> String {
         var maxN = 0
         doc.forEachNode { n in
             if n.name.hasPrefix(prefix + " "), let v = Int(n.name.dropFirst(prefix.count + 1)) { maxN = max(maxN, v) }

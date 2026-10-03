@@ -55,6 +55,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "クリッピング") { $0.clipping.toggle() } }
             return nil
         }
+        // ⌥⌘T: リグモードの入り切り（設定で入れた直後はメニューのショートカットがまだ効かないことがあるので、ここでも受ける）
+        if flags == [.command, .option], e.charactersIgnoringModifiers?.lowercased() == "t", state.rigEnabled {
+            state.setMode(state.mode == .rig ? .draw : .rig)
+            return nil
+        }
+        // タイムラインのキーのコピー・貼り付け（リグモード、または描くモードでタイムラインを触った直後）
+        let keysFocused = state.mode == .rig || (state.timelineOpen && state.timelineFocused)
+        if keysFocused && flags == [.command] {
+            if e.keyCode == 8, !state.timelineSelection.isEmpty { // ⌘C
+                state.timelineClipboard = editor.copyKeys(state.timelineSelection)
+                return nil
+            }
+            if e.keyCode == 9, let clip = state.timelineClipboard, !clip.isEmpty { // ⌘V: 今のコマを先頭に
+                state.timelineSelection = editor.pasteKeys(clip, at: editor.currentFrame)
+                return nil
+            }
+        }
         if flags == [.command] {
             switch e.keyCode {
             case 39: // ⌘'（JIS では ⌘:）: グリッド
@@ -83,6 +100,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             canvas.cancelInteraction()
             return nil
         case 51, 117: // delete
+            if keysFocused {
+                // タイムラインで選んでいるキーを消す
+                editor.deleteKeys(state.timelineSelection)
+                state.timelineSelection = []
+                return nil
+            }
             editor.clearSelectionContent()
             return nil
         case 123, 124, 125, 126: // 矢印: 変形中なら 1px 移動
@@ -104,6 +127,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             break
         }
         guard let chord = KeyChord(event: e) else { return e }
+        // タイムラインを出していれば「,」「.」で前後のコマへ（ショートカットに割り当てていなければ）
+        if state.timelineOpen, ["," , "."].contains(chord.key), chord == KeyChord(chord.key), state.shortcuts.target(for: chord) == nil {
+            let t = editor.timeline
+            var f = editor.currentFrame + (chord.key == "," ? -1 : 1)
+            if t.loop { f = (f + t.frameCount) % t.frameCount } else { f = min(max(f, 0), t.frameCount - 1) }
+            state.stopPlayback()
+            editor.goToFrame(f)
+            return nil
+        }
+        // リグモードでは描くツールに切り替えない
+        if state.mode == .rig {
+            if case let .tool(t)? = state.shortcuts.target(for: chord), AppState.rigTools.contains(t), !e.isARepeat {
+                canvas.toolKeyDown(e, target: .tool(t))
+                return nil
+            }
+            return ["x", "[", "]"].contains(chord.key) ? nil : e
+        }
         if let target = state.shortcuts.target(for: chord) {
             if !e.isARepeat { canvas.toolKeyDown(e, target: target) }
             canvas.requestDisplay()
@@ -208,6 +248,8 @@ struct AppCommands: Commands {
             Divider()
             Button("PNG として書き出し...") { state.exportPNG() }
                 .keyboardShortcut("e", modifiers: [.command, .shift, .option])
+            Button("動画を書き出し（MP4）...") { state.exportMovie() }
+                .disabled(editor.timeline.isEmpty)
             Button("画像をレイヤーとして読み込み...") { state.importImageAsLayer() }
         }
         CommandGroup(replacing: .undoRedo) {
@@ -252,6 +294,9 @@ struct AppCommands: Commands {
             Button("新規ラスターレイヤー") { editor.addLayer() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("新規レイヤーフォルダー") { editor.addFolder() }
+            Button("新しいセル（今のコマ）") { editor.addCel() }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+                .disabled(!state.timelineOpen || state.mode == .rig)
             Button("フォルダーを作成してレイヤーを挿入") { editor.groupSelectedLayers() }
                 .keyboardShortcut("g")
             Button("レイヤーを複製") { editor.duplicateActiveLayer() }
@@ -288,6 +333,13 @@ struct AppCommands: Commands {
             Button("100%") { state.canvasView?.setActualSize() }
                 .keyboardShortcut("1")
             Button("回転をリセット") { state.canvasView?.resetRotation() }
+            Divider()
+            if state.rigEnabled {
+                Toggle("リグモード（実験的）", isOn: Binding(get: { state.mode == .rig }, set: { state.setMode($0 ? .rig : .draw) }))
+                    .keyboardShortcut("t", modifiers: [.command, .option])
+            }
+            Toggle("タイムラインを表示", isOn: Binding(get: { state.showsTimelineInDraw }, set: { state.showsTimelineInDraw = $0 }))
+                .keyboardShortcut("l", modifiers: [.command, .option])
             Divider()
             Button(editor.grid.visible ? "グリッドを隠す" : "グリッドを表示") {
                 editor.grid.visible.toggle()

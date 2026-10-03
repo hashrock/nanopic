@@ -1,4 +1,5 @@
 import Foundation
+import NanopicCore
 
 /// 線画の開いた所（線の端が近くの線に届いていない所）を探す
 public struct LineGap: Sendable {

@@ -116,6 +116,10 @@ public struct LayerNode: Identifiable {
     public var children: [LayerNode] = []   // 下から上の順
     /// 内容が変更されるたびに増える（サムネイル更新用）
     public var contentVersion: Int = 0
+    /// PSD のレイヤー ID（lyid）。開き直しても変わらないので、サイドカーはこれでレイヤーを指す。0 は未割り当て
+    public var psdID: UInt32 = 0
+    /// スイッチフォルダー（子を常に 1 つだけ表示する）。フォルダーのときだけ意味がある
+    public var isSwitch = false
 
     public init(id: UUID = UUID(), name: String, kind: LayerKind = .raster) {
         self.id = id
@@ -134,6 +138,10 @@ public struct DocumentState {
     public var dpi: Double = 350
     public var layers: [LayerNode] = []
     public var selection: SelectionMask?
+    /// タイムライン（取り消しに乗るよう、ドキュメントに持つ）
+    public var timeline = Timeline()
+    /// デフォーマとパラメータ
+    public var rig = Rig()
     public var activeLayerID: UUID?
 
     public init(width: Int, height: Int) {
@@ -239,6 +247,32 @@ public struct DocumentState {
     }
 
     /// 祖先を含めて表示されているか
+    /// PSD のレイヤー ID がないレイヤーと、複製で重なったレイヤーに新しい ID を振る（下から順に見て、先にあったほうを残す）
+    public mutating func assignPSDIDs() {
+        var used = Set<UInt32>()
+        var next = UInt32(1)
+        forEachNode { if $0.psdID != 0 { next = max(next, $0.psdID &+ 1) } }
+        func walk(_ nodes: inout [LayerNode]) {
+            for i in nodes.indices {
+                if nodes[i].psdID == 0 || used.contains(nodes[i].psdID) {
+                    nodes[i].psdID = next
+                    next &+= 1
+                }
+                used.insert(nodes[i].psdID)
+                walk(&nodes[i].children)
+            }
+        }
+        walk(&layers)
+    }
+
+    /// PSD のレイヤー ID からレイヤーを探す
+    public func node(psdID: UInt32) -> LayerNode? {
+        guard psdID != 0 else { return nil }
+        var found: LayerNode?
+        forEachNode { if found == nil && $0.psdID == psdID { found = $0 } }
+        return found
+    }
+
     public func isEffectivelyVisible(_ id: UUID) -> Bool {
         guard let path = indexPath(of: id) else { return false }
         for k in 1...path.count {

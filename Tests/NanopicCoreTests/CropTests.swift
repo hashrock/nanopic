@@ -1,5 +1,6 @@
 import XCTest
 @testable import NanopicCore
+@testable import NanopicAgent
 
 final class CropTests: XCTestCase {
     /// 赤い点 (60, 40) と青い点 (150, 90) を描いた 200×120 のキャンバス

@@ -1,4 +1,5 @@
 import Foundation
+import NanopicCore
 
 /// 線画で囲まれた領域の分割（下塗り用）。
 ///

@@ -151,8 +151,27 @@ struct SettingsView: View {
                 .tabItem { Label("ショートカット", systemImage: "keyboard") }
             AgentSettingsView(state: state)
                 .tabItem { Label("エージェント連携", systemImage: "sparkles") }
+            ExperimentalSettingsView(state: state)
+                .tabItem { Label("実験的な機能", systemImage: "flask") }
         }
         .frame(width: 520, height: 620)
+    }
+}
+
+/// 設定ウィンドウの「実験的な機能」タブ
+struct ExperimentalSettingsView: View {
+    let state: AppState
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("リグモード", isOn: Binding(get: { state.rigEnabled }, set: { state.rigEnabled = $0 }))
+            } footer: {
+                Text("デフォーマ（移動・回転、ワープ）とパラメータで、描いた絵を動かすモードです。入れると、表示メニューに「リグモード（実験的）」（⌥⌘T）が出ます。作りかけの機能なので、使い方や保存の形式が変わることがあります。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 

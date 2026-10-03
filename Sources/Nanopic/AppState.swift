@@ -1,4 +1,5 @@
 import AppKit
+import NanopicAgent
 import NanopicCore
 import Observation
 import UniformTypeIdentifiers
@@ -13,6 +14,40 @@ final class AppState {
     var showNewDocumentSheet = false
     /// 開いている補正パネル
     var adjustmentKind: AdjustmentKind?
+    /// 描くモード／リグモード
+    var mode = WorkMode.draw
+    /// 実験的な機能: リグモードを使えるようにする（設定で入れる）
+    var rigEnabled = UserDefaults.standard.bool(forKey: "experimental.rig") {
+        didSet {
+            UserDefaults.standard.set(rigEnabled, forKey: "experimental.rig")
+            if !rigEnabled && mode == .rig { setMode(.draw) }
+        }
+    }
+    /// 描くモードでもタイムラインを出す（パラパラ用）。リグモードではいつも出す。起動したときはいつも閉じている
+    var showsTimelineInDraw = false {
+        didSet {
+            if !timelineOpen { stopPlayback(); timelineSelection = []; timelineFocused = false }
+            editor.timelineOpen = timelineOpen
+            canvasView?.requestDisplay()
+        }
+    }
+    var timelineOpen: Bool { mode == .rig || showsTimelineInDraw }
+    /// 最後に触ったのがタイムライン（このときは ⌘C・⌘V・Delete がキーに効く）。キャンバスを触ると外れる
+    @ObservationIgnored var timelineFocused = false
+    @ObservationIgnored var toolBeforeRig: Tool?
+    /// タイムラインで選んでいるキーと、コピーしたキー
+    var timelineSelection: Set<TimelineKeyRef> = []
+    @ObservationIgnored var timelineClipboard: TimelineClipboard?
+    /// 形を記録する対象のパラメータ（キャンバス上のデフォーマのハンドルで形を決める）
+    var editingParameter: String?
+    /// ハンドルを出すデフォーマを 1 つに絞る（nil なら編集中のレイヤーと親フォルダーのデフォーマ全部）
+    var selectedDeformer: String? {
+        didSet { if selectedDeformer != oldValue { canvasView?.selectedDeformerHandles = []; canvasView?.requestDisplay() } }
+    }
+    /// 動画の書き出し中（シートを出す）
+    var movieExport: MovieExportProgress?
+    var isPlaying = false
+    @ObservationIgnored var playTimer: Timer?
     var shortcuts = ShortcutMap.defaults
     /// ショートカットの入力待ち（この間は単キーのショートカットを無効にする）
     var isRecordingShortcut = false
@@ -58,7 +93,7 @@ final class AppState {
         if let d = try? enc.encode(editor.grid) { UserDefaults.standard.set(d, forKey: "grid.v1") }
         if let d = try? enc.encode(editor.fillSettings) { UserDefaults.standard.set(d, forKey: "fill.v1") }
         if let d = try? enc.encode(shortcuts) { UserDefaults.standard.set(d, forKey: "shortcuts.v1") }
-        UserDefaults.standard.set(editor.palette.map(AgentToolbox.hex), forKey: "palette.v1")
+        UserDefaults.standard.set(editor.palette.map(HexColor.format), forKey: "palette.v1")
     }
 
     private func loadPreferences() {
@@ -85,7 +120,7 @@ final class AppState {
             shortcuts = m
         }
         if let p = UserDefaults.standard.stringArray(forKey: "palette.v1") {
-            editor.palette = p.compactMap(AgentToolbox.parseColor)
+            editor.palette = p.compactMap(HexColor.parse)
         }
     }
 
@@ -222,7 +257,9 @@ final class AppState {
         if ext == "psd" || ext == "psb" {
             let data = try Data(contentsOf: url)
             let doc = try PSD.read(data)
-            editor.load(doc, url: url)
+            // サイドカーが読めなくても PSD は開く（壊れたサイドカーは、次に保存するとき書き直す）
+            let sidecar = (try? Sidecar.read(for: url)) ?? nil
+            editor.load(doc, url: url, sidecar: sidecar ?? Sidecar())
         } else {
             guard let img = ImageUtil.loadImage(url: url),
                   let doc = Editor.document(from: img, name: url.deletingPathExtension().lastPathComponent) else {
@@ -262,8 +299,10 @@ final class AppState {
     /// PSD で保存する（警告は出さない）
     func writePSD(to url: URL) throws {
         editor.commitTransform()
+        editor.prepareForSave()
         let data = try PSD.write(editor.doc)
         try data.write(to: url, options: .atomic)
+        try editor.sidecar.write(for: url)
         editor.markSaved(url: url)
         canvasView?.window?.title = url.lastPathComponent
     }

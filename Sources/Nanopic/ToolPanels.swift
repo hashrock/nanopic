@@ -8,6 +8,11 @@ struct ToolBarView: View {
     @Bindable var editor: Editor
     @State private var editingShortcut: Tool?
 
+    /// リグモードでは描くツールを出さない
+    private var visibleGroups: [[Tool]] {
+        state.mode == .rig ? [AppState.rigTools] : groups
+    }
+
     private let groups: [[Tool]] = [
         [.brush, .eraser, .fill, .lassoFill, .lassoErase, .eyedropper],
         [.selectRect, .selectEllipse, .lasso, .wand],
@@ -17,8 +22,8 @@ struct ToolBarView: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            ForEach(groups.indices, id: \.self) { gi in
-                ForEach(groups[gi], id: \.self) { tool in
+            ForEach(visibleGroups.indices, id: \.self) { gi in
+                ForEach(visibleGroups[gi], id: \.self) { tool in
                     Button {
                         editor.selectTool(tool)
                     } label: {
@@ -41,7 +46,7 @@ struct ToolBarView: View {
                         ShortcutPopover(state: state, title: tool.displayName, target: .tool(tool))
                     }
                 }
-                if gi < groups.count - 1 { Divider().frame(width: 28) }
+                if gi < visibleGroups.count - 1 { Divider().frame(width: 28) }
             }
             Spacer()
         }

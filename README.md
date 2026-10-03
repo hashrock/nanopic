@@ -62,9 +62,10 @@ Sources/NanopicCore/   描画エンジン（UI 非依存、テスト可能）
   StrokeEngine.swift   入力の平滑化、スプライン補間、筆圧の変化制限
   Editor.swift         ドキュメント・履歴・ツール操作
   Shortcuts.swift      ショートカットの割り当て
-  Regions.swift        線画で囲まれた領域の分割（下塗り用）
-  AgentTools.swift     エージェント（MCP）から呼ぶ操作の定義と処理
   Fill.swift / Selection.swift / Transform.swift / PSD.swift
+Sources/NanopicAgent/  エージェント（MCP）向けのツール（コアとは別モジュールにして並列にビルドする）
+  AgentTools.swift     ツールの処理（説明と引数の形は AgentToolSchemas.swift の JSON）
+  Regions.swift / Gaps.swift  線画で囲まれた領域の分割と、線の隙間探し（下塗り用）
 Sources/Nanopic/       macOS アプリ（SwiftUI パネル + AppKit/Metal キャンバス）
 ```
 

@@ -15,8 +15,14 @@ struct ContentView: View {
         HStack(spacing: 0) {
             ToolBarView(state: state, editor: editor)
             Divider()
-            ToolOptionsView(state: state, editor: editor)
-                .frame(width: 230)
+            Group {
+                if state.mode == .rig {
+                    RigPanel(state: state, editor: editor)
+                } else {
+                    ToolOptionsView(state: state, editor: editor)
+                }
+            }
+            .frame(width: 230)
             Divider()
             VStack(spacing: 0) {
                 CanvasRepresentable(state: state)
@@ -28,20 +34,40 @@ struct ContentView: View {
                                 .padding(12)
                         }
                     }
+                if state.timelineOpen {
+                    Divider()
+                    TimelineView(state: state, editor: editor)
+                }
                 Divider()
                 StatusBar(state: state, editor: editor)
             }
             Divider()
             VStack(spacing: 0) {
-                ColorPickerView(editor: editor)
-                    .padding(10)
-                PaletteView(state: state, editor: editor)
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 10)
-                Divider()
+                // リグモードでは描かないので、色は出さない
+                if state.mode == .draw {
+                    ColorPickerView(editor: editor)
+                        .padding(10)
+                    PaletteView(state: state, editor: editor)
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 10)
+                    Divider()
+                }
                 LayerPanel(state: state, editor: editor)
             }
             .frame(width: 270)
+        }
+        .toolbar {
+            // 設定でリグモードを入れているときだけ、「描く｜リグ」の切り替えを出す
+            ToolbarItem(placement: .principal) {
+                if state.rigEnabled {
+                    Picker("モード", selection: Binding(get: { state.mode }, set: { state.setMode($0) })) {
+                        Text(WorkMode.draw.title).tag(WorkMode.draw)
+                        Text(WorkMode.rig.title).tag(WorkMode.rig)
+                    }
+                    .pickerStyle(.segmented)
+                    .help("描くモードとリグモードを切り替える（⌥⌘T）")
+                }
+            }
         }
         // キャンバス以外（パネル）へのドロップでも開けるように
         .dropDestination(for: URL.self) { urls, _ in
@@ -49,6 +75,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: Binding(get: { state.showNewDocumentSheet }, set: { state.showNewDocumentSheet = $0 })) {
             NewDocumentSheet(state: state)
+        }
+        .sheet(isPresented: Binding(get: { state.movieExport != nil }, set: { _ in })) {
+            if let p = state.movieExport { MovieExportSheet(progress: p) }
         }
         .onChange(of: editor.tool) { _, _ in state.canvasView?.requestDisplay() }
         .onChange(of: editor.grid) { _, _ in
@@ -88,6 +117,11 @@ struct StatusBar: View {
                     .frame(width: 90, alignment: .leading)
             }
             Spacer()
+            if state.mode == .draw {
+                Toggle("タイムライン", isOn: Binding(get: { state.showsTimelineInDraw }, set: { state.showsTimelineInDraw = $0 }))
+                    .toggleStyle(.checkbox)
+                    .help("描くモードでもタイムラインを出す（パラパラ用、⌥⌘L）")
+            }
             Toggle("グリッド", isOn: $editor.grid.visible)
                 .toggleStyle(.checkbox)
             Button {

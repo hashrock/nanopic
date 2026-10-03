@@ -1,4 +1,5 @@
 import AppKit
+import NanopicAgent
 import NanopicCore
 import UniformTypeIdentifiers
 
@@ -38,11 +39,9 @@ extension AppState {
 
     func makeAgentToolbox() -> AgentToolbox {
         let tb = AgentToolbox(editor: editor)
-        let discard: [String: Any] = ["type": "boolean", "description": "保存していない変更を捨ててよい（既定 false。変更があると失敗する）"]
+        tb.addSchemas(appToolSchemas)
         tb.extraTools = [
-            AgentTool(name: "new_document", description: "新しいキャンバスを作る（用紙と空のレイヤー 1 枚）。",
-                      properties: ["width": ["type": "integer"], "height": ["type": "integer"], "discard_changes": discard],
-                      required: ["width", "height"]) { [unowned self] a in
+            tb.tool("new_document") { [unowned self] a in
                 try checkDiscard(a)
                 let w = try a.requireInt("width"), h = try a.requireInt("height")
                 guard (1...20000).contains(w), (1...20000).contains(h) else { throw AgentError("大きさは 1〜20000 px") }
@@ -50,24 +49,20 @@ extension AppState {
                 canvasView?.window?.title = "Nanopic"
                 return [.text("作りました（\(w)×\(h)）")]
             },
-            AgentTool(name: "open_file", description: "PSD や画像ファイルを開く（今のキャンバスは閉じる）。",
-                      properties: ["path": ["type": "string", "description": "絶対パス"], "discard_changes": discard],
-                      required: ["path"]) { [unowned self] a in
+            tb.tool("open_file") { [unowned self] a in
                 try checkDiscard(a)
                 let url = try fileURL(a)
                 guard Self.isOpenable(url) else { throw AgentError("開けない種類のファイルです: \(url.lastPathComponent)") }
                 try load(url: url)
                 return [.text("開きました: \(url.path)（\(editor.doc.width)×\(editor.doc.height)）")]
             },
-            AgentTool(name: "import_image", description: "画像ファイルを新しいレイヤーとして読み込む（キャンバスの中央に置く）。",
-                      properties: ["path": ["type": "string", "description": "絶対パス"]], required: ["path"]) { [unowned self] a in
+            tb.tool("import_image") { [unowned self] a in
                 let url = try fileURL(a)
                 guard let img = ImageUtil.loadImage(url: url) else { throw AgentError("画像を読み込めませんでした: \(url.path)") }
                 editor.addImageLayer(name: url.deletingPathExtension().lastPathComponent, image: img)
                 return [.text(tb.json(["layer_id": editor.activeLayerID?.uuidString ?? ""]))]
             },
-            AgentTool(name: "save_psd", description: "PSD で保存する。path を省略すると今のファイルに上書きする。",
-                      properties: ["path": ["type": "string", "description": "絶対パス（.psd）"]]) { [unowned self] a in
+            tb.tool("save_psd") { [unowned self] a in
                 let url: URL
                 if a.has("path") {
                     url = try fileURL(a)
@@ -79,11 +74,7 @@ extension AppState {
                 try writePSD(to: url)
                 return [.text("保存しました: \(url.path)")]
             },
-            AgentTool(name: "set_view",
-                      description: "ユーザーの画面の表示を変える（作業している所を見せる）。region を渡すとそこを画面いっぱいに、fit: true で全体を表示。",
-                      properties: ["region": ["type": "object", "properties": ["x": ["type": "integer"], "y": ["type": "integer"],
-                                                                                "width": ["type": "integer"], "height": ["type": "integer"]]],
-                                   "fit": ["type": "boolean"]]) { [unowned self] a in
+            tb.tool("set_view") { [unowned self] a in
                 guard let canvas = canvasView else { throw AgentError("キャンバスが開いていません") }
                 if let r = try a.rect("region") {
                     canvas.show(CGRect(x: r.x, y: r.y, width: r.width, height: r.height))
@@ -92,8 +83,15 @@ extension AppState {
                 }
                 return [.text(String(format: "表示倍率 %.0f%%", zoom * 100))]
             },
-            AgentTool(name: "export_png", description: "見た目を 1 枚の PNG に書き出す。",
-                      properties: ["path": ["type": "string", "description": "絶対パス（.png）"]], required: ["path"]) { [unowned self] a in
+            tb.tool("export_mp4") { [unowned self] a in
+                let url = try fileURL(a)
+                editor.commitTransform()
+                guard !editor.timeline.isEmpty else { throw AgentError("タイムラインにトラックがありません") }
+                try MovieExport.export(editor.doc, to: url, values: editor.parameterValues)
+                let t = editor.timeline
+                return [.text("書き出しました: \(url.path)（\(t.frameCount) コマ、\(t.fps) fps）")]
+            },
+            tb.tool("export_png") { [unowned self] a in
                 let url = try fileURL(a)
                 editor.commitTransform()
                 guard let img = editor.flattenedImage(), let data = ImageUtil.pngData(img) else { throw AgentError("書き出せませんでした") }

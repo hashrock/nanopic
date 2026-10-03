@@ -106,7 +106,11 @@ struct LayerPanel: View {
     private func rowModels() -> [LayerRowModel] {
         let activeID = editor.doc.activeLayerID
         return editor.doc.flattenedForDisplay().map { node, depth in
-            LayerRowModel(node: node, depth: depth, active: node.id == activeID,
+            // リグモード（実験的な機能）を切っていれば、デフォーマは出さない
+            LayerRowModel(node: node, depth: depth, inSwitch: editor.isInSwitch(node.id), showsRig: state.rigEnabled,
+                          timelineOpen: state.timelineOpen, hasTrack: editor.hasTrack(node.id),
+                          deformers: state.rigEnabled ? editor.deformers(on: node.id).map(\.name) : [],
+                          active: node.id == activeID,
                           selected: editor.selectedLayerIDs.contains(node.id), renaming: node.id == rename.id,
                           thumbnail: node.isFolder ? nil : state.thumbnail(for: node))
         }
@@ -162,6 +166,17 @@ struct LayerRowModel: Equatable {
     let id: UUID
     let name: String
     let isFolder: Bool
+    let isSwitch: Bool
+    /// 親がスイッチフォルダー（目のアイコンをラジオボタン風にする）
+    let inSwitch: Bool
+    /// リグモードを使う（デフォーマのメニューを出す）
+    let showsRig: Bool
+    /// タイムラインを出している（「タイムラインに足す」を出す）
+    let timelineOpen: Bool
+    /// タイムラインに行がある（スイッチの子ならそのフォルダーの行）
+    let hasTrack: Bool
+    /// 付いているデフォーマの名前
+    let deformers: [String]
     let expanded: Bool
     let visible: Bool
     let clipping: Bool
@@ -176,10 +191,16 @@ struct LayerRowModel: Equatable {
     let renaming: Bool
     let thumbnail: NSImage?
 
-    init(node: LayerNode, depth: Int, active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
+    init(node: LayerNode, depth: Int, inSwitch: Bool, showsRig: Bool, timelineOpen: Bool, hasTrack: Bool, deformers: [String], active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
         id = node.id
         name = node.name
         isFolder = node.isFolder
+        isSwitch = node.isFolder && node.isSwitch
+        self.inSwitch = inSwitch
+        self.showsRig = showsRig
+        self.timelineOpen = timelineOpen
+        self.hasTrack = hasTrack
+        self.deformers = deformers
         expanded = node.expanded
         visible = node.visible
         clipping = node.clipping
@@ -196,7 +217,9 @@ struct LayerRowModel: Equatable {
     }
 
     static func == (a: LayerRowModel, b: LayerRowModel) -> Bool {
-        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.expanded == b.expanded
+        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.isSwitch == b.isSwitch && a.inSwitch == b.inSwitch && a.showsRig == b.showsRig && a.timelineOpen == b.timelineOpen && a.hasTrack == b.hasTrack
+            && a.deformers == b.deformers
+            && a.expanded == b.expanded
             && a.visible == b.visible && a.clipping == b.clipping && a.lockAlpha == b.lockAlpha
             && a.locked == b.locked && a.isReference == b.isReference && a.opacity == b.opacity
             && a.blendMode == b.blendMode && a.depth == b.depth && a.active == b.active && a.selected == b.selected
@@ -344,15 +367,22 @@ struct LayerRowView: View, Equatable {
             // 表示・非表示
             Button {
                 rename.commit(editor)
-                editor.setLayerProperty(m.id, label: "表示切替") { $0.visible.toggle() }
+                editor.toggleVisibility(m.id)
             } label: {
-                Image(systemName: m.visible ? "eye" : "eye.slash")
-                    .foregroundStyle(m.visible ? .primary : .tertiary)
-                    .frame(width: 26, height: Self.height)
-                    .contentShape(Rectangle())
+                Group {
+                    if m.inSwitch {
+                        // スイッチフォルダーの子は 1 つだけ表示するので、ラジオボタン風に
+                        Image(systemName: m.visible ? "largecircle.fill.circle" : "circle")
+                    } else {
+                        Image(systemName: m.visible ? "eye" : "eye.slash")
+                    }
+                }
+                .foregroundStyle(m.visible ? .primary : .tertiary)
+                .frame(width: 26, height: Self.height)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("表示・非表示")
+            .help(m.inSwitch ? "この子に切り替える" : "表示・非表示")
             Divider()
             // 複数選択（編集レイヤーはペンのマーク）
             Button {
@@ -393,8 +423,9 @@ struct LayerRowView: View, Equatable {
                             .frame(width: 14)
                     }
                     .buttonStyle(.plain)
-                    Image(systemName: m.expanded ? "folder" : "folder.fill")
+                    Image(systemName: m.isSwitch ? "switch.2" : m.expanded ? "folder" : "folder.fill")
                         .frame(width: 20)
+                        .help(m.isSwitch ? "スイッチフォルダー（子を 1 つだけ表示）" : "")
                 } else {
                     ZStack {
                         CheckerboardView()
@@ -414,6 +445,9 @@ struct LayerRowView: View, Equatable {
                         if m.lockAlpha { Image(systemName: "checkerboard.rectangle") }
                         if m.locked { Image(systemName: "lock.fill") }
                         if m.isReference { Image(systemName: "scope") }
+                        if !m.deformers.isEmpty {
+                            Image(systemName: "skew").help("デフォーマ: " + m.deformers.joined(separator: "、"))
+                        }
                     }
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -456,6 +490,29 @@ struct LayerRowView: View, Equatable {
             Button("複製") { editor.setActiveLayer(m.id); editor.duplicateActiveLayer() }
             Button("下のレイヤーに結合") { editor.setActiveLayer(m.id); editor.mergeDown() }
             Button("フォルダーを作成して挿入") { targetThis(); editor.groupSelectedLayers() }
+            if m.isFolder {
+                Button(m.isSwitch ? "ふつうのフォルダーに戻す" : "スイッチフォルダーにする") { editor.setSwitch(m.id, !m.isSwitch) }
+            }
+            if m.timelineOpen {
+                if m.hasTrack {
+                    Button("タイムラインから外す") { editor.removeTrack(of: m.id) }
+                } else {
+                    Button("タイムラインに足す") { editor.addTrack(editor.timelineTarget(m.id)) }
+                }
+            }
+            if m.showsRig {
+                Menu("デフォーマ") {
+                    Button("移動・回転デフォーマを付ける") { editor.addDeformer(to: m.id, kind: .rotation) }
+                    Button("ワープデフォーマを付ける") { editor.addDeformer(to: m.id, kind: .warp) }
+                    let ds = editor.deformers(on: m.id)
+                    if !ds.isEmpty {
+                        Divider()
+                        ForEach(ds, id: \.id) { d in
+                            Button("「\(d.name)」を外す") { editor.removeDeformer(d.id) }
+                        }
+                    }
+                }
+            }
             Divider()
             Button("削除") { targetThis(); editor.deleteSelectedLayers() }
         }
