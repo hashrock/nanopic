@@ -18,11 +18,11 @@ public struct AgentTool {
     public var inputSchema: [String: Any]
     public var handler: (AgentArgs) throws -> [AgentContent]
 
-    public init(name: String, description: String, properties: [String: Any] = [:], required: [String] = [],
+    public init(name: String, description: String, inputSchema: [String: Any],
                 handler: @escaping (AgentArgs) throws -> [AgentContent]) {
         self.name = name
         self.description = description
-        self.inputSchema = ["type": "object", "properties": properties, "required": required]
+        self.inputSchema = inputSchema
         self.handler = handler
     }
 }
@@ -106,8 +106,34 @@ public final class AgentToolbox {
     /// 直前の find_regions で線として見たもの（fill_leftovers の既定）
     private var lastReference: [String]?
 
+    /// ツール名 → 説明と引数の形（JSON の文字列から読む）
+    private var schemas = AgentToolbox.parseSchemas(coreToolSchemas)
+
     public init(editor: Editor) {
         self.editor = editor
+    }
+
+    /// アプリ側のツールの説明と引数の形を足す（{名前: {description, inputSchema}} の JSON）
+    public func addSchemas(_ json: String) {
+        schemas.merge(Self.parseSchemas(json)) { _, new in new }
+    }
+
+    /// 名前の説明と引数の形を当てたツール。形がなければ作れない（作り忘れはテストで見つける）
+    public func tool(_ name: String, _ handler: @escaping (AgentArgs) throws -> [AgentContent]) -> AgentTool {
+        let s = schemas[name]
+        assert(s != nil, "ツールの説明がありません: \(name)")
+        return AgentTool(name: name, description: s?.description ?? "", inputSchema: s?.inputSchema ?? ["type": "object"], handler: handler)
+    }
+
+    static func parseSchemas(_ json: String) -> [String: (description: String, inputSchema: [String: Any])] {
+        guard let o = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: [String: Any]] else {
+            assertionFailure("ツールの説明の JSON が読めません")
+            return [:]
+        }
+        return o.compactMapValues { v in
+            guard let d = v["description"] as? String, let i = v["inputSchema"] as? [String: Any] else { return nil }
+            return (d, i)
+        }
     }
 
     public var tools: [AgentTool] { coreTools + moreTools + extraTools }
@@ -148,158 +174,67 @@ public final class AgentToolbox {
     // MARK: - ツールの定義
 
     private var coreTools: [AgentTool] {
-        let layerID: [String: Any] = ["type": "string", "description": "対象のレイヤー ID。省略すると編集中のレイヤー"]
-        let color: [String: Any] = ["type": "string", "description": "\"#RRGGBB\"。省略すると現在の描画色"]
-        let points: [String: Any] = ["type": "array", "items": ["type": "array", "items": ["type": "number"]]]
-        let rect: [String: Any] = ["type": "object", "properties": ["x": ["type": "integer"], "y": ["type": "integer"],
-                                                                    "width": ["type": "integer"], "height": ["type": "integer"]]]
         return [
-            AgentTool(name: "get_document",
-                      description: "ドキュメントの大きさ、レイヤーの一覧（上から順、ID・名前・合成モード・不透明度・描かれている範囲など）、編集中のレイヤー、選択範囲、描画色、選択中のブラシを返す。") { [unowned self] _ in
+            tool("get_document") { [unowned self] _ in
                 [.text(json(documentInfo()))]
             },
-            AgentTool(name: "get_image",
-                      description: "キャンバスの見た目を PNG で返す。layer_id を渡すとそのレイヤーだけ（白背景）。region で一部を拡大して見られる。grid: true で座標の目盛りを重ねる。",
-                      properties: ["layer_id": ["type": "string", "description": "このレイヤーだけを描く"],
-                                   "region": rect.merging(["description": "見る範囲（ドキュメント座標）。省略すると全体"]) { a, _ in a },
-                                   "max_size": ["type": "integer", "description": "画像の長辺の最大 px（既定 1024）"],
-                                   "grid": ["type": "boolean", "description": "座標の目盛りを重ねる"]]) { [unowned self] a in
+            tool("get_image") { [unowned self] a in
                 try getImage(a)
             },
-            AgentTool(name: "find_regions",
-                      description: "線画で囲まれた範囲を探して番号をつける（下塗り用）。番号・面積・範囲・内側の点・今の色を一覧で、番号を描き込んだ画像と一緒に返す。結果は fill_regions と select で使える。",
-                      properties: ["reference": ["description": "線として見るもの: 線画のレイヤー ID か ID の配列（線画＋閉じ線のレイヤーなど。非表示でもよい）、\"all\"（見えている全体、既定）、\"reference_layers\"（参照レイヤー）"],
-                                   "line_threshold": ["type": "number", "description": "白背景に重ねた暗さがこれ以上を線とみなす 0〜1（既定 0.5）"],
-                                   "gap_close": ["type": "integer", "description": "この px までの線の途切れを閉じて扱う（既定 0）"],
-                                   "list_min_area": ["type": "integer", "description": "これより小さい範囲は一覧に載せず数だけ返す（px、既定 150）"]]) { [unowned self] a in
+            tool("find_regions") { [unowned self] a in
                 try findRegions(a)
             },
-            AgentTool(name: "fill_regions",
-                      description: "find_regions の番号の範囲を色で塗る。複数をまとめて渡せる（取り消しは 1 回分）。線の下まで expand px 広げて塗るが、隣の範囲にははみ出さない。",
-                      properties: ["fills": ["type": "array", "description": "[{\"region\": 番号, \"color\": \"#RRGGBB\", \"name\": \"髪\"}, ...]。name はパーツ名（separate_layers のときのレイヤー名）",
-                                             "items": ["type": "object", "properties": ["region": ["type": "integer"], "color": ["type": "string"], "name": ["type": "string"]],
-                                                       "required": ["region", "color"]]],
-                                   "layer_id": layerID,
-                                   "separate_layers": ["type": "boolean", "description": "name（なければ色）ごとにレイヤーを分けて塗る。レイヤーはフォルダーにまとめ、線画の下に作る（同じ name のレイヤーがあればそこに足す）"],
-                                   "expand": ["type": "integer", "description": "線の下へ広げる px（既定 2）"]],
-                      required: ["fills"]) { [unowned self] a in
+            tool("fill_regions") { [unowned self] a in
                 try fillRegions(a)
             },
-            AgentTool(name: "find_gaps",
-                      description: "線画の開いた所（線の端が近くの線に届いていない所）を探し、閉じる線分の候補を番号つきで返す（画像に赤い線で描く）。close_gaps でまとめて閉じ線にできる。find_regions で範囲が隣や背景とつながってしまうときに。",
-                      properties: ["reference": ["description": "線画のレイヤー ID か ID の配列。省略すると直前の find_regions と同じ"],
-                                   "max_distance": ["type": "integer", "description": "これより長い隙間は探さない（px、既定 40）"],
-                                   "line_threshold": ["type": "number"],
-                                   "max_size": ["type": "integer", "description": "画像の長辺の最大 px（既定 1024）"]]) { [unowned self] a in
+            tool("find_gaps") { [unowned self] a in
                 try findGaps(a)
             },
-            AgentTool(name: "close_gaps",
-                      description: "find_gaps の候補を閉じ線として描く。閉じ線のレイヤー（なければ「閉じ線」を線画の上に作る）に描いて非表示にする。そのあと find_regions の reference に [線画, 閉じ線] を渡す。",
-                      properties: ["gaps": ["description": "閉じる番号の配列、または \"all\""],
-                                   "layer_id": ["type": "string", "description": "閉じ線のレイヤー。省略すると「閉じ線」レイヤー"],
-                                   "width": ["type": "number", "description": "線の太さ px（既定 3）"]],
-                      required: ["gaps"]) { [unowned self] a in
+            tool("close_gaps") { [unowned self] a in
                 try closeGaps(a)
             },
-            AgentTool(name: "fill_leftovers",
-                      description: "下塗りの塗り残し（線画で囲まれた、まだ塗っていない小さなすき間）を探し、接している色で塗る。fill_regions や lasso_fill のあとの仕上げに。",
-                      properties: ["layer_id": ["type": "string", "description": "下塗りのレイヤー、またはパーツごとのレイヤーを入れたフォルダー。省略すると編集中のレイヤー"],
-                                   "reference": ["description": "線画のレイヤー ID か ID の配列。省略すると直前の find_regions と同じ"],
-                                   "max_area": ["type": "integer", "description": "これより大きいすき間は塗らない（px、既定 400）"],
-                                   "expand": ["type": "integer", "description": "線の下へ広げる px（既定 2）"],
-                                   "line_threshold": ["type": "number"]]) { [unowned self] a in
+            tool("fill_leftovers") { [unowned self] a in
                 try fillLeftovers(a)
             },
-            AgentTool(name: "fill",
-                      description: "塗りつぶし（バケツ）。点 (x, y) から色の近い範囲を塗る。",
-                      properties: ["x": ["type": "number"], "y": ["type": "number"], "color": color, "layer_id": layerID,
-                                   "reference": ["type": "string", "description": "\"all\"（既定）、\"layer\"（塗るレイヤーだけ）、\"reference_layers\""],
-                                   "tolerance": ["type": "number", "description": "色の許容誤差 0〜1（既定はアプリの設定）"],
-                                   "gap_close": ["type": "integer"], "expand": ["type": "integer"]],
-                      required: ["x", "y"]) { [unowned self] a in
+            tool("fill") { [unowned self] a in
                 try fill(a)
             },
-            AgentTool(name: "lasso_fill",
-                      description: "点を結んだ多角形の内側を塗る（erase: true なら消す）。",
-                      properties: ["points": points.merging(["description": "[[x, y], ...]"]) { a, _ in a },
-                                   "color": color, "erase": ["type": "boolean"], "layer_id": layerID,
-                                   "antialias": ["type": "boolean", "description": "既定 true"]],
-                      required: ["points"]) { [unowned self] a in
+            tool("lasso_fill") { [unowned self] a in
                 try lassoFill(a)
             },
-            AgentTool(name: "stroke",
-                      description: "ブラシで線を描く。点は [x, y] か [x, y, 筆圧 0〜1]。点の間は滑らかにつなぐ。筆圧を渡すとブラシの筆圧設定が効く。",
-                      properties: ["points": points, "brush": ["type": "string", "description": "ブラシの名前か ID（list_brushes）。省略すると選択中のブラシ"],
-                                   "size": ["type": "number", "description": "直径 px（このストロークだけ）"],
-                                   "opacity": ["type": "number", "description": "不透明度 0〜1（このストロークだけ）"],
-                                   "curve": ["type": "boolean", "description": "点を滑らかな曲線（点を通る曲線）でつなぐ。少ない点で自然な線が引ける"],
-                                   "settings": ["type": "object", "description": "ブラシ設定の上書き（このストロークだけ）。項目は list_brushes の detail: true で見られる（hardness, flow, spacing, smoothing など）"],
-                                   "color": ["type": "string", "description": "\"#RRGGBB\"（このストロークだけ）。省略すると現在の描画色"], "erase": ["type": "boolean", "description": "消しゴムで描く"], "layer_id": layerID],
-                      required: ["points"]) { [unowned self] a in
+            tool("stroke") { [unowned self] a in
                 try stroke(a)
             },
-            AgentTool(name: "list_brushes", description: "ブラシと消しゴムの一覧（ID・名前・大きさ）。detail: true ですべての設定項目も返す。",
-                      properties: ["detail": ["type": "boolean"]]) { [unowned self] a in
+            tool("list_brushes") { [unowned self] a in
                 let detail = try a.bool("detail") ?? false
                 func info(_ b: BrushSettings) -> [String: Any] {
                     detail ? Self.settingsJSON(b) : ["id": b.id.uuidString, "name": b.name, "size": Double(b.size), "opacity": Double(b.opacity)]
                 }
                 return [.text(json(["brushes": editor.brushes.map(info), "erasers": editor.erasers.map(info)]))]
             },
-            AgentTool(name: "select",
-                      description: "選択範囲を作る。選択範囲があると、塗る・描く・消す操作はその中だけに効く。",
-                      properties: ["shape": ["type": "string", "enum": ["rect", "ellipse", "polygon", "regions", "wand", "layer", "all", "none", "invert"],
-                                             "description": "wand: 点 (x, y) から色の近い範囲（自動選択）。layer: layer_id のレイヤーの描かれている部分"],
-                                   "x": ["type": "integer"], "y": ["type": "integer"],
-                                   "tolerance": ["type": "number", "description": "wand の色の許容誤差 0〜1"],
-                                   "reference": ["type": "string", "description": "wand が見るもの: \"all\"（既定）、\"layer\"（編集中のレイヤー）、\"reference_layers\""],
-                                   "layer_id": ["type": "string", "description": "layer で使うレイヤー"],
-                                   "rect": rect.merging(["description": "rect / ellipse の範囲"]) { a, _ in a },
-                                   "points": points.merging(["description": "polygon の頂点"]) { a, _ in a },
-                                   "regions": ["type": "array", "items": ["type": "integer"], "description": "find_regions の番号"],
-                                   "op": ["type": "string", "enum": ["replace", "add", "subtract", "intersect"], "description": "既定 replace"]],
-                      required: ["shape"]) { [unowned self] a in
+            tool("select") { [unowned self] a in
                 try select(a)
             },
-            AgentTool(name: "clear", description: "選択範囲の中（なければレイヤー全体）を消去する。",
-                      properties: ["layer_id": layerID]) { [unowned self] a in
+            tool("clear") { [unowned self] a in
                 try useLayer(a, paint: true)
                 editor.clearSelectionContent()
                 return [.text("消去しました")]
             },
-            AgentTool(name: "pick_color", description: "点の色を返す（layer_only: true なら編集中のレイヤーだけを見る）。",
-                      properties: ["x": ["type": "integer"], "y": ["type": "integer"], "layer_only": ["type": "boolean"]],
-                      required: ["x", "y"]) { [unowned self] a in
+            tool("pick_color") { [unowned self] a in
                 let c = editor.pickColor(x: try a.requireInt("x"), y: try a.requireInt("y"), currentLayerOnly: try a.bool("layer_only") ?? false)
                 return [.text(json(["color": c.map(Self.hex) as Any? ?? NSNull()]))]
             },
-            AgentTool(name: "add_layer",
-                      description: "新しいレイヤー（folder: true ならフォルダー）を編集中のレイヤーの上に作り、編集中にする。below / above に ID を渡すとそのレイヤーの下・上に置く。",
-                      properties: ["name": ["type": "string"], "folder": ["type": "boolean"],
-                                   "below": ["type": "string", "description": "このレイヤーのすぐ下に置く"],
-                                   "above": ["type": "string", "description": "このレイヤーのすぐ上に置く"]]) { [unowned self] a in
+            tool("add_layer") { [unowned self] a in
                 try addLayer(a)
             },
-            AgentTool(name: "update_layer",
-                      description: "レイヤーの設定を変える（指定した項目だけ）。",
-                      properties: ["layer_id": ["type": "string"], "name": ["type": "string"], "visible": ["type": "boolean"],
-                                   "opacity": ["type": "number", "description": "0〜1"],
-                                   "blend_mode": ["type": "string", "enum": BlendMode.allCases.map(\.rawValue)],
-                                   "clipping": ["type": "boolean"], "lock_alpha": ["type": "boolean", "description": "透明ピクセルをロック"],
-                                   "locked": ["type": "boolean"], "reference": ["type": "boolean", "description": "参照レイヤー"],
-                                   "switch": ["type": "boolean", "description": "フォルダーをスイッチフォルダー（子を常に 1 つだけ表示。表情の差分など）にする。子を表示するには、その子を visible: true にする"]],
-                      required: ["layer_id"]) { [unowned self] a in
+            tool("update_layer") { [unowned self] a in
                 try updateLayer(a)
             },
-            AgentTool(name: "set_active_layer", description: "編集するレイヤーを選ぶ。",
-                      properties: ["layer_id": ["type": "string"]], required: ["layer_id"]) { [unowned self] a in
+            tool("set_active_layer") { [unowned self] a in
                 try useLayer(a, paint: false)
                 return [.text("編集レイヤー: \(editor.doc.activeLayer?.name ?? "")")]
             },
-            AgentTool(name: "move_layer", description: "レイヤーを target の上（above）・下（below）・フォルダーの中（into）へ動かす。",
-                      properties: ["layer_id": ["type": "string"], "target": ["type": "string"],
-                                   "placement": ["type": "string", "enum": ["above", "below", "into"]]],
-                      required: ["layer_id", "target", "placement"]) { [unowned self] a in
+            tool("move_layer") { [unowned self] a in
                 let id = try layer(a, "layer_id"), target = try layer(a, "target")
                 let placement: Editor.DropPlacement
                 switch try a.requireString("placement") {
@@ -311,27 +246,26 @@ public final class AgentToolbox {
                 editor.moveLayer(id, relativeTo: target, placement: placement)
                 return [.text("動かしました")]
             },
-            AgentTool(name: "duplicate_layer", description: "レイヤーを複製する。", properties: ["layer_id": layerID]) { [unowned self] a in
+            tool("duplicate_layer") { [unowned self] a in
                 try useLayer(a, paint: false)
                 editor.duplicateActiveLayer()
                 return [.text(json(["layer_id": editor.activeLayerID?.uuidString ?? ""]))]
             },
-            AgentTool(name: "merge_down", description: "レイヤーを下のレイヤーに結合する。", properties: ["layer_id": layerID]) { [unowned self] a in
+            tool("merge_down") { [unowned self] a in
                 try useLayer(a, paint: false)
                 editor.mergeDown()
                 return [.text("結合しました")]
             },
-            AgentTool(name: "delete_layer", description: "レイヤーを削除する。", properties: ["layer_id": ["type": "string"]],
-                      required: ["layer_id"]) { [unowned self] a in
+            tool("delete_layer") { [unowned self] a in
                 try useLayer(a, paint: false)
                 editor.deleteSelectedLayers()
                 return [.text("削除しました")]
             },
-            AgentTool(name: "undo", description: "取り消す。", properties: ["steps": ["type": "integer", "description": "既定 1"]]) { [unowned self] a in
+            tool("undo") { [unowned self] a in
                 for _ in 0..<max(1, try a.int("steps", default: 1)) { editor.undo() }
                 return [.text("取り消しました")]
             },
-            AgentTool(name: "redo", description: "やり直す。", properties: ["steps": ["type": "integer"]]) { [unowned self] a in
+            tool("redo") { [unowned self] a in
                 for _ in 0..<max(1, try a.int("steps", default: 1)) { editor.redo() }
                 return [.text("やり直しました")]
             },
@@ -929,28 +863,14 @@ public final class AgentToolbox {
 
 extension AgentToolbox {
     var moreTools: [AgentTool] {
-        let layerID: [String: Any] = ["type": "string", "description": "対象のレイヤー ID。省略すると編集中のレイヤー"]
         return [
-            AgentTool(name: "batch",
-                      description: "複数のツールを順に呼ぶ（1 回のやりとりで済む）。たとえば線をたくさん描く、いくつかの点を塗りつぶすなど。画像を返すツールの画像もそのまま返す。失敗したらそこで止める。",
-                      properties: ["calls": ["type": "array", "description": "[{\"tool\": 名前, \"arguments\": {...}}, ...]",
-                                             "items": ["type": "object", "properties": ["tool": ["type": "string"], "arguments": ["type": "object"]],
-                                                       "required": ["tool"]]]],
-                      required: ["calls"]) { [unowned self] a in
+            tool("batch") { [unowned self] a in
                 try batch(a)
             },
-            AgentTool(name: "transform",
-                      description: "選択範囲の中（なければレイヤー全体）を動かす・拡大縮小する・回転する・反転する。中心は対象の範囲の中心。",
-                      properties: ["layer_id": layerID,
-                                   "dx": ["type": "number", "description": "右へ動かす px"], "dy": ["type": "number", "description": "下へ動かす px"],
-                                   "scale": ["type": "number", "description": "縦横同じ倍率"],
-                                   "scale_x": ["type": "number"], "scale_y": ["type": "number"],
-                                   "rotation": ["type": "number", "description": "度。正の値で時計回り"],
-                                   "flip_horizontal": ["type": "boolean"], "flip_vertical": ["type": "boolean"]]) { [unowned self] a in
+            tool("transform") { [unowned self] a in
                 try transform(a)
             },
-            AgentTool(name: "fill_selection", description: "選択範囲（なければレイヤー全体）を色で塗る。select で楕円や多角形を選んでから塗る、などに。",
-                      properties: ["color": ["type": "string", "description": "\"#RRGGBB\"。省略すると現在の描画色"], "layer_id": layerID]) { [unowned self] a in
+            tool("fill_selection") { [unowned self] a in
                 let lid = try useLayer(a, paint: true)
                 let doc = editor.doc
                 let sel = doc.selection
@@ -958,14 +878,7 @@ extension AgentToolbox {
                                   layerID: lid, label: "塗りつぶし")
                 return [.text("塗りました")]
             },
-            AgentTool(name: "adjust_color",
-                      description: "色調補正: レイヤー（選択範囲があればその中）の色相・彩度・明度、明るさ・コントラストを変える。",
-                      properties: ["layer_id": layerID,
-                                   "hue": ["type": "number", "description": "色相 -180〜180（度）"],
-                                   "saturation": ["type": "number", "description": "彩度 -100〜100"],
-                                   "lightness": ["type": "number", "description": "明度 -100〜100"],
-                                   "brightness": ["type": "number", "description": "明るさ -100〜100"],
-                                   "contrast": ["type": "number", "description": "コントラスト -100〜100"]]) { [unowned self] a in
+            tool("adjust_color") { [unowned self] a in
                 try useLayer(a, paint: true)
                 func v(_ k: String, _ r: Float) throws -> Float { Float(min(max(try a.double(k, default: 0), Double(-r)), Double(r))) }
                 let adj = ColorAdjustment(hue: try v("hue", 180), saturation: try v("saturation", 100), lightness: try v("lightness", 100),
@@ -974,30 +887,15 @@ extension AgentToolbox {
                 editor.commitAdjustment()
                 return [.text("補正しました")]
             },
-            AgentTool(name: "timeline",
-                      description: "タイムライン（簡易アニメーション）を見る・設定する。レイヤーの表示／非表示と、スイッチフォルダーの子の切り替えをコマごとに切り替える（補間なし）。引数を省くと今の設定とトラックを返すだけ。",
-                      properties: ["fps": ["type": "integer"], "frame_count": ["type": "integer", "description": "長さ（コマ数）"],
-                                   "loop": ["type": "boolean"], "frame": ["type": "integer", "description": "再生位置を動かす（0 から）。そのコマの表示がキャンバスに当たる"]]) { [unowned self] a in
+            tool("timeline") { [unowned self] a in
                 editor.setTimeline(fps: try a.int("fps"), frameCount: try a.int("frame_count"), loop: try a.bool("loop"))
                 if let f = try a.int("frame") { editor.goToFrame(f) }
                 return [.text(json(timelineInfo()))]
             },
-            AgentTool(name: "set_key",
-                      description: "タイムラインにキーを打つ。スイッチフォルダーなら child（表示する子のレイヤー ID）、ふつうのレイヤーなら visible を渡す。トラックがなければ作る。",
-                      properties: ["layer_id": ["type": "string", "description": "レイヤーかスイッチフォルダー（パラメータのキーなら省いて parameter を渡す）"],
-                                   "parameter": ["type": "string", "description": "パラメータ ID（値は value。キーの間は直線で補間）"],
-                                   "value": ["type": "number"],
-                                   "frame": ["type": "integer", "description": "0 から"],
-                                   "child": ["type": "string", "description": "スイッチフォルダーで表示する子のレイヤー ID"],
-                                   "visible": ["type": "boolean"], "delete": ["type": "boolean", "description": "そのコマのキーを消す"]],
-                      required: ["frame"]) { [unowned self] a in
+            tool("set_key") { [unowned self] a in
                 try setKey(a)
             },
-            AgentTool(name: "rig",
-                      description: "デフォーマとパラメータを見る。パラメータの値を動かす（values）と、変形の表示が入ってキャンバスにポーズが出る（get_image で見られる）。変形を表示している間は描けないので、描く前に show_deformation: false。",
-                      properties: ["values": ["type": "object", "description": "{パラメータ ID: 値} でつまみを動かす"],
-                                   "reset_pose": ["type": "boolean", "description": "すべてのつまみを既定値に戻す"],
-                                   "show_deformation": ["type": "boolean", "description": "変形の表示を入り切りする（false なら描いた絵そのままを表示し、描ける）"]]) { [unowned self] a in
+            tool("rig") { [unowned self] a in
                 if try a.bool("reset_pose") ?? false { editor.resetPose() }
                 if let vals = a.raw["values"] as? [String: Any] {
                     for (k, v) in vals {
@@ -1008,15 +906,7 @@ extension AgentToolbox {
                 if let show = try a.bool("show_deformation") { editor.setShowsDeformation(show) }
                 return [.text(json(rigInfo()))]
             },
-            AgentTool(name: "add_deformer",
-                      description: "レイヤーかフォルダーにデフォーマを付ける。rotation は中心と角度、warp は範囲を格子に分けて点をずらす。フォルダーに付けると中のレイヤー全部に効き、内側から外側の順にかかる。範囲と中心は省くと描かれている所から決める。",
-                      properties: ["layer_id": ["type": "string"], "kind": ["type": "string", "enum": ["rotation", "warp"]],
-                                   "name": ["type": "string"],
-                                   "pivot": ["type": "array", "items": ["type": "number"], "description": "回転の中心 [x, y]"],
-                                   "rect": ["type": "object", "description": "ワープの範囲 {x, y, width, height}"],
-                                   "cols": ["type": "integer", "description": "ワープの格子の横のマス数（既定 4）"],
-                                   "rows": ["type": "integer", "description": "縦のマス数（既定 4）"]],
-                      required: ["layer_id", "kind"]) { [unowned self] a in
+            tool("add_deformer") { [unowned self] a in
                 let id = try layer(a, "layer_id")
                 guard let kind = DeformerKind(rawValue: try a.requireString("kind")) else { throw AgentError("kind は rotation か warp") }
                 guard let did = editor.addDeformer(to: id, kind: kind, name: try a.string("name"),
@@ -1033,33 +923,20 @@ extension AgentToolbox {
                 }
                 return [.text(json(["deformer_id": did, "rig": rigInfo()]))]
             },
-            AgentTool(name: "add_parameter",
-                      description: "パラメータ（名前つきのつまみ。例: 首の向き -1〜1、まばたき 0〜1）を足す。範囲を省くと -1〜1、既定値 0。形は set_form で、つまみのいくつかの値ごとに決める。",
-                      properties: ["name": ["type": "string"], "min": ["type": "number"], "max": ["type": "number"],
-                                   "default": ["type": "number", "description": "既定値（省くと 0）"]],
-                      required: ["name"]) { [unowned self] a in
+            tool("add_parameter") { [unowned self] a in
                 let id = editor.addParameter(name: try a.requireString("name"), min: try a.double("min", default: -1),
                                              max: try a.double("max", default: 1), defaultValue: try a.double("default", default: 0))
                 return [.text(json(["parameter_id": id]))]
             },
-            AgentTool(name: "set_form",
-                      description: "パラメータが value のときのデフォーマの形を決める（キーがなければ作る）。形は基本の形からのずれ。回転は angle（度、時計回り）。ワープは offsets（格子の点ごとの [dx, dy]、左上から右へ行ごと、点の数は (cols+1)*(rows+1)）か、points（{点の番号: [dx, dy]} で一部だけ）。値の間は直線で補間される。既定値にキーがなければずれ 0 とみなす。",
-                      properties: ["parameter": ["type": "string"], "value": ["type": "number"], "deformer": ["type": "string"],
-                                   "angle": ["type": "number"],
-                                   "offsets": ["type": "array", "items": ["type": "array", "items": ["type": "number"]]],
-                                   "points": ["type": "object"]],
-                      required: ["parameter", "value", "deformer"]) { [unowned self] a in
+            tool("set_form") { [unowned self] a in
                 try setForm(a)
             },
-            AgentTool(name: "set_color", description: "描画色（main）とサブカラー（sub）を設定する。",
-                      properties: ["main": ["type": "string", "description": "\"#RRGGBB\""], "sub": ["type": "string"]]) { [unowned self] a in
+            tool("set_color") { [unowned self] a in
                 if let c = try a.color("main") { editor.mainColor = c }
                 if let c = try a.color("sub") { editor.subColor = c }
                 return [.text(json(["main": Self.hex(editor.mainColor), "sub": Self.hex(editor.subColor)]))]
             },
-            AgentTool(name: "edit_palette", description: "パレット（登録した色）に色を足す・消す。今のパレットは get_document の palette。",
-                      properties: ["add": ["type": "array", "items": ["type": "string"], "description": "足す色 \"#RRGGBB\" の配列（同じ色があれば足さない）"],
-                                   "remove": ["type": "array", "items": ["type": "string"], "description": "消す色 \"#RRGGBB\" の配列"]]) { [unowned self] a in
+            tool("edit_palette") { [unowned self] a in
                 func colors(_ k: String) throws -> [SIMD3<Float>] {
                     guard a.has(k) else { return [] }
                     guard let arr = a.raw[k] as? [String] else { throw AgentError("\(k) は \"#RRGGBB\" の配列で指定してください") }
@@ -1072,17 +949,12 @@ extension AgentToolbox {
                 for c in try colors("add") { editor.addToPalette(c) }
                 return [.text(json(["palette": editor.palette.map(Self.hex)]))]
             },
-            AgentTool(name: "select_brush", description: "ブラシ（または消しゴム）を名前か ID で選ぶ。以後ユーザーが描くときもそのブラシになる。",
-                      properties: ["brush": ["type": "string"]], required: ["brush"]) { [unowned self] a in
+            tool("select_brush") { [unowned self] a in
                 let b = try brush(try a.requireString("brush"))
                 editor.activate(.preset(b.id))
                 return [.text("選びました: \(b.name)")]
             },
-            AgentTool(name: "update_brush",
-                      description: "ブラシの設定を変えて保存する（ユーザーのブラシも変わる）。一時的に変えたいだけなら stroke の settings を使う。",
-                      properties: ["brush": ["type": "string", "description": "名前か ID"],
-                                   "settings": ["type": "object", "description": "変える項目（list_brushes の detail: true で見られる名前）"]],
-                      required: ["brush", "settings"]) { [unowned self] a in
+            tool("update_brush") { [unowned self] a in
                 let b = try brush(try a.requireString("brush"))
                 guard let o = a.raw["settings"] as? [String: Any] else { throw AgentError("settings を指定してください") }
                 let nb = try Self.applying(o, to: b)
@@ -1090,11 +962,7 @@ extension AgentToolbox {
                 if let i = editor.erasers.firstIndex(where: { $0.id == b.id }) { editor.erasers[i] = nb }
                 return [.text(json(Self.settingsJSON(nb)))]
             },
-            AgentTool(name: "create_brush",
-                      description: "既存のブラシを元に新しいブラシを作る（ユーザーのブラシ一覧に加わる）。",
-                      properties: ["from": ["type": "string", "description": "元にするブラシの名前か ID"], "name": ["type": "string"],
-                                   "settings": ["type": "object", "description": "変える項目"]],
-                      required: ["from", "name"]) { [unowned self] a in
+            tool("create_brush") { [unowned self] a in
                 let base = try brush(try a.requireString("from"))
                 var nb = try Self.applying(a.raw["settings"] as? [String: Any] ?? [:], to: base)
                 nb.id = UUID()
@@ -1102,9 +970,7 @@ extension AgentToolbox {
                 if editor.erasers.contains(where: { $0.id == base.id }) { editor.erasers.append(nb) } else { editor.brushes.append(nb) }
                 return [.text(json(["id": nb.id.uuidString, "name": nb.name]))]
             },
-            AgentTool(name: "group_layers", description: "いくつかのレイヤーを新しいフォルダーにまとめる。",
-                      properties: ["layer_ids": ["type": "array", "items": ["type": "string"]], "name": ["type": "string"]],
-                      required: ["layer_ids"]) { [unowned self] a in
+            tool("group_layers") { [unowned self] a in
                 guard let ids = (a.raw["layer_ids"] as? [String])?.compactMap(UUID.init(uuidString:)), !ids.isEmpty else {
                     throw AgentError("layer_ids に ID を並べてください")
                 }
@@ -1118,10 +984,7 @@ extension AgentToolbox {
                 if let name = try a.string("name") { editor.setLayerProperty(folder.id, label: "レイヤーの名前") { $0.name = name } }
                 return [.text(json(["folder_id": folder.id.uuidString]))]
             },
-            AgentTool(name: "crop",
-                      description: "キャンバスを切り詰める（全レイヤー）。rect を渡すとその範囲、省略すると選択範囲を囲む矩形。",
-                      properties: ["rect": ["type": "object", "properties": ["x": ["type": "integer"], "y": ["type": "integer"],
-                                                                              "width": ["type": "integer"], "height": ["type": "integer"]]]]) { [unowned self] a in
+            tool("crop") { [unowned self] a in
                 if let r = try a.rect("rect") {
                     let c = r.intersection(editor.doc.bounds)
                     guard !c.isEmpty else { throw AgentError("rect がキャンバスの外です") }
@@ -1131,8 +994,7 @@ extension AgentToolbox {
                 }
                 return [.text("\(editor.doc.width)×\(editor.doc.height) にしました")]
             },
-            AgentTool(name: "resize_canvas", description: "キャンバスの大きさを変える（左上を基準に、絵は拡大縮小しない）。",
-                      properties: ["width": ["type": "integer"], "height": ["type": "integer"]], required: ["width", "height"]) { [unowned self] a in
+            tool("resize_canvas") { [unowned self] a in
                 let w = try a.requireInt("width"), h = try a.requireInt("height")
                 guard (1...20000).contains(w), (1...20000).contains(h) else { throw AgentError("大きさは 1〜20000 px") }
                 editor.resizeCanvas(width: w, height: h)

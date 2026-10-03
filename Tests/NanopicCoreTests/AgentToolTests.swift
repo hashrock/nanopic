@@ -310,3 +310,17 @@ extension AgentToolTests {
     }
 
 }
+
+extension AgentToolTests {
+    /// どのツールにも説明と引数の形があり、使われていない説明もない
+    func testEveryToolHasSchema() {
+        let tb = AgentToolbox(editor: Editor(width: 8, height: 8))
+        let schemaNames = Set(AgentToolbox.parseSchemas(coreToolSchemas).keys)
+        let toolNames = Set(tb.tools.map(\.name))
+        XCTAssertEqual(toolNames, schemaNames)
+        for t in tb.tools {
+            XCTAssertFalse(t.description.isEmpty, t.name)
+            XCTAssertEqual(t.inputSchema["type"] as? String, "object", t.name)
+        }
+    }
+}
