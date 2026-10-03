@@ -228,7 +228,7 @@ struct PublishPanel: View {
         }
         .padding(14)
         .frame(width: 320)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .floatingPanelBackground()
         .shadow(radius: 8)
     }
 

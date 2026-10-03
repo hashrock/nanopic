@@ -65,7 +65,7 @@ struct AdjustmentPanel: View {
         }
         .padding(14)
         .frame(width: 280)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .floatingPanelBackground()
         .shadow(radius: 8)
         .onChange(of: value) { _, _ in update() }
         .onChange(of: preview) { _, _ in update() }
@@ -89,5 +89,13 @@ struct AdjustmentPanel: View {
             Slider(value: Binding(get: { v.wrappedValue }, set: { v.wrappedValue = $0.rounded() }), in: range)
                 .controlSize(.small)
         }
+    }
+}
+
+extension View {
+    /// キャンバスに浮かべるパネルの背景。後ろの絵が透けて文字が読みにくくならないよう、不透明にして縁を付ける
+    func floatingPanelBackground() -> some View {
+        background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color(nsColor: .separatorColor)))
     }
 }
