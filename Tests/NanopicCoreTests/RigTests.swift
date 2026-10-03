@@ -114,3 +114,26 @@ final class RigTests: XCTestCase {
         XCTAssertEqual(ed.timeline.parameterTracks.first?.keys.map(\.frame), [6])
     }
 }
+
+extension RigTests {
+    /// 既定値でも形を記録でき、描くときは変形の表示を切る
+    func testFormAtDefaultAndDeformationToggle() {
+        let (ed, bar) = editor()
+        let d = ed.addDeformer(to: bar, kind: .rotation)!
+        let p = ed.addParameter(name: "首")
+        XCTAssertEqual(ed.rig.parameter(p)!.min, -1)
+        XCTAssertEqual(ed.rig.parameter(p)!.defaultValue, 0)
+        ed.setForm(parameter: p, value: 0, deformer: d, DeformerForm(angle: 90))
+        XCTAssertTrue(ed.showsDeformation, "形を記録すると変形の表示が入る")
+        XCTAssertTrue(ed.isPosed, "既定値でも変形しているので描けない")
+        XCTAssertFalse(ed.canPaintOnActiveLayer)
+        XCTAssertGreaterThan(alpha(ed.displayDoc, "棒", 50, 35), 200)
+
+        ed.setShowsDeformation(false)
+        XCTAssertFalse(ed.isPosed)
+        XCTAssertTrue(ed.canPaintOnActiveLayer)
+        XCTAssertEqual(alpha(ed.displayDoc, "棒", 50, 35), 0, "切ると描いた絵そのまま")
+        ed.setParameterValue(p, 0.5)
+        XCTAssertTrue(ed.showsDeformation, "つまみを動かすと入る")
+    }
+}

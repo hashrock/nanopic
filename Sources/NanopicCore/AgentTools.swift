@@ -840,7 +840,7 @@ public final class AgentToolbox {
         }
         guard let l = editor.doc.activeLayer else { throw AgentError("編集レイヤーがありません") }
         if paint {
-            if editor.isPosed { throw AgentError("ポーズ中（パラメータが既定値から動いている）は描けません。rig の reset_pose: true で基本ポーズに戻してください") }
+            if editor.isPosed { throw AgentError("変形を表示している間は描けません。rig の show_deformation: false で描いた絵そのままの表示に戻してください") }
             if l.kind != .raster { throw AgentError("「\(l.name)」はフォルダーなので描けません") }
             if l.locked { throw AgentError("「\(l.name)」はロックされています") }
             // 非表示のレイヤーは、layer_id で明示したときだけ描ける（閉じ線など）
@@ -994,9 +994,10 @@ extension AgentToolbox {
                 try setKey(a)
             },
             AgentTool(name: "rig",
-                      description: "デフォーマとパラメータを見る。パラメータの値を動かす（values）と、キャンバスにポーズが出る（get_image で見られる）。ポーズ中は描けないので、描く前に reset_pose: true。",
+                      description: "デフォーマとパラメータを見る。パラメータの値を動かす（values）と、変形の表示が入ってキャンバスにポーズが出る（get_image で見られる）。変形を表示している間は描けないので、描く前に show_deformation: false。",
                       properties: ["values": ["type": "object", "description": "{パラメータ ID: 値} でつまみを動かす"],
-                                   "reset_pose": ["type": "boolean", "description": "すべてのつまみを既定値に戻す"]]) { [unowned self] a in
+                                   "reset_pose": ["type": "boolean", "description": "すべてのつまみを既定値に戻す"],
+                                   "show_deformation": ["type": "boolean", "description": "変形の表示を入り切りする（false なら描いた絵そのままを表示し、描ける）"]]) { [unowned self] a in
                 if try a.bool("reset_pose") ?? false { editor.resetPose() }
                 if let vals = a.raw["values"] as? [String: Any] {
                     for (k, v) in vals {
@@ -1004,6 +1005,7 @@ extension AgentToolbox {
                         editor.setParameterValue(k, n.doubleValue)
                     }
                 }
+                if let show = try a.bool("show_deformation") { editor.setShowsDeformation(show) }
                 return [.text(json(rigInfo()))]
             },
             AgentTool(name: "add_deformer",
@@ -1032,16 +1034,16 @@ extension AgentToolbox {
                 return [.text(json(["deformer_id": did, "rig": rigInfo()]))]
             },
             AgentTool(name: "add_parameter",
-                      description: "パラメータ（名前つきのつまみ。例: 首の角度 -30〜30、まばたき 0〜1）を足す。形は set_form で、つまみのいくつかの値ごとに決める。",
+                      description: "パラメータ（名前つきのつまみ。例: 首の向き -1〜1、まばたき 0〜1）を足す。範囲を省くと -1〜1、既定値 0。形は set_form で、つまみのいくつかの値ごとに決める。",
                       properties: ["name": ["type": "string"], "min": ["type": "number"], "max": ["type": "number"],
-                                   "default": ["type": "number", "description": "既定値（基本ポーズの値。省くと min）"]],
+                                   "default": ["type": "number", "description": "既定値（省くと 0）"]],
                       required: ["name"]) { [unowned self] a in
-                let id = editor.addParameter(name: try a.requireString("name"), min: try a.double("min", default: 0),
-                                             max: try a.double("max", default: 1), defaultValue: try a.double("default"))
+                let id = editor.addParameter(name: try a.requireString("name"), min: try a.double("min", default: -1),
+                                             max: try a.double("max", default: 1), defaultValue: try a.double("default", default: 0))
                 return [.text(json(["parameter_id": id]))]
             },
             AgentTool(name: "set_form",
-                      description: "パラメータが value のときのデフォーマの形を決める（キーがなければ作る）。形は基本の形からのずれ。回転は angle（度、時計回り）。ワープは offsets（格子の点ごとの [dx, dy]、左上から右へ行ごと、点の数は (cols+1)*(rows+1)）か、points（{点の番号: [dx, dy]} で一部だけ）。値の間は直線で補間され、既定値のキーは普通ずれ 0 にしておく。",
+                      description: "パラメータが value のときのデフォーマの形を決める（キーがなければ作る）。形は基本の形からのずれ。回転は angle（度、時計回り）。ワープは offsets（格子の点ごとの [dx, dy]、左上から右へ行ごと、点の数は (cols+1)*(rows+1)）か、points（{点の番号: [dx, dy]} で一部だけ）。値の間は直線で補間される。既定値にキーがなければずれ 0 とみなす。",
                       properties: ["parameter": ["type": "string"], "value": ["type": "number"], "deformer": ["type": "string"],
                                    "angle": ["type": "number"],
                                    "offsets": ["type": "array", "items": ["type": "array", "items": ["type": "number"]]],
@@ -1144,6 +1146,7 @@ extension AgentToolbox {
         func uuid(_ psd: UInt32) -> Any { editor.doc.node(psdID: psd)?.id.uuidString as Any? ?? NSNull() }
         return [
             "posed": editor.isPosed,
+            "show_deformation": editor.showsDeformation,
             "deformers": r.deformers.map { d -> [String: Any] in
                 var o: [String: Any] = ["id": d.id, "name": d.name, "kind": d.kind.rawValue, "layer_id": uuid(d.layer),
                                         "layer_name": editor.doc.node(psdID: d.layer)?.name ?? ""]

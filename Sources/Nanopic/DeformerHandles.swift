@@ -26,7 +26,8 @@ extension CanvasView {
     /// ハンドルの位置（キャンバス座標、今のポーズ）
     func deformerHandlePositions() -> [(DeformerHandle, CGPoint)] {
         guard let (_, ds) = deformerEditing else { return [] }
-        let forms = editor.rig.forms(values: editor.parameterValues)
+        // 変形を表示していなければ、描いた絵そのままの位置（基本の形）に出す
+        let forms = editor.showsDeformation ? editor.rig.forms(values: editor.parameterValues) : [:]
         var out: [(DeformerHandle, CGPoint)] = []
         for d in ds {
             let f = forms[d.id] ?? DeformerForm()
@@ -80,13 +81,6 @@ extension CanvasView {
             f.offsets[i] = RigPoint(o.x + cp.x - start.x, o.y + cp.y - start.y)
             editor.setForm(parameter: p.id, value: value, deformer: id, f)
         }
-    }
-
-    /// ハンドルを掴めるか（既定値では形を記録しない: 基本ポーズが崩れるため）
-    func canRecordForm(_ h: DeformerHandle) -> Bool {
-        if case .pivot = h { return true }
-        guard let (pid, _) = deformerEditing, let p = editor.rig.parameter(pid) else { return false }
-        return abs(editor.parameterValue(pid) - p.defaultValue) > 1e-9
     }
 
     /// 始めたときの、記録先のパラメータの形

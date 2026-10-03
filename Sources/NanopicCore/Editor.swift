@@ -88,6 +88,8 @@ public final class Editor {
     public var timelineOpen = false
     /// パラメータの今の値（ないものは既定値）。履歴には残さない
     public internal(set) var parameterValues: [String: Double] = [:]
+    /// デフォーマの変形を表示するか。切っていれば描いた絵そのままを表示し、描ける
+    public internal(set) var showsDeformation = false
     @ObservationIgnored var poseCache: (revision: Int, values: [String: Double], doc: DocumentState)?
     public private(set) var isDirty = false
 
@@ -144,6 +146,7 @@ public final class Editor {
         sidecar = Sidecar()
         currentFrame = 0
         parameterValues = [:]
+        showsDeformation = false
         isDirty = false
         structureChanged()
     }
@@ -167,6 +170,7 @@ public final class Editor {
         self.sidecar = sidecar
         currentFrame = 0
         parameterValues = [:]
+        showsDeformation = false
         applySidecar()
         isDirty = false
         structureChanged()

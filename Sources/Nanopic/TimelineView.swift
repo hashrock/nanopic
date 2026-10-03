@@ -134,9 +134,17 @@ struct TimelineView: View {
             Toggle("ループ", isOn: Binding(get: { t.loop }, set: { editor.setTimeline(loop: $0) }))
                 .toggleStyle(.checkbox).font(.caption)
             Spacer()
-            if editor.isPosed {
-                Text("ポーズ中（描けません）").font(.caption).foregroundStyle(.orange)
-                Button("基本ポーズに戻す") { editor.resetPose() }
+            if !editor.rig.isEmpty {
+                Toggle("変形を表示", isOn: Binding(get: { editor.showsDeformation }, set: { editor.setShowsDeformation($0) }))
+                    .toggleStyle(.checkbox).font(.caption)
+                    .help("切ると描いた絵そのままを表示し、描けるようになる")
+                if editor.isPosed {
+                    Text("描けません").font(.caption).foregroundStyle(.orange)
+                        .help("変形を表示している間は描けません。描くときは「変形を表示」を切ります")
+                }
+                Button("既定値に戻す") { editor.resetPose() }
+                    .help("すべてのパラメータを既定値に戻す")
+                    .disabled(editor.parameterValues.isEmpty)
             }
             Button {
                 let id = editor.addParameter(name: "パラメータ\(editor.rig.parameters.count + 1)")
@@ -182,8 +190,7 @@ struct TimelineView: View {
         return HStack(spacing: 6) {
             Image(systemName: "slider.horizontal.3").font(.caption).foregroundStyle(editing ? Color.accentColor : .secondary).frame(width: 16)
             Text(p.name).font(.caption.weight(editing ? .semibold : .regular)).lineLimit(1).frame(width: 64, alignment: .leading)
-            Slider(value: Binding(get: { value }, set: { editor.setParameterValue(p.id, $0) }), in: p.min...max(p.max, p.min + 1e-6))
-                .controlSize(.mini)
+            ParameterSlider(editor: editor, parameter: p, value: value)
             Text(String(format: "%.2f", value)).font(.system(size: 9).monospacedDigit()).foregroundStyle(.secondary).frame(width: 30)
         }
         .padding(.horizontal, 8)
@@ -192,7 +199,7 @@ struct TimelineView: View {
         .overlay(alignment: .bottom) { Divider() }
         .contentShape(Rectangle())
         .onTapGesture { state.editingParameter = editing ? nil : p.id }
-        .help("クリックで、このパラメータの形を記録する対象にする（キャンバス上のデフォーマのハンドルで形を決める）")
+        .help("名前をクリックすると、このパラメータの形を記録する対象になる（キャンバス上のデフォーマのハンドルで形を決める）")
         .contextMenu {
             Button("名前を変える...") {
                 if let name = state.promptText("パラメータの名前", value: p.name), !name.isEmpty {
@@ -336,5 +343,68 @@ struct TimelineView: View {
                 }
             }
         }
+    }
+}
+
+/// パラメータのつまみ。既定値に縦線、形を記録した値に ◆ を出す。
+/// ドラッグで値を変え（◆ の近くでは吸い付く）、◆ をクリックするとその値に、右クリックで形を消せる
+struct ParameterSlider: View {
+    let editor: Editor
+    let parameter: RigParameter
+    let value: Double
+
+    /// 上の段に ◆、下の段につまみ
+    private let height: CGFloat = 24
+    private let inset: CGFloat = 6
+    private let trackY: CGFloat = 16
+
+    private func x(_ v: Double, _ w: CGFloat) -> CGFloat {
+        inset + CGFloat((v - parameter.min) / max(parameter.max - parameter.min, 1e-9)) * w
+    }
+
+    /// 位置から値。◆ と既定値の近く（4px 以内）では吸い付く
+    private func value(at px: CGFloat, _ w: CGFloat) -> Double {
+        let p = parameter
+        let v = p.min + Double(min(max((px - inset) / max(w, 1), 0), 1)) * (p.max - p.min)
+        let snaps = p.keys.map(\.value) + [p.defaultValue]
+        if let s = snaps.min(by: { abs(x($0, w) - px) < abs(x($1, w) - px) }), abs(x(s, w) - px) < 4 { return s }
+        return v
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width - inset * 2
+            ZStack(alignment: .topLeading) {
+                Capsule().fill(Color.primary.opacity(0.15)).frame(width: w, height: 3).offset(x: inset, y: trackY - 1.5)
+                // 既定値
+                Rectangle().fill(Color.secondary).frame(width: 1, height: 10)
+                    .offset(x: x(parameter.defaultValue, w) - 0.5, y: trackY - 5)
+                // つまみ
+                Circle().fill(Color.accentColor).frame(width: 10, height: 10)
+                    .offset(x: x(value, w) - 5, y: trackY - 5)
+                    .allowsHitTesting(false)
+                // 形を記録した値
+                ForEach(parameter.keys, id: \.value) { k in
+                    Image(systemName: "diamond.fill")
+                        .font(.system(size: 8))
+                        .foregroundStyle(Color.orange)
+                        .frame(width: 10, height: 10)
+                        .offset(x: x(k.value, w) - 5, y: 0)
+                        .onTapGesture { editor.setParameterValue(parameter.id, k.value) }
+                        .help(String(format: "%.2f に形を記録済み（クリックで移動、右クリックで消す）", k.value))
+                        .contextMenu {
+                            Button(String(format: "%.2f の形を消す", k.value)) {
+                                editor.removeParameterKey(parameter: parameter.id, value: k.value)
+                            }
+                        }
+                }
+            }
+            .frame(width: geo.size.width, height: height)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { g in
+                editor.setParameterValue(parameter.id, value(at: g.location.x, w))
+            })
+        }
+        .frame(height: height)
     }
 }

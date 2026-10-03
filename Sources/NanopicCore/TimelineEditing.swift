@@ -84,6 +84,7 @@ extension Editor {
         let values = doc.timeline.parameterValues(at: currentFrame)
         if !values.isEmpty {
             parameterValues.merge(values) { _, new in new }
+            showsDeformation = true
             markAllDirty()
         }
         if doc.applyTimeline(frame: currentFrame) { structureChanged() }

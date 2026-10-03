@@ -247,10 +247,6 @@ final class CanvasView: NSView {
         }
         // デフォーマのハンドル（形を記録するパラメータを選んでいる間）
         if let h = hitDeformerHandle(vp) {
-            guard canRecordForm(h) else {
-                NSSound.beep()
-                return
-            }
             let pivot: RigPoint
             if case let .pivot(id) = h { pivot = editor.rig.deformer(id)?.pivot ?? .zero } else { pivot = .zero }
             drag = .deformer(h, start: cp, base: baseForm(h), startPivot: pivot)

@@ -4,8 +4,16 @@ import Foundation
 extension Editor {
     public var rig: Rig { doc.rig }
 
-    /// つまみが動いていて、基本の形と違う見た目になっている（この間は描けない）
-    public var isPosed: Bool { !doc.rig.isEmpty && !doc.rig.isRest(values: parameterValues) }
+    /// 変形を表示していて、描いた絵と違う見た目になっている（この間は描けない）
+    public var isPosed: Bool { showsDeformation && !doc.rig.isEmpty && !doc.rig.isRest(values: parameterValues) }
+
+    /// 変形の表示を入り切りする（切れば描いた絵そのままを表示し、描ける）
+    public func setShowsDeformation(_ on: Bool) {
+        guard showsDeformation != on else { return }
+        if on { commitTransform() }
+        showsDeformation = on
+        markAllDirty()
+    }
 
     /// 表示用のドキュメント（ポーズ中ならデフォーマをかけたもの）
     public var displayDoc: DocumentState {
@@ -27,6 +35,7 @@ extension Editor {
         let v = p.clamp(value)
         commitTransform()
         parameterValues[id] = v
+        showsDeformation = true
         if timelineOpen, let ti = doc.timeline.parameterTracks.firstIndex(where: { $0.parameter == id }) {
             checkpoint("キーを打つ", coalesceKey: "param-key-\(id)-\(currentFrame)")
             doc.timeline.parameterTracks[ti].set(frame: currentFrame, value: v)
@@ -92,10 +101,10 @@ extension Editor {
     // MARK: パラメータ
 
     @discardableResult
-    public func addParameter(name: String, min: Double = 0, max: Double = 1, defaultValue: Double? = nil) -> String {
+    public func addParameter(name: String, min: Double = -1, max: Double = 1, defaultValue: Double = 0) -> String {
         let id = Self.newID("p", existing: doc.rig.parameters.map(\.id))
         var p = RigParameter(id: id, name: name, min: Swift.min(min, max), max: Swift.max(min, max))
-        p.defaultValue = p.clamp(defaultValue ?? min)
+        p.defaultValue = p.clamp(defaultValue)
         checkpoint("パラメータを足す")
         doc.rig.parameters.append(p)
         revision += 1
@@ -132,6 +141,7 @@ extension Editor {
             doc.rig.parameters[pi].keys.append(RigParameterKey(value: v, forms: [deformer: form]))
             doc.rig.parameters[pi].keys.sort { $0.value < $1.value }
         }
+        showsDeformation = true
         revision += 1
         markAllDirty()
     }
