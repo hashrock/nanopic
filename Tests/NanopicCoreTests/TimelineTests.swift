@@ -96,3 +96,28 @@ final class TimelineTests: XCTestCase {
         XCTAssertEqual(shown(ed2, m2!.id), "あ")
     }
 }
+
+extension TimelineTests {
+    func testParameterEasing() throws {
+        var t = ParameterTrack(parameter: "p")
+        t.set(frame: 0, value: 0)
+        t.set(frame: 10, value: 1)
+        XCTAssertEqual(t.value(at: 5)!, 0.5, accuracy: 1e-9)
+        t.keys[0].easing = .easeIn
+        XCTAssertLessThan(t.value(at: 5)!, 0.5, "ゆっくり始まる")
+        t.keys[0].easing = .easeOut
+        XCTAssertGreaterThan(t.value(at: 5)!, 0.5, "ゆっくり止まる")
+        t.keys[0].easing = .easeInOut
+        XCTAssertEqual(t.value(at: 5)!, 0.5, accuracy: 1e-9)
+        XCTAssertLessThan(t.value(at: 2)!, 0.2)
+        t.keys[0].easing = .hold
+        XCTAssertEqual(t.value(at: 9)!, 0)
+        XCTAssertEqual(t.value(at: 10)!, 1)
+        // 値を打ち直しても動き方は残る
+        t.set(frame: 0, value: 0.1)
+        XCTAssertEqual(t.keys[0].easing, .hold)
+        // 動き方のなかった頃のデータは直線
+        let old = try JSONDecoder().decode(ParameterKeyframe.self, from: Data(#"{"frame": 3, "value": 0.5}"#.utf8))
+        XCTAssertEqual(old.easing, .linear)
+    }
+}

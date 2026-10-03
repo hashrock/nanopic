@@ -882,6 +882,17 @@ let coreToolSchemas = ##"""
           "description": "そのコマのキーを消す",
           "type": "boolean"
         },
+        "easing": {
+          "description": "パラメータのキーから次のキーまでの動き方（既定 linear）。easeIn はゆっくり始まる、easeOut はゆっくり止まる、easeInOut は両方、hold は次のキーまで値を保つ",
+          "enum": [
+            "linear",
+            "easeIn",
+            "easeOut",
+            "easeInOut",
+            "hold"
+          ],
+          "type": "string"
+        },
         "frame": {
           "description": "0 から",
           "type": "integer"

@@ -213,6 +213,17 @@ extension Editor {
         applyFrame()
     }
 
+    /// パラメータのキーの動き方（次のキーまでの補間）を変える
+    public func setParameterKeyEasing(_ id: String, frame: Int, easing: Easing) {
+        guard let ti = doc.timeline.parameterTracks.firstIndex(where: { $0.parameter == id }),
+              let ki = doc.timeline.parameterTracks[ti].keys.firstIndex(where: { $0.frame == frame }),
+              doc.timeline.parameterTracks[ti].keys[ki].easing != easing else { return }
+        checkpoint("キーの動き方")
+        doc.timeline.parameterTracks[ti].keys[ki].easing = easing
+        revision += 1
+        applyFrame()
+    }
+
     public func deleteParameterKey(_ id: String, frame: Int) {
         guard let ti = doc.timeline.parameterTracks.firstIndex(where: { $0.parameter == id }),
               doc.timeline.parameterTracks[ti].keys.contains(where: { $0.frame == frame }) else { return }
@@ -228,7 +239,7 @@ extension Editor {
               let key = doc.timeline.parameterTracks[ti].keys.first(where: { $0.frame == from }) else { return }
         checkpoint("キーを動かす")
         doc.timeline.parameterTracks[ti].keys.removeAll { $0.frame == from }
-        doc.timeline.parameterTracks[ti].set(frame: max(0, to), value: key.value)
+        doc.timeline.parameterTracks[ti].set(frame: max(0, to), value: key.value, easing: key.easing)
         revision += 1
         applyFrame()
     }

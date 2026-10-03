@@ -1062,7 +1062,7 @@ extension AgentToolbox {
         return ["fps": t.fps, "frame_count": t.frameCount, "loop": t.loop, "frame": editor.currentFrame,
                 "parameter_tracks": t.parameterTracks.map { tr -> [String: Any] in
                     ["parameter": tr.parameter, "name": editor.rig.parameter(tr.parameter)?.name ?? "",
-                     "keys": tr.keys.map { ["frame": $0.frame, "value": $0.value] }]
+                     "keys": tr.keys.map { ["frame": $0.frame, "value": $0.value, "easing": $0.easing.rawValue] }]
                 },
                 "tracks": t.tracks.map { tr -> [String: Any] in
                     ["layer_id": uuid(tr.layer), "name": editor.doc.node(psdID: tr.layer)?.name ?? "",
@@ -1084,6 +1084,12 @@ extension AgentToolbox {
             } else {
                 guard let v = try a.double("value") else { throw AgentError("value を渡してください") }
                 editor.setParameterKey(pid, frame: frame, value: v)
+                if let e = try a.string("easing") {
+                    guard let easing = Easing(rawValue: e) else {
+                        throw AgentError("easing は \(Easing.allCases.map(\.rawValue).joined(separator: " / ")) のどれか")
+                    }
+                    editor.setParameterKeyEasing(pid, frame: frame, easing: easing)
+                }
             }
             if frame >= editor.timeline.frameCount { editor.setTimeline(frameCount: frame + 1) }
             return [.text(json(timelineInfo()))]

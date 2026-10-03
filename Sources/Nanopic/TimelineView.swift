@@ -189,8 +189,9 @@ struct TimelineView: View {
                 let key = track?.keys.first { $0.frame == f }
                 ZStack {
                     Rectangle().fill(f == editor.currentFrame ? Color.accentColor.opacity(0.18) : (f % 2 == 0 ? Color.primary.opacity(0.03) : Color.clear))
-                    if key != nil {
-                        Image(systemName: "diamond.fill").font(.system(size: 9)).foregroundStyle(Color.orange)
+                    if let key {
+                        Image(systemName: Self.easingSymbol(key.easing)).font(.system(size: 9)).foregroundStyle(Color.orange)
+                            .help("動き方: \(key.easing.displayName)")
                     } else if track == nil {
                         Rectangle().fill(Color.primary.opacity(0.02))
                     }
@@ -213,11 +214,29 @@ struct TimelineView: View {
                         editor.goToFrame(f)
                         editor.setParameterKey(p.id, frame: f, value: v)
                     }
-                    if key != nil {
+                    if let key {
+                        Menu("動き方（次のキーまで）") {
+                            ForEach(Easing.allCases, id: \.self) { e in
+                                Button {
+                                    editor.setParameterKeyEasing(p.id, frame: f, easing: e)
+                                } label: {
+                                    if e == key.easing { Label(e.displayName, systemImage: "checkmark") } else { Text(e.displayName) }
+                                }
+                            }
+                        }
                         Button("キーを削除") { editor.deleteParameterKey(p.id, frame: f) }
                     }
                 }
             }
+        }
+    }
+
+    /// キーの印: 直線は ◆、緩急ありは ●、止めるは ■
+    static func easingSymbol(_ e: Easing) -> String {
+        switch e {
+        case .linear: return "diamond.fill"
+        case .hold: return "square.fill"
+        default: return "circle.fill"
         }
     }
 
