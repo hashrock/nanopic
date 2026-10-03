@@ -91,6 +91,13 @@ public final class Editor {
     /// デフォーマの変形を表示するか。切っていれば描いた絵そのままを表示し、描ける
     public internal(set) var showsDeformation = false
     @ObservationIgnored var poseCache: (revision: Int, values: [String: Double], doc: DocumentState)?
+    /// オニオンスキンの設定（作品には保存しない）
+    public var onionSkin = OnionSkin() {
+        didSet { if onionSkin != oldValue { markAllDirty() } }
+    }
+    @ObservationIgnored var onionCache: (key: OnionCacheKey, image: [UInt8])?
+    /// オニオンスキンの絵を作り直すたびに増える（表示側で描き直すかの判断に使う）
+    @ObservationIgnored public internal(set) var onionSkinVersion = 0
     public private(set) var isDirty = false
 
     // MARK: 履歴

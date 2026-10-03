@@ -77,6 +77,7 @@ struct TimelineView: View {
         case marquee(start: CGPoint, current: CGPoint, initial: Set<TimelineKeyRef>)
     }
     @State private var gridDrag: GridDrag?
+    @State private var showsOnionSettings = false
     /// コマ 1 つの幅（拡大縮小できる）
     @State private var cell: CGFloat = 18
 
@@ -138,6 +139,8 @@ struct TimelineView: View {
             }
             Toggle("ループ", isOn: Binding(get: { t.loop }, set: { editor.setTimeline(loop: $0) }))
                 .toggleStyle(.checkbox).font(.caption)
+            Divider().frame(height: 16)
+            onionSkinControl
             Divider().frame(height: 16)
             Button { cell = max(6, cell / 1.25) } label: { Image(systemName: "minus.magnifyingglass") }
                 .help("タイムラインを縮める")
@@ -411,6 +414,29 @@ struct TimelineView: View {
                 }
                 .frame(width: cell, height: rulerHeight)
             }
+        }
+    }
+
+    /// オニオンスキンの入り切りと、前後に何コマ出すか
+    private var onionSkinControl: some View {
+        HStack(spacing: 4) {
+            Toggle("オニオンスキン", isOn: $editor.onionSkin.enabled)
+                .toggleStyle(.checkbox).font(.caption)
+                .help("前後のコマを薄く重ねる（前は赤、後ろは青）")
+            Button { showsOnionSettings.toggle() } label: { Image(systemName: "slider.horizontal.3") }
+                .buttonStyle(.borderless)
+                .help("前後に何コマ出すか")
+                .popover(isPresented: $showsOnionSettings, arrowEdge: .bottom) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Stepper(value: $editor.onionSkin.before, in: 0...5) {
+                            Text("前 \(editor.onionSkin.before) コマ").font(.caption.monospacedDigit())
+                        }
+                        Stepper(value: $editor.onionSkin.after, in: 0...5) {
+                            Text("後ろ \(editor.onionSkin.after) コマ").font(.caption.monospacedDigit())
+                        }
+                    }
+                    .padding(12)
+                }
         }
     }
 

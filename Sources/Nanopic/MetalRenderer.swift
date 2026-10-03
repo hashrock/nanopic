@@ -57,6 +57,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     private var texSize = (0, 0)
     private var needsMipmaps = false
     private var lastCommand: MTLCommandBuffer?
+    private var lastOnionVersion = -1
     weak var canvas: CanvasView?
 
     init?(view: MTKView) {
@@ -106,6 +107,22 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
+    /// premultiplied の over 合成（rect の中だけ）
+    private func blendOver(_ top: [UInt8], into dst: UnsafeMutablePointer<UInt8>, rect: IntRect, width w: Int) {
+        top.withUnsafeBufferPointer { src in
+            let s = src.baseAddress!
+            for y in rect.minY..<rect.maxY {
+                for x in rect.minX..<rect.maxX {
+                    let o = (y * w + x) * 4
+                    let a = Int(s[o + 3])
+                    if a == 0 { continue }
+                    let k = 255 - a
+                    for c in 0..<4 { dst[o + c] = UInt8(min(255, Int(s[o + c]) + (Int(dst[o + c]) * k + 127) / 255)) }
+                }
+            }
+        }
+    }
+
     func draw(in view: MTKView) {
         guard let canvas else { return }
         let editor = canvas.editor
@@ -117,10 +134,18 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             dirty = doc.bounds
         }
         guard let texture, let composite else { return }
+        // オニオンスキン（再生中は出さない）。作り直したら全体を描き直す
+        let onion = canvas.state.isPlaying ? nil : editor.onionSkinImage()
+        let onionVersion = onion == nil ? -1 : editor.onionSkinVersion
+        if onionVersion != lastOnionVersion {
+            dirty = doc.bounds
+            lastOnionVersion = onionVersion
+        }
 
         if !dirty.isEmpty {
             // タイル境界に揃えて合成（並列化の単位）
             Compositor.composite(doc, rect: dirty, options: editor.compositeOptions(), into: composite, bufferWidth: w)
+            if let onion, onion.count == w * h * 4 { blendOver(onion, into: composite, rect: dirty, width: w) }
             // 前フレームの GPU 読み出しが終わってから書き換える
             lastCommand?.waitUntilCompleted()
             texture.replace(region: MTLRegionMake2D(dirty.x, dirty.y, dirty.width, dirty.height), mipmapLevel: 0,

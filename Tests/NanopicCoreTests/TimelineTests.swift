@@ -156,3 +156,36 @@ extension TimelineTests {
         XCTAssertTrue(ed.timeline.parameterTracks.isEmpty)
     }
 }
+
+extension TimelineTests {
+    func testOnionSkinShowsOnlyWhatDiffers() {
+        let (ed, _, _, _, sweat) = editor()
+        // 汗のレイヤーの左半分を黒く塗る
+        let tiles = TileMap.filled(width: 16, height: 32, rgba: (0, 0, 0, 255), gen: 1)
+        _ = ed.doc.modify(sweat) { $0.tiles = tiles }
+        ed.addTrack(sweat)
+        let s = ed.doc.node(sweat)!.psdID
+        ed.setKey(layer: s, TimelineKey(frame: 0, visible: true))
+        ed.setKey(layer: s, TimelineKey(frame: 1, visible: false))
+        ed.setKey(layer: s, TimelineKey(frame: 2, visible: false))
+        ed.timelineOpen = true
+        ed.goToFrame(1)
+        XCTAssertNil(ed.onionSkinImage(), "切っていれば出さない")
+
+        ed.onionSkin = OnionSkin(enabled: true, before: 1, after: 1)
+        let img = ed.onionSkinImage()!
+        func px(_ x: Int, _ y: Int) -> (r: UInt8, g: UInt8, b: UInt8, a: UInt8) {
+            let o = (y * 32 + x) * 4
+            return (img[o], img[o + 1], img[o + 2], img[o + 3])
+        }
+        // 前のコマ（汗が見える）は赤く出る。後ろのコマ（今と同じ）と、もともと白い所は出ない
+        XCTAssertGreaterThan(px(4, 4).a, 0)
+        XCTAssertGreaterThan(px(4, 4).r, px(4, 4).b)
+        XCTAssertEqual(px(24, 4).a, 0)
+
+        // 再計算しなければ同じ版のまま
+        let v = ed.onionSkinVersion
+        _ = ed.onionSkinImage()
+        XCTAssertEqual(ed.onionSkinVersion, v)
+    }
+}
