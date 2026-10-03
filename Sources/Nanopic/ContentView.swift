@@ -32,6 +32,9 @@ struct ContentView: View {
                             AdjustmentPanel(state: state, kind: kind)
                                 .id(kind)
                                 .padding(12)
+                        } else if state.publishDraft != nil {
+                            PublishPanel(state: state)
+                                .padding(12)
                         }
                     }
                 if state.timelineOpen {
@@ -111,6 +114,9 @@ struct StatusBar: View {
             }
             Text("\(editor.doc.width) × \(editor.doc.height) px")
                 .foregroundStyle(.secondary)
+            if let m = state.statusMessage {
+                Text(m).foregroundStyle(.green).lineLimit(1)
+            }
             if let p = state.cursorCanvasPoint {
                 Text("\(Int(floor(p.x))), \(Int(floor(p.y)))")
                     .foregroundStyle(.secondary)

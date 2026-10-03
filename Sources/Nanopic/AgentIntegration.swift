@@ -87,7 +87,7 @@ extension AppState {
                 let url = try fileURL(a)
                 editor.commitTransform()
                 guard !editor.timeline.isEmpty else { throw AgentError("タイムラインにトラックがありません") }
-                try MovieExport.export(editor.doc, to: url, values: editor.parameterValues)
+                try MovieExport.export(editor.doc, to: url, values: editor.parameterValues, options: editor.movieOptions)
                 let t = editor.timeline
                 return [.text("書き出しました: \(url.path)（\(t.frameCount) コマ、\(t.fps) fps）")]
             },

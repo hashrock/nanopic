@@ -14,6 +14,11 @@ final class AppState {
     var showNewDocumentSheet = false
     /// 開いている補正パネル
     var adjustmentKind: AdjustmentKind?
+    /// 書き出し設定を開いている間の設定（OK で作品に入れる）
+    var publishDraft: PublishSettings?
+    /// ステータスバーに少しの間だけ出す知らせ
+    var statusMessage: String?
+    @ObservationIgnored var statusToken: UUID?
     /// 描くモード／リグモード
     var mode = WorkMode.draw
     /// 実験的な機能: リグモードを使えるようにする（設定で入れる）

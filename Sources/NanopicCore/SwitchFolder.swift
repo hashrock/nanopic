@@ -97,6 +97,7 @@ extension Editor {
         sidecar.switchFolders = ids
         sidecar.timeline = doc.timeline.isEmpty ? nil : doc.timeline
         sidecar.rig = doc.rig.isEmpty ? nil : doc.rig
+        sidecar.publish = doc.publish
     }
 
     /// 開いたときに呼ぶ: サイドカーの印をドキュメントに反映する
@@ -107,6 +108,7 @@ extension Editor {
         }
         if let t = sidecar.timeline { doc.timeline = t }
         if let r = sidecar.rig { doc.rig = r }
+        doc.publish = sidecar.publish
         normalizeSwitches()
     }
 }
