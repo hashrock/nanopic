@@ -23,10 +23,9 @@ final class AppState {
             if !rigEnabled && mode == .rig { setMode(.draw) }
         }
     }
-    /// 描くモードでもタイムラインを出す（パラパラ用）。リグモードではいつも出す
+    /// 描くモードでもタイムラインを出す（パラパラ用）。リグモードではいつも出す。起動したときはいつも閉じている
     var showsTimelineInDraw = false {
         didSet {
-            UserDefaults.standard.set(showsTimelineInDraw, forKey: "drawTimeline.v1")
             if !timelineOpen { stopPlayback(); timelineSelection = []; timelineFocused = false }
             editor.timelineOpen = timelineOpen
             canvasView?.requestDisplay()
@@ -120,7 +119,6 @@ final class AppState {
         if let d = UserDefaults.standard.data(forKey: "shortcuts.v1"), let m = try? dec.decode(ShortcutMap.self, from: d) {
             shortcuts = m
         }
-        showsTimelineInDraw = UserDefaults.standard.bool(forKey: "drawTimeline.v1")
         if let p = UserDefaults.standard.stringArray(forKey: "palette.v1") {
             editor.palette = p.compactMap(HexColor.parse)
         }
