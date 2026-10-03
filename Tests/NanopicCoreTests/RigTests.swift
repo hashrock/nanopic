@@ -182,3 +182,27 @@ extension RigTests {
         XCTAssertEqual(ed.rig.parameter(p)!.keys.first!.forms[d]!.move, RigPoint(5, 6))
     }
 }
+
+extension RigTests {
+    /// 親フォルダーの回転をかけた位置にハンドルを出し、画面上の量を子の座標に戻せる
+    func testOuterMapAndLocalDeltaThroughParent() {
+        let (ed, bar) = editor()
+        ed.groupSelectedLayers()
+        let folder = ed.doc.node(at: Array(ed.doc.indexPath(of: bar)!.dropLast()))!.id
+        let parent = ed.addDeformer(to: folder, kind: .rotation)!
+        let child = ed.addDeformer(to: bar, kind: .warp, cols: 1, rows: 1)!
+        let p = ed.addParameter(name: "首")
+        ed.setForm(parameter: p, value: 1, deformer: parent, DeformerForm(angle: 90))
+        let forms = ed.rig.forms(values: [p: 1])
+        let d = ed.rig.deformer(child)!
+        XCTAssertEqual(ed.doc.outerDeformers(of: d).map(\.id), [parent])
+        // 中心 (50, 50) を軸に 90° 回るので、(60, 50) は (50, 60) に見える
+        let q = ed.doc.outerMap(RigPoint(60, 50), after: d, forms: forms)
+        XCTAssertEqual(q.x, 50, accuracy: 1e-6)
+        XCTAssertEqual(q.y, 60, accuracy: 1e-6)
+        // 画面上で右へ 10 動かすのは、子の座標では上へ 10
+        let l = ed.doc.localDelta(RigPoint(10, 0), at: RigPoint(60, 50), after: d, forms: forms)
+        XCTAssertEqual(l.x, 0, accuracy: 1e-6)
+        XCTAssertEqual(l.y, -10, accuracy: 1e-6)
+    }
+}

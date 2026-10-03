@@ -26,25 +26,43 @@ extension CanvasView {
     /// 回転の腕の長さ（画面上で一定）
     var armLength: Double { 70 / Double(zoom) }
 
+    /// 今の形（変形を表示していなければ空 = 描いた絵そのまま）
+    var currentForms: [String: DeformerForm] {
+        editor.showsDeformation ? editor.rig.forms(values: editor.parameterValues) : [:]
+    }
+
+    func outerMap(_ p: RigPoint, after d: Deformer, _ forms: [String: DeformerForm]) -> RigPoint {
+        editor.doc.outerMap(p, after: d, forms: forms)
+    }
+
+    func localDelta(_ delta: CGPoint, at p: RigPoint, after d: Deformer, _ forms: [String: DeformerForm]) -> RigPoint {
+        editor.doc.localDelta(RigPoint(delta.x, delta.y), at: p, after: d, forms: forms)
+    }
+
     /// ハンドルの位置（キャンバス座標、今のポーズ）
     func deformerHandlePositions() -> [(DeformerHandle, CGPoint)] {
         guard let (_, ds) = deformerEditing else { return [] }
-        // 変形を表示していなければ、描いた絵そのままの位置（基本の形）に出す
-        let forms = editor.showsDeformation ? editor.rig.forms(values: editor.parameterValues) : [:]
+        // 変形を表示していなければ、描いた絵そのままの位置（基本の形）に出す。
+        // 表示していれば、自分の形に加えて外側（親フォルダーなど）の変形もかけた、画面に見えている位置に出す
+        let forms = currentForms
         var out: [(DeformerHandle, CGPoint)] = []
+        func screen(_ p: RigPoint, _ d: Deformer) -> CGPoint {
+            let q = outerMap(p, after: d, forms)
+            return CGPoint(x: q.x, y: q.y)
+        }
         for d in ds {
             let f = forms[d.id] ?? DeformerForm()
             switch d.kind {
             case .rotation:
-                // 中心も腕も、移動したあとの位置に出す
-                let a = f.angle * .pi / 180
-                let c = CGPoint(x: d.pivot.x + f.move.x, y: d.pivot.y + f.move.y)
+                // 中心は移動したあとの位置、腕は画面上の中心から伸ばす（角度は外側の回転も足した向き）
+                let c = screen(RigPoint(d.pivot.x + f.move.x, d.pivot.y + f.move.y), d)
+                let tip = screen(d.map(RigPoint(d.pivot.x + 1, d.pivot.y), f), d)
+                let a = atan2(tip.y - c.y, tip.x - c.x)
                 out.append((.pivot(d.id), c))
                 out.append((.arm(d.id), CGPoint(x: c.x + armLength * cos(a), y: c.y + armLength * sin(a))))
             case .warp:
                 for i in 0..<d.pointCount {
-                    let p = d.map(d.restPoint(i), f)
-                    out.append((.point(d.id, i), CGPoint(x: p.x, y: p.y)))
+                    out.append((.point(d.id, i), screen(d.map(d.restPoint(i), f), d)))
                 }
             }
         }
@@ -66,18 +84,26 @@ extension CanvasView {
     func dragDeformer(_ h: DeformerHandle, start: CGPoint, base: DeformerForm, startPivot: RigPoint, cp: CGPoint) {
         guard let (pid, _) = deformerEditing, let p = editor.rig.parameter(pid) else { return }
         let value = editor.parameterValue(pid)
+        let forms = currentForms
+        let delta = CGPoint(x: cp.x - start.x, y: cp.y - start.y)
         switch h {
         case let .restPivot(id):
-            editor.updateDeformer(id, label: "回転の中心") { $0.pivot = RigPoint(startPivot.x + cp.x - start.x, startPivot.y + cp.y - start.y) }
+            guard let d = editor.rig.deformer(id) else { return }
+            let l = localDelta(delta, at: startPivot, after: d, forms)
+            editor.updateDeformer(id, label: "回転の中心") { $0.pivot = RigPoint(startPivot.x + l.x, startPivot.y + l.y) }
         case let .pivot(id):
+            guard let d = editor.rig.deformer(id) else { return }
+            let m = forms[id]?.move ?? .zero
+            let l = localDelta(delta, at: RigPoint(d.pivot.x + m.x, d.pivot.y + m.y), after: d, forms)
             var f = base
-            f.move = RigPoint(base.move.x + cp.x - start.x, base.move.y + cp.y - start.y)
+            f.move = RigPoint(base.move.x + l.x, base.move.y + l.y)
             editor.setForm(parameter: p.id, value: value, deformer: id, f)
         case let .arm(id):
             guard let d = editor.rig.deformer(id) else { return }
-            // 移動したあとの中心を軸に角度を測る
-            let m = editor.showsDeformation ? (editor.rig.forms(values: editor.parameterValues)[id]?.move ?? .zero) : .zero
-            let c = CGPoint(x: d.pivot.x + m.x, y: d.pivot.y + m.y)
+            // 画面上の中心（移動と外側の変形をかけた位置）を軸に角度を測る
+            let m = forms[id]?.move ?? .zero
+            let cc = outerMap(RigPoint(d.pivot.x + m.x, d.pivot.y + m.y), after: d, forms)
+            let c = CGPoint(x: cc.x, y: cc.y)
             let a0 = atan2(start.y - c.y, start.x - c.x), a1 = atan2(cp.y - c.y, cp.x - c.x)
             var delta = (a1 - a0) * 180 / .pi
             if delta > 180 { delta -= 360 }
@@ -89,8 +115,9 @@ extension CanvasView {
             guard let d = editor.rig.deformer(id) else { return }
             var f = base
             if f.offsets.count < d.pointCount { f.offsets += Array(repeating: .zero, count: d.pointCount - f.offsets.count) }
+            let l = localDelta(delta, at: d.map(d.restPoint(i), forms[id] ?? DeformerForm()), after: d, forms)
             let o = base.offsets.indices.contains(i) ? base.offsets[i] : .zero
-            f.offsets[i] = RigPoint(o.x + cp.x - start.x, o.y + cp.y - start.y)
+            f.offsets[i] = RigPoint(o.x + l.x, o.y + l.y)
             editor.setForm(parameter: p.id, value: value, deformer: id, f)
         }
     }
@@ -99,18 +126,23 @@ extension CanvasView {
     func dragDeformerGroup(start: CGPoint, bases: [String: DeformerForm], cp: CGPoint) {
         guard let (pid, _) = deformerEditing, let p = editor.rig.parameter(pid) else { return }
         let value = editor.parameterValue(pid)
-        let dx = cp.x - start.x, dy = cp.y - start.y
+        let forms = currentForms
+        let delta = CGPoint(x: cp.x - start.x, y: cp.y - start.y)
         for (id, base) in bases {
             guard let d = editor.rig.deformer(id) else { continue }
+            let total = forms[id] ?? DeformerForm()
             var f = base
             if f.offsets.count < d.pointCount { f.offsets += Array(repeating: .zero, count: d.pointCount - f.offsets.count) }
             for h in selectedDeformerHandles {
                 switch h {
                 case .pivot(id):
-                    f.move = RigPoint(base.move.x + dx, base.move.y + dy)
+                    let l = localDelta(delta, at: RigPoint(d.pivot.x + total.move.x, d.pivot.y + total.move.y), after: d, forms)
+                    f.move = RigPoint(base.move.x + l.x, base.move.y + l.y)
                 case let .point(hid, i) where hid == id:
+                    // 外側の変形をさかのぼった量を、その点のずれに足す（移動量の分はずらしたままにする）
+                    let l = localDelta(delta, at: d.map(d.restPoint(i), total), after: d, forms)
                     let o = base.offsets.indices.contains(i) ? base.offsets[i] : .zero
-                    f.offsets[i] = RigPoint(o.x + dx, o.y + dy)
+                    f.offsets[i] = RigPoint(o.x + l.x, o.y + l.y)
                 default:
                     break
                 }
