@@ -87,9 +87,21 @@ extension AppState {
                 let url = try fileURL(a)
                 editor.commitTransform()
                 guard !editor.timeline.isEmpty else { throw AgentError("タイムラインにトラックがありません") }
-                try MovieExport.export(editor.doc, to: url, values: editor.parameterValues, options: editor.movieOptions)
+                try MovieExport.export(editor.doc, to: url, values: editor.parameterValues, options: editor.movieOptions())
                 let t = editor.timeline
                 return [.text("書き出しました: \(url.path)（\(t.frameCount) コマ、\(t.fps) fps）")]
+            },
+            tb.tool("export_movie") { [unowned self] a in
+                let url = try fileURL(a)
+                editor.commitTransform()
+                guard !editor.timeline.isEmpty else { throw AgentError("タイムラインにトラックがありません") }
+                let name = try a.string("format") ?? "mp4"
+                guard let format = MovieFormat(rawValue: name) else {
+                    throw AgentError("format は \(MovieFormat.allCases.map(\.rawValue).joined(separator: " / ")) のどれか")
+                }
+                try MovieExport.export(editor.doc, to: url, values: editor.parameterValues, options: editor.movieOptions(format: format))
+                let t = editor.timeline
+                return [.text("書き出しました: \(url.path)（\(format.displayName)、\(t.frameCount) コマ、\(t.fps) fps）")]
             },
             tb.tool("export_png") { [unowned self] a in
                 let url = try fileURL(a)

@@ -253,8 +253,12 @@ struct AppCommands: Commands {
                 .keyboardShortcut("e", modifiers: [.command, .option])
             Button("PNG として書き出し...") { state.exportPNG() }
                 .keyboardShortcut("e", modifiers: [.command, .shift, .option])
-            Button("動画を書き出し（MP4）...") { state.exportMovie() }
-                .disabled(editor.timeline.isEmpty)
+            Menu("動画を書き出し") {
+                ForEach(MovieFormat.allCases, id: \.self) { f in
+                    Button(f.displayName + "...") { state.exportMovie(f) }
+                }
+            }
+            .disabled(editor.timeline.isEmpty)
             Button("画像をレイヤーとして読み込み...") { state.importImageAsLayer() }
         }
         CommandGroup(replacing: .undoRedo) {

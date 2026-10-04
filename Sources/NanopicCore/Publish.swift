@@ -388,9 +388,11 @@ extension Editor {
         try data.write(to: url, options: .atomic)
     }
 
-    /// 動画の書き出しの設定（書き出しの設定があれば、その範囲と大きさを使う）
-    public var movieOptions: MovieExport.Options {
-        doc.publish.map { MovieExport.Options(publish: $0, canvas: doc.bounds) } ?? MovieExport.Options()
+    /// 動画の書き出しの設定（書き出しの設定の範囲と大きさ、透明の扱いを使う）
+    public func movieOptions(format: MovieFormat = .mp4) -> MovieExport.Options {
+        var o = MovieExport.Options(publish: doc.publish ?? PublishSettings(), canvas: doc.bounds)
+        o.format = format
+        return o
     }
 
     /// 選択範囲を囲む矩形を書き出し範囲にする

@@ -2,6 +2,31 @@
 
 let appToolSchemas = ##"""
 {
+  "export_movie": {
+    "description": "タイムラインを動画に書き出す。範囲・大きさ・透明な所の扱いは書き出しの設定（publish_settings）に合わせる。透明を持てる形式で透明にするには、用紙のレイヤーを隠しておく。",
+    "inputSchema": {
+      "properties": {
+        "format": {
+          "description": "mp4: H.264（透明なし、白）、prores: MOV ProRes 4444（透過、動画編集ソフト向け）、apng: アニメーション PNG（透過、Web 向け）、pngSequence: コマごとの PNG（透過）。既定は mp4",
+          "enum": [
+            "mp4",
+            "prores",
+            "apng",
+            "pngSequence"
+          ],
+          "type": "string"
+        },
+        "path": {
+          "description": "絶対パス。pngSequence ならフォルダー（なければ作る）",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    }
+  },
   "export_mp4": {
     "description": "タイムラインを MP4 動画に書き出す（透明な部分は白。長辺は 3840px まで）。",
     "inputSchema": {

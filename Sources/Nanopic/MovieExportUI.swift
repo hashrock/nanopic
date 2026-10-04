@@ -16,16 +16,28 @@ final class MovieExportProgress {
 }
 
 extension AppState {
-    /// ファイル ＞ 動画を書き出し（MP4）
-    func exportMovie() {
+    /// ファイル ＞ 動画を書き出し
+    func exportMovie(_ format: MovieFormat) {
         editor.commitTransform()
+        let options = editor.movieOptions(format: format)
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.mpeg4Movie]
-        panel.nameFieldStringValue = (editor.fileURL?.deletingPathExtension().lastPathComponent ?? "無題") + ".mp4"
+        let base = editor.fileURL?.deletingPathExtension().lastPathComponent ?? "無題"
+        switch format {
+        case .mp4: panel.allowedContentTypes = [.mpeg4Movie]
+        case .prores: panel.allowedContentTypes = [.quickTimeMovie]
+        case .apng: panel.allowedContentTypes = [.png]
+        case .pngSequence: break
+        }
+        panel.nameFieldStringValue = format == .pngSequence ? base + "_frames" : base + "." + format.fileExtension
+        var notes: [String] = []
+        if format == .pngSequence { notes.append("この名前のフォルダーを作り、中にコマごとの PNG を書きます。") }
+        if format.supportsAlpha && options.effectiveBackground == .transparent {
+            notes.append("透明にするには、用紙のレイヤーを隠してください。")
+        }
+        if !notes.isEmpty { panel.message = notes.joined(separator: " ") }
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let doc = editor.doc
         let values = editor.parameterValues
-        let options = editor.movieOptions
         let progress = MovieExportProgress()
         progress.total = doc.timeline.frameCount
         movieExport = progress

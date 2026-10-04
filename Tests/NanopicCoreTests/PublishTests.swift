@@ -142,7 +142,7 @@ final class PublishTests: XCTestCase {
         ed.setPublishSettings(s)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp4")
         defer { try? FileManager.default.removeItem(at: url) }
-        try MovieExport.export(ed.doc, to: url, options: ed.movieOptions)
+        try MovieExport.export(ed.doc, to: url, options: ed.movieOptions())
         let track = try await AVURLAsset(url: url).loadTracks(withMediaType: .video).first!
         let size = try await track.load(.naturalSize)
         XCTAssertEqual(size.width, 64)
