@@ -291,8 +291,15 @@ public enum Publish {
     /// 合成した絵（premultiplied RGBA8、キャンバスの大きさ）から、書き出す画像を作る
     public static func image(from buf: [UInt8], canvasWidth cw: Int, canvasHeight ch: Int, settings s: PublishSettings) -> CGImage? {
         let canvas = IntRect(x: 0, y: 0, width: cw, height: ch)
-        let r = s.resolvedRect(canvas: canvas)
         let (ow, oh) = s.resolvedOutputSize(canvas: canvas)
+        guard let out = render(buf, canvasWidth: cw, canvasHeight: ch, rect: s.resolvedRect(canvas: canvas),
+                               outputWidth: ow, outputHeight: oh, white: s.effectiveBackground == .white) else { return nil }
+        return ImageUtil.makeImage(premultiplied: out, width: ow, height: oh)
+    }
+
+    /// 範囲 r を切り抜き、白で埋め（white のとき）、ow × oh に大きさを変えた premultiplied RGBA8
+    public static func render(_ buf: [UInt8], canvasWidth cw: Int, canvasHeight ch: Int, rect r: IntRect,
+                              outputWidth ow: Int, outputHeight oh: Int, white: Bool) -> [UInt8]? {
         // 切り抜く
         var crop = [UInt8](repeating: 0, count: r.width * r.height * 4)
         for y in 0..<r.height {
@@ -300,7 +307,7 @@ public enum Publish {
             crop.replaceSubrange((y * r.width * 4)..<((y + 1) * r.width * 4), with: buf[src..<(src + r.width * 4)])
         }
         // 白で埋める（premultiplied なので、足りない不透明度の分だけ白を足す）
-        if s.effectiveBackground == .white {
+        if white {
             crop.withUnsafeMutableBufferPointer { p in
                 for i in stride(from: 0, to: p.count, by: 4) {
                     let k = 255 - Int(p[i + 3])
@@ -312,9 +319,7 @@ public enum Publish {
                 }
             }
         }
-        guard ow != r.width || oh != r.height else {
-            return ImageUtil.makeImage(premultiplied: crop, width: r.width, height: r.height)
-        }
+        guard ow != r.width || oh != r.height else { return crop }
         // 大きさを変える（高品質な補間。premultiplied のまま）
         var out = [UInt8](repeating: 0, count: ow * oh * 4)
         let err = crop.withUnsafeMutableBytes { sp in
@@ -324,8 +329,7 @@ public enum Publish {
                 return vImageScale_ARGB8888(&src, &dst, nil, vImage_Flags(kvImageHighQualityResampling))
             }
         }
-        guard err == kvImageNoError else { return nil }
-        return ImageUtil.makeImage(premultiplied: out, width: ow, height: oh)
+        return err == kvImageNoError ? out : nil
     }
 
     /// 画像をファイルの中身にする

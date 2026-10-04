@@ -66,3 +66,93 @@ final class MovieExportTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
 }
+
+/// 透明を持つ形式（ProRes 4444・APNG・PNG の連番）
+final class AlphaMovieExportTests: XCTestCase {
+    /// 64×48、用紙は隠す。左半分を赤く塗ったレイヤーを、0・1 コマ目は出し、2・3 コマ目は隠す（4 fps）
+    func document() -> DocumentState {
+        let ed = Editor(width: 64, height: 48)
+        ed.toggleVisibility(ed.doc.layers[0].id)
+        let layer = ed.activeLayerID!
+        ed.select(path: CGPath(rect: CGRect(x: 0, y: 0, width: 32, height: 48), transform: nil), op: .replace)
+        ed.mainColor = SIMD3<Float>(1, 0, 0)
+        ed.fillSelection()
+        ed.deselect()
+        ed.addTrack(layer)
+        let id = ed.doc.node(layer)!.psdID
+        ed.setKey(layer: id, TimelineKey(frame: 0, visible: true))
+        ed.setKey(layer: id, TimelineKey(frame: 2, visible: false))
+        ed.setTimeline(fps: 4, frameCount: 4)
+        ed.goToFrame(0)
+        return ed.doc
+    }
+
+    func options(_ f: MovieFormat) -> MovieExport.Options {
+        var o = MovieExport.Options()
+        o.format = f
+        o.background = .transparent
+        return o
+    }
+
+    func temp(_ ext: String) -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + (ext.isEmpty ? "" : "." + ext))
+    }
+
+    func testProResKeepsAlpha() async throws {
+        let url = temp("mov")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try MovieExport.export(document(), to: url, options: options(.prores))
+        let asset = AVURLAsset(url: url)
+        let track = try await asset.loadTracks(withMediaType: .video).first!
+        let reader = try AVAssetReader(asset: asset)
+        let out = AVAssetReaderTrackOutput(track: track, outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+        reader.add(out)
+        reader.startReading()
+        let sample = try XCTUnwrap(out.copyNextSampleBuffer())
+        let pb = try XCTUnwrap(CMSampleBufferGetImageBuffer(sample))
+        CVPixelBufferLockBaseAddress(pb, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(pb, .readOnly) }
+        let base = CVPixelBufferGetBaseAddress(pb)!.assumingMemoryBound(to: UInt8.self)
+        let row = CVPixelBufferGetBytesPerRow(pb)
+        func px(_ x: Int, _ y: Int) -> (b: UInt8, g: UInt8, r: UInt8, a: UInt8) {
+            let p = base + y * row + x * 4
+            return (p[0], p[1], p[2], p[3])
+        }
+        XCTAssertEqual(CVPixelBufferGetWidth(pb), 64)
+        XCTAssertGreaterThan(px(10, 24).a, 240, "塗った所は不透明")
+        XCTAssertGreaterThan(px(10, 24).r, 200)
+        XCTAssertLessThan(px(50, 24).a, 10, "塗っていない所は透明")
+    }
+
+    func testAPNGMergesSameFrames() throws {
+        let url = temp("png")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try MovieExport.export(document(), to: url, options: options(.apng))
+        let src = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
+        XCTAssertEqual(CGImageSourceGetCount(src), 2, "同じ見た目が続くコマは 1 枚にまとめる")
+        let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as! [CFString: Any]
+        let png = props[kCGImagePropertyPNGDictionary] as! [CFString: Any]
+        let delay = (png[kCGImagePropertyAPNGUnclampedDelayTime] ?? png[kCGImagePropertyAPNGDelayTime]) as! Double
+        XCTAssertEqual(delay, 0.5, accuracy: 0.01, "2 コマ分（4 fps）")
+        let first = ImageUtil.loadPremultiplied(CGImageSourceCreateImageAtIndex(src, 0, nil)!)!.buffer
+        XCTAssertEqual(first[(24 * 64 + 50) * 4 + 3], 0, "透明のまま")
+        XCTAssertEqual(first[(24 * 64 + 10) * 4 + 3], 255)
+    }
+
+    func testPNGSequenceWritesEveryFrame() throws {
+        let dir = temp("")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try MovieExport.export(document(), to: dir, options: options(.pngSequence))
+        let files = try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted()
+        XCTAssertEqual(files.count, 4)
+        XCTAssertEqual(files.first, dir.lastPathComponent + "_0001.png")
+        let last = ImageUtil.loadPremultiplied(ImageUtil.loadImage(url: dir.appendingPathComponent(files[3]))!)!.buffer
+        XCTAssertEqual(last[(24 * 64 + 10) * 4 + 3], 0, "隠したコマは透明")
+    }
+
+    func testMP4IsAlwaysWhite() {
+        var o = options(.mp4)
+        o.background = .transparent
+        XCTAssertEqual(o.effectiveBackground, .white)
+    }
+}
