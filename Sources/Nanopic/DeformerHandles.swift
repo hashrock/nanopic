@@ -9,6 +9,8 @@ enum DeformerHandle: Hashable {
     case restPivot(String)
     case arm(String)
     case point(String, Int)
+    /// ワープの点のハンドル（デフォーマ, 点, 向き 0: 右 1: 左 2: 下 3: 上）
+    case tangent(String, Int, Int)
 }
 
 extension CanvasView {
@@ -66,9 +68,50 @@ extension CanvasView {
                 for i in 0..<d.pointCount {
                     out.append((.point(d.id, i), screen(d.map(d.restPoint(i), f), d)))
                 }
+                // 選んでいる点のハンドル（隣の点がある向きだけ）
+                for case let .point(id, i) in selectedDeformerHandles where id == d.id && i < d.pointCount {
+                    let h = d.warpHandles(i, f)
+                    let c = i % (d.cols + 1), r = i / (d.cols + 1)
+                    if c < d.cols { out.append((.tangent(d.id, i, 0), screen(h.point + h.u, d))) }
+                    if c > 0 { out.append((.tangent(d.id, i, 1), screen(h.point - h.u, d))) }
+                    if r < d.rows { out.append((.tangent(d.id, i, 2), screen(h.point + h.v, d))) }
+                    if r > 0 { out.append((.tangent(d.id, i, 3), screen(h.point - h.v, d))) }
+                }
             }
         }
         return out
+    }
+
+    /// ワープの格子の線（曲線に沿って細かく区切った、キャンバス座標の点の列）
+    func warpGridLines(_ d: Deformer) -> [[CGPoint]] {
+        let forms = currentForms
+        let f = forms[d.id] ?? DeformerForm()
+        let steps = 8
+        func screen(_ x: Double, _ y: Double) -> CGPoint {
+            let q = outerMap(d.map(RigPoint(x, y), f), after: d, forms)
+            return CGPoint(x: q.x, y: q.y)
+        }
+        var lines: [[CGPoint]] = []
+        let r = d.rect
+        for row in 0...d.rows {
+            let y = r.y + r.height * Double(row) / Double(d.rows)
+            lines.append((0...(d.cols * steps)).map { screen(r.x + r.width * Double($0) / Double(d.cols * steps), y) })
+        }
+        for col in 0...d.cols {
+            let x = r.x + r.width * Double(col) / Double(d.cols)
+            lines.append((0...(d.rows * steps)).map { screen(x, r.y + r.height * Double($0) / Double(d.rows * steps)) })
+        }
+        return lines
+    }
+
+    /// 点のハンドルを自動に戻す（記録先のパラメータの形で）
+    func resetWarpTangent(_ id: String, _ i: Int) {
+        guard let (pid, _) = deformerEditing, let p = editor.rig.parameter(pid) else { return }
+        let value = editor.parameterValue(pid)
+        var f = p.form(for: id, at: value) ?? DeformerForm()
+        guard i < f.tangents.count, f.tangents[i] != .zero else { return }
+        f.tangents[i] = .zero
+        editor.setForm(parameter: pid, value: value, deformer: id, f)
     }
 
     func hitDeformerHandle(_ vp: CGPoint) -> DeformerHandle? {
@@ -112,6 +155,19 @@ extension CanvasView {
             if delta < -180 { delta += 360 }
             var f = base
             f.angle = base.angle + delta
+            editor.setForm(parameter: p.id, value: value, deformer: id, f)
+        case let .tangent(id, i, dir):
+            guard let d = editor.rig.deformer(id) else { return }
+            // ハンドルの先を動かした量の 3 倍が、向きの変わり方（反対側のハンドルも一緒に回る）
+            let h = d.warpHandles(i, forms[id] ?? DeformerForm())
+            let arm: RigPoint = dir < 2 ? h.u : h.v
+            let tip: RigPoint = dir == 0 || dir == 2 ? h.point + arm : h.point - arm
+            let l = localDelta(delta, at: tip, after: d, forms)
+            let k = dir == 0 || dir == 2 ? 3.0 : -3.0
+            var f = base
+            if f.tangents.count < d.pointCount { f.tangents += Array(repeating: .zero, count: d.pointCount - f.tangents.count) }
+            let t = i < base.tangents.count ? base.tangents[i] : .zero
+            if dir < 2 { f.tangents[i].u = t.u + l * k } else { f.tangents[i].v = t.v + l * k }
             editor.setForm(parameter: p.id, value: value, deformer: id, f)
         case let .point(id, i):
             guard let d = editor.rig.deformer(id) else { return }
@@ -172,6 +228,7 @@ extension CanvasView {
     func deformerHandles(in rect: CGRect) -> Set<DeformerHandle> {
         Set(deformerHandlePositions().compactMap { h, p in
             if case .arm = h { return nil }
+            if case .tangent = h { return nil }
             return rect.contains(p) ? h : nil
         })
     }
@@ -182,7 +239,7 @@ extension CanvasView {
         let id: String
         switch h {
         case let .pivot(i), let .restPivot(i), let .arm(i): id = i
-        case let .point(i, _): id = i
+        case let .point(i, _), let .tangent(i, _, _): id = i
         }
         return p.form(for: id, at: editor.parameterValue(pid)) ?? DeformerForm()
     }
@@ -208,13 +265,22 @@ extension OverlayView {
                 dot(ctx, c, fill: fill(.pivot(d.id), .systemOrange))
                 dot(ctx, a, fill: .white)
             case .warp:
-                let w = d.cols + 1
+                // 格子の線は曲線に沿って描く
                 ctx.setStrokeColor(NSColor.systemTeal.withAlphaComponent(0.9).cgColor)
-                for r in 0...d.rows {
-                    for c in 0...d.cols {
-                        guard let p = pos(.point(d.id, r * w + c)) else { continue }
-                        if c < d.cols, let q = pos(.point(d.id, r * w + c + 1)) { ctx.strokeLineSegments(between: [p, q]) }
-                        if r < d.rows, let q = pos(.point(d.id, (r + 1) * w + c)) { ctx.strokeLineSegments(between: [p, q]) }
+                for line in canvas.warpGridLines(d) {
+                    ctx.addLines(between: line.map { $0.applying(t) })
+                    ctx.strokePath()
+                }
+                // 選んでいる点のハンドル
+                ctx.setStrokeColor(NSColor.systemOrange.cgColor)
+                for i in 0..<d.pointCount {
+                    guard let p = pos(.point(d.id, i)) else { continue }
+                    for dir in 0..<4 {
+                        guard let q = pos(.tangent(d.id, i, dir)) else { continue }
+                        ctx.strokeLineSegments(between: [p, q])
+                        let r = CGRect(x: q.x - 3.5, y: q.y - 3.5, width: 7, height: 7)
+                        ctx.setFillColor(NSColor.systemOrange.cgColor)
+                        ctx.fill(r)
                     }
                 }
                 for i in 0..<d.pointCount { if let p = pos(.point(d.id, i)) { dot(ctx, p, fill: fill(.point(d.id, i), .white)) } }

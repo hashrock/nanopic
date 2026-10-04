@@ -269,7 +269,12 @@ final class CanvasView: NSView {
                 drag = .deformer(.restPivot(id), start: cp, base: baseForm(h), startPivot: pivot)
                 return
             }
+            // 腕とワープのハンドルは 1 つずつ動かす（選択は変えない）
             if case .arm = h {
+                drag = .deformer(h, start: cp, base: baseForm(h), startPivot: .zero)
+                return
+            }
+            if case .tangent = h {
                 drag = .deformer(h, start: cp, base: baseForm(h), startPivot: .zero)
                 return
             }
@@ -455,6 +460,15 @@ final class CanvasView: NSView {
     }
 
     override func rightMouseDown(with e: NSEvent) {
+        // リグモードでワープの点かハンドルを右クリックしたら、その点のハンドルを自動に戻す
+        if state.mode == .rig, let h = hitDeformerHandle(viewPoint(e)) {
+            switch h {
+            case let .point(id, i), let .tangent(id, i, _): resetWarpTangent(id, i)
+            default: break
+            }
+            overlay.needsDisplay = true
+            return
+        }
         // 右クリックでスポイト
         pick(at: canvasPoint(e), flags: [])
     }

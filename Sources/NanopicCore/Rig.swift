@@ -11,9 +11,9 @@ public struct RigPoint: Codable, Equatable, Sendable {
     }
     public static let zero = RigPoint(0, 0)
 
-    static func + (a: RigPoint, b: RigPoint) -> RigPoint { RigPoint(a.x + b.x, a.y + b.y) }
-    static func - (a: RigPoint, b: RigPoint) -> RigPoint { RigPoint(a.x - b.x, a.y - b.y) }
-    static func * (a: RigPoint, k: Double) -> RigPoint { RigPoint(a.x * k, a.y * k) }
+    public static func + (a: RigPoint, b: RigPoint) -> RigPoint { RigPoint(a.x + b.x, a.y + b.y) }
+    public static func - (a: RigPoint, b: RigPoint) -> RigPoint { RigPoint(a.x - b.x, a.y - b.y) }
+    public static func * (a: RigPoint, k: Double) -> RigPoint { RigPoint(a.x * k, a.y * k) }
 }
 
 /// ワープの格子の点のハンドル（ベジェの接線）の、自動で決まる向きからのずれ。
