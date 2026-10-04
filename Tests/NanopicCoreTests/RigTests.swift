@@ -206,3 +206,74 @@ extension RigTests {
         XCTAssertEqual(l.y, -10, accuracy: 1e-6)
     }
 }
+
+/// ベジェのワープ（点の間を 3 次の曲線でつなぎ、ハンドルで曲がり方を変える）
+final class BezierWarpTests: XCTestCase {
+    /// 範囲 (0, 0, 100, 100) の 4×1 のワープ
+    func warp(cols: Int = 4, rows: Int = 1) -> Deformer {
+        var d = Deformer(id: "w", name: "w", layer: 1, kind: .warp)
+        d.rect = RigRect(x: 0, y: 0, width: 100, height: 100)
+        d.cols = cols
+        d.rows = rows
+        return d
+    }
+
+    func testBasicProperties() {
+        let d = warp()
+        let p = RigPoint(33, 71)
+        XCTAssertEqual(d.map(p, DeformerForm()), p, "形が 0 なら動かない")
+        // 全部同じずれなら平行移動
+        let same = DeformerForm(offsets: Array(repeating: RigPoint(5, -3), count: d.pointCount))
+        let q = d.map(p, same)
+        XCTAssertEqual(q.x, 38, accuracy: 1e-9)
+        XCTAssertEqual(q.y, 68, accuracy: 1e-9)
+        // ずれが x に比例していれば、そのまま比例（直線は直線のまま）
+        let linear = DeformerForm(offsets: (0..<d.pointCount).map { RigPoint(Double($0 % 5) * 2, 0) })
+        XCTAssertEqual(d.map(RigPoint(37.5, 50), linear).x, 37.5 + 37.5 / 25 * 2, accuracy: 1e-9)
+    }
+
+    func testPassesThroughPointsAndIsSmooth() {
+        let d = warp()
+        var f = DeformerForm(offsets: Array(repeating: .zero, count: d.pointCount))
+        f.offsets[2] = RigPoint(0, 20) // 上の辺のまん中の点を下へ
+        // 格子の点の上はちょうどそのずれ
+        XCTAssertEqual(d.map(RigPoint(50, 0), f).y, 20, accuracy: 1e-9)
+        XCTAssertEqual(d.map(RigPoint(25, 0), f).y, 0, accuracy: 1e-9)
+        // マスの境目（x = 25）の左右で傾きが同じ（折れない）
+        let e = 0.01
+        let y = { (x: Double) in self.warp().map(RigPoint(x, 0), f).y }
+        let leftSlope = (y(25) - y(25 - e)) / e, rightSlope = (y(25 + e) - y(25)) / e
+        XCTAssertEqual(leftSlope, rightSlope, accuracy: 0.01)
+        XCTAssertGreaterThan(rightSlope, 0, "隣の点へなめらかに上がり始める")
+    }
+
+    func testHandleChangesCurveNotPoints() {
+        let d = warp()
+        var f = DeformerForm(offsets: Array(repeating: .zero, count: d.pointCount))
+        let before = d.map(RigPoint(12.5, 0), f)
+        // 左上の点の横のハンドルを下へ向ける
+        f.tangents = Array(repeating: .zero, count: d.pointCount)
+        f.tangents[0].u = RigPoint(0, 30)
+        let after = d.map(RigPoint(12.5, 0), f)
+        XCTAssertGreaterThan(after.y, before.y + 1, "マスの中の曲がり方が変わる")
+        XCTAssertEqual(d.map(RigPoint(0, 0), f).y, 0, accuracy: 1e-9, "点の位置は変わらない")
+        XCTAssertEqual(d.map(RigPoint(25, 0), f).y, 0, accuracy: 1e-9)
+        // ハンドルの先: 自動なら隣の点へ向けて マス / 3、ずれを足すとそのぶん動く
+        let h = d.warpHandles(0, f)
+        XCTAssertEqual(h.u.x, 25.0 / 3, accuracy: 1e-9)
+        XCTAssertEqual(h.u.y, 10, accuracy: 1e-9)
+    }
+
+    func testLerpAddAndCoding() throws {
+        let a = DeformerForm(offsets: [RigPoint(1, 0)], tangents: [RigTangent(u: RigPoint(4, 0))])
+        let b = DeformerForm(offsets: [RigPoint(3, 0)])
+        XCTAssertEqual(DeformerForm.lerp(a, b, 0.5).tangents[0].u.x, 2, accuracy: 1e-9)
+        XCTAssertEqual((a + a).tangents[0].u.x, 8, accuracy: 1e-9)
+        // ハンドルを触っていなければ tangents は書かない
+        let plain = try JSONSerialization.jsonObject(with: JSONEncoder().encode(b)) as! [String: Any]
+        XCTAssertNil(plain["tangents"])
+        let back = try JSONDecoder().decode(DeformerForm.self, from: JSONEncoder().encode(a))
+        XCTAssertEqual(back, a)
+        XCTAssertFalse(DeformerForm(tangents: [RigTangent(v: RigPoint(0, 1))]).isZero)
+    }
+}

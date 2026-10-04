@@ -10,6 +10,22 @@ public struct RigPoint: Codable, Equatable, Sendable {
         self.y = y
     }
     public static let zero = RigPoint(0, 0)
+
+    static func + (a: RigPoint, b: RigPoint) -> RigPoint { RigPoint(a.x + b.x, a.y + b.y) }
+    static func - (a: RigPoint, b: RigPoint) -> RigPoint { RigPoint(a.x - b.x, a.y - b.y) }
+    static func * (a: RigPoint, k: Double) -> RigPoint { RigPoint(a.x * k, a.y * k) }
+}
+
+/// ワープの格子の点のハンドル（ベジェの接線）の、自動で決まる向きからのずれ。
+/// u は横（右の隣へ向かう向き）、v は縦（下の隣へ向かう向き）で、どちらもマス 1 つ分あたりのずれの変わり方
+public struct RigTangent: Codable, Equatable, Sendable {
+    public var u: RigPoint
+    public var v: RigPoint
+    public init(u: RigPoint = .zero, v: RigPoint = .zero) {
+        self.u = u
+        self.v = v
+    }
+    public static let zero = RigTangent()
 }
 
 public struct RigRect: Codable, Equatable, Sendable {
@@ -72,14 +88,17 @@ public struct DeformerForm: Codable, Equatable, Sendable {
     public var move = RigPoint.zero
     /// ワープ: 格子の点ごとのずれ（足りない分は 0）
     public var offsets: [RigPoint] = []
+    /// ワープ: 格子の点ごとのハンドルの、自動の向きからのずれ（足りない分は 0 = 自動）
+    public var tangents: [RigTangent] = []
 
-    public init(angle: Double = 0, move: RigPoint = .zero, offsets: [RigPoint] = []) {
+    public init(angle: Double = 0, move: RigPoint = .zero, offsets: [RigPoint] = [], tangents: [RigTangent] = []) {
         self.angle = angle
         self.move = move
         self.offsets = offsets
+        self.tangents = tangents
     }
 
-    private enum CodingKeys: String, CodingKey { case angle, move, offsets }
+    private enum CodingKeys: String, CodingKey { case angle, move, offsets, tangents }
 
     /// 足りない項目があっても読めるようにする（移動量のなかった頃のデータなど）
     public init(from decoder: Decoder) throws {
@@ -87,26 +106,40 @@ public struct DeformerForm: Codable, Equatable, Sendable {
         angle = try c.decodeIfPresent(Double.self, forKey: .angle) ?? 0
         move = try c.decodeIfPresent(RigPoint.self, forKey: .move) ?? .zero
         offsets = try c.decodeIfPresent([RigPoint].self, forKey: .offsets) ?? []
+        tangents = try c.decodeIfPresent([RigTangent].self, forKey: .tangents) ?? []
     }
 
-    public var isZero: Bool { angle == 0 && move == .zero && offsets.allSatisfy { $0 == .zero } }
+    /// ハンドルを触っていなければ tangents は書かない（前の版のデータと同じ形にする）
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(angle, forKey: .angle)
+        try c.encode(move, forKey: .move)
+        try c.encode(offsets, forKey: .offsets)
+        if tangents.contains(where: { $0 != .zero }) { try c.encode(tangents, forKey: .tangents) }
+    }
+
+    public var isZero: Bool {
+        angle == 0 && move == .zero && offsets.allSatisfy { $0 == .zero } && tangents.allSatisfy { $0 == .zero }
+    }
 
     func offset(_ i: Int) -> RigPoint { i < offsets.count ? offsets[i] : .zero }
+    func tangent(_ i: Int) -> RigTangent { i < tangents.count ? tangents[i] : .zero }
 
+    // ずれもハンドルのずれも、足し算と比例で扱える（自動の向きはずれから比例で決まるので、補間しても合う）
     static func lerp(_ a: DeformerForm, _ b: DeformerForm, _ t: Double) -> DeformerForm {
-        let n = max(a.offsets.count, b.offsets.count)
+        let n = max(a.offsets.count, b.offsets.count), m = max(a.tangents.count, b.tangents.count)
+        func l(_ p: RigPoint, _ q: RigPoint) -> RigPoint { p + (q - p) * t }
         return DeformerForm(angle: a.angle + (b.angle - a.angle) * t,
-                            move: RigPoint(a.move.x + (b.move.x - a.move.x) * t, a.move.y + (b.move.y - a.move.y) * t),
-                            offsets: (0..<n).map { i in
-                                let p = a.offset(i), q = b.offset(i)
-                                return RigPoint(p.x + (q.x - p.x) * t, p.y + (q.y - p.y) * t)
-                            })
+                            move: l(a.move, b.move),
+                            offsets: (0..<n).map { l(a.offset($0), b.offset($0)) },
+                            tangents: (0..<m).map { RigTangent(u: l(a.tangent($0).u, b.tangent($0).u), v: l(a.tangent($0).v, b.tangent($0).v)) })
     }
 
     static func + (a: DeformerForm, b: DeformerForm) -> DeformerForm {
-        let n = max(a.offsets.count, b.offsets.count)
-        return DeformerForm(angle: a.angle + b.angle, move: RigPoint(a.move.x + b.move.x, a.move.y + b.move.y),
-                            offsets: (0..<n).map { RigPoint(a.offset($0).x + b.offset($0).x, a.offset($0).y + b.offset($0).y) })
+        let n = max(a.offsets.count, b.offsets.count), m = max(a.tangents.count, b.tangents.count)
+        return DeformerForm(angle: a.angle + b.angle, move: a.move + b.move,
+                            offsets: (0..<n).map { a.offset($0) + b.offset($0) },
+                            tangents: (0..<m).map { RigTangent(u: a.tangent($0).u + b.tangent($0).u, v: a.tangent($0).v + b.tangent($0).v) })
     }
 }
 
@@ -205,19 +238,51 @@ extension Deformer {
             let dx = p.x - pivot.x, dy = p.y - pivot.y
             return RigPoint(pivot.x + dx * cos(a) - dy * sin(a) + form.move.x, pivot.y + dx * sin(a) + dy * cos(a) + form.move.y)
         case .warp:
-            guard rect.width > 0, rect.height > 0, !form.offsets.isEmpty else { return RigPoint(p.x + form.move.x, p.y + form.move.y) }
+            guard rect.width > 0, rect.height > 0, !form.offsets.isEmpty || !form.tangents.isEmpty else { return p + form.move }
             // 範囲の外は端のずれをそのまま使う
             let u = Swift.min(Swift.max((p.x - rect.x) / rect.width, 0), 1) * Double(cols)
             let v = Swift.min(Swift.max((p.y - rect.y) / rect.height, 0), 1) * Double(rows)
             let c = Swift.min(Int(u), cols - 1), r = Swift.min(Int(v), rows - 1)
-            let fu = u - Double(c), fv = v - Double(r)
-            let w = cols + 1
-            let o00 = form.offset(r * w + c), o10 = form.offset(r * w + c + 1)
-            let o01 = form.offset((r + 1) * w + c), o11 = form.offset((r + 1) * w + c + 1)
-            let ox = (o00.x * (1 - fu) + o10.x * fu) * (1 - fv) + (o01.x * (1 - fu) + o11.x * fu) * fv
-            let oy = (o00.y * (1 - fu) + o10.y * fu) * (1 - fv) + (o01.y * (1 - fu) + o11.y * fu) * fv
-            return RigPoint(p.x + ox + form.move.x, p.y + oy + form.move.y)
+            return p + warpOffset(cell: c, r, fu: u - Double(c), fv: v - Double(r), form) + form.move
         }
+    }
+
+    /// 格子の点 (c, r) のずれの、横向き・縦向きの変わり方（マス 1 つ分あたり）。自動の向き（隣の点との差）にハンドルのずれを足す
+    public func warpTangents(_ c: Int, _ r: Int, _ form: DeformerForm) -> (u: RigPoint, v: RigPoint) {
+        let w = cols + 1
+        func d(_ c: Int, _ r: Int) -> RigPoint { form.offset(r * w + c) }
+        let l = Swift.max(c - 1, 0), rr = Swift.min(c + 1, cols), t = Swift.max(r - 1, 0), b = Swift.min(r + 1, rows)
+        let tu = (d(rr, r) - d(l, r)) * (1 / Double(Swift.max(rr - l, 1)))
+        let tv = (d(c, b) - d(c, t)) * (1 / Double(Swift.max(b - t, 1)))
+        let h = form.tangent(r * w + c)
+        return (tu + h.u, tv + h.v)
+    }
+
+    /// マス (c, r) の中の (fu, fv) のずれ。4 辺を、端の点のずれとハンドルで決まる 3 次の曲線にし、中は Coons パッチで埋める
+    func warpOffset(cell c: Int, _ r: Int, fu: Double, fv: Double, _ form: DeformerForm) -> RigPoint {
+        let w = cols + 1
+        let d00 = form.offset(r * w + c), d10 = form.offset(r * w + c + 1)
+        let d01 = form.offset((r + 1) * w + c), d11 = form.offset((r + 1) * w + c + 1)
+        let t00 = warpTangents(c, r, form), t10 = warpTangents(c + 1, r, form)
+        let t01 = warpTangents(c, r + 1, form), t11 = warpTangents(c + 1, r + 1, form)
+        // 3 次エルミート
+        func herm(_ p0: RigPoint, _ m0: RigPoint, _ p1: RigPoint, _ m1: RigPoint, _ t: Double) -> RigPoint {
+            let t2 = t * t, t3 = t2 * t
+            return p0 * (2 * t3 - 3 * t2 + 1) + m0 * (t3 - 2 * t2 + t) + p1 * (-2 * t3 + 3 * t2) + m1 * (t3 - t2)
+        }
+        let top = herm(d00, t00.u, d10, t10.u, fu), bottom = herm(d01, t01.u, d11, t11.u, fu)
+        let left = herm(d00, t00.v, d01, t01.v, fv), right = herm(d10, t10.v, d11, t11.v, fv)
+        let corners = d00 * ((1 - fu) * (1 - fv)) + d10 * (fu * (1 - fv)) + d01 * ((1 - fu) * fv) + d11 * (fu * fv)
+        return top * (1 - fv) + bottom * fv + left * (1 - fu) + right * fu - corners
+    }
+
+    /// 格子の点 i の、横・縦のハンドルの先（基本の形の座標で、形 form をかけた所）。ベジェの制御点（接線の 1/3）
+    public func warpHandles(_ i: Int, _ form: DeformerForm) -> (point: RigPoint, u: RigPoint, v: RigPoint) {
+        let c = i % (cols + 1), r = i / (cols + 1)
+        let t = warpTangents(c, r, form)
+        let cw = rect.width / Double(cols), ch = rect.height / Double(rows)
+        let p = restPoint(i) + form.offset(i) + form.move
+        return (p, (RigPoint(cw, 0) + t.u) * (1.0 / 3), (RigPoint(0, ch) + t.v) * (1.0 / 3))
     }
 }
 
