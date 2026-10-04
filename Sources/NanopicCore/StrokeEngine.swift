@@ -82,6 +82,9 @@ public final class StrokeEngine {
     private var dabCount = 0
     private var lastDir: Double = 0
     private var jitterSeed: Int = 0
+    /// サイズのランダムの乱数（0...1）。次に打つダブの分を先に決めておき、間隔をランダム後の太さで決める
+    private var nextSizeRandom: Double = 0
+    private var lastSizeRandom: Double = 0
     /// 設定すると、ペンが止まっていてもこの間隔（秒）でダブを出し続ける（ゆがみの膨張・回転用）
     public var continuousInterval: Double?
     private var currentTime: Double = 0
@@ -102,6 +105,24 @@ public final class StrokeEngine {
         fp = OneEuroFilter(minCutoff: 12, beta: 0.5)
         effP = usePressure ? 0 : 1
         jitterSeed = seed
+        nextSizeRandom = rollSizeRandom()
+        lastSizeRandom = nextSizeRandom
+    }
+
+    /// サイズのランダムで半径をどれだけ小さくするかの上限（px）。小さいペンでは半径そのもの（今まで通り）、
+    /// 大きいペンではこれで頭打ち（にじみの幅がペン先に比例して大きくなりすぎないように）
+    static let sizeJitterLimit = 10.0
+
+    static func jitteredRadius(_ r: Double, amount: Double, random u: Double) -> Double {
+        guard amount > 0 else { return r }
+        let scale = min(r, sizeJitterLimit)
+        return max(r - amount * u * scale, r * 0.05)
+    }
+
+    private func rollSizeRandom() -> Double {
+        guard brush.sizeJitter > 0 else { return 0 }
+        jitterSeed &+= 1
+        return Double(pixelHash(jitterSeed, 101))
     }
 
     /// 描き始めの入力から決める乱数の種（同じストロークは毎回同じ結果になる）
@@ -282,8 +303,12 @@ public final class StrokeEngine {
             let ds = hypot(dx, dy)
             if ds <= 0 { continue }
             advancePressure(target: pressureAt(u), ds: ds, dt: segDt / Double(steps))
-            // 間隔は現在の半径で決める（細い入り抜きでは密に）
-            let spacing = max(Double(brush.spacing) * 2 * currentRadius(), 0.3)
+            // 間隔は現在の半径で決める（細い入り抜きでは密に）。サイズのランダムがあれば、
+            // 直前のダブと次のダブの小さいほうの太さにする（小さくなったダブの前後ですき間が空かないように）
+            let r = currentRadius(), amount = Double(clamp01(brush.sizeJitter))
+            let rr = min(Self.jitteredRadius(r, amount: amount, random: lastSizeRandom),
+                         Self.jitteredRadius(r, amount: amount, random: nextSizeRandom))
+            let spacing = max(Double(brush.spacing) * 2 * rr, 0.3)
             distSinceDab += ds
             if distSinceDab >= spacing || dabCount == 0 {
                 // 超過分だけ戻った位置に置く
@@ -346,12 +371,10 @@ public final class StrokeEngine {
             jitterSeed &+= 1
             angle += Double(pixelHash(jitterSeed, 17) - 0.5) * 2 * .pi * Double(brush.angleJitter)
         }
-        var radius = currentRadius()
-        if brush.sizeJitter > 0 {
-            // ダブごとにランダムに小さくする（筆圧の変化制限とは独立）
-            jitterSeed &+= 1
-            radius *= 1 - Double(clamp01(brush.sizeJitter)) * Double(pixelHash(jitterSeed, 101))
-        }
+        // ダブごとにランダムに小さくする（筆圧の変化制限とは独立）。乱数は前もって決めてある
+        let radius = Self.jitteredRadius(currentRadius(), amount: Double(clamp01(brush.sizeJitter)), random: nextSizeRandom)
+        lastSizeRandom = nextSizeRandom
+        nextSizeRandom = rollSizeRandom()
         let dab = Dab(x: Float(x), y: Float(y), radius: Float(radius), alpha: Float(currentAlpha()),
                       angle: Float(angle))
         dabCount += 1

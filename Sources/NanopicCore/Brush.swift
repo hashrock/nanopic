@@ -45,7 +45,7 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
     public var colorStretch: Float = 0.6
     /// 散布・ランダム回転
     public var angleJitter: Float = 0
-    /// サイズのランダム（ダブごとに最大この割合だけ小さくする。輪郭がギザギザになる）
+    /// サイズのランダム（ダブごとに最大この割合だけ小さくする。輪郭がにじむ。大きいペンでは小さくする量が頭打ちになる）
     public var sizeJitter: Float = 0
     /// ぼかし 0...1（ブラシの下を周囲の平均に近づける）
     public var blurAmount: Float = 0
