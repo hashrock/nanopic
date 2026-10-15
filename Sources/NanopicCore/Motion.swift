@@ -40,14 +40,6 @@ public enum MotionPreset: String, CaseIterable, Sendable {
         }
     }
 
-    /// パラメータの範囲（既定値は 0）
-    var range: (min: Double, max: Double) {
-        switch self {
-        case .breathe, .float: return (0, 1)
-        case .sway, .bounce, .flutter: return (-1, 1)
-        }
-    }
-
     /// 1 回の動きのキー（0..<1 の位置、値、次のキーまでの動き方）。最後のキーから次の回の最初のキーへつながる
     var cycle: [(phase: Double, value: Double, easing: Easing)] {
         switch self {
@@ -56,6 +48,11 @@ public enum MotionPreset: String, CaseIterable, Sendable {
         // 止まった所から縮み、跳んで（上で遅く）、落ちて縮み、戻る
         case .bounce: return [(0, 0, .easeIn), (0.15, -1, .easeOut), (0.5, 1, .easeIn), (0.85, -1, .easeOut)]
         }
+    }
+
+    /// 移動・回転の中心。傾きは足元を軸にする
+    func pivot(_ b: RigRect) -> RigPoint {
+        RigPoint(b.x + b.width / 2, self == .sway ? b.y + b.height : b.y + b.height / 2)
     }
 
     /// パラメータの値ごとの形（b は描かれている範囲）。ワープは 2×2 マスの格子
@@ -89,23 +86,15 @@ extension Editor {
     /// 描かれていなければ nil。作ったパラメータの ID を返す
     @discardableResult
     public func addMotion(_ preset: MotionPreset, to id: UUID) -> String? {
+        doc.assignPSDIDs()
         guard let n = doc.node(id), let bounds = Self.contentBounds(n) else { return nil }
         commitTransform()
         checkpoint("\(preset.displayName)の動きを付ける")
-        doc.assignPSDIDs()
-        let psdID = doc.node(id)!.psdID
-        let b = RigRect(x: Double(bounds.x), y: Double(bounds.y), width: Double(bounds.width), height: Double(bounds.height))
-
-        var d = Deformer(id: Self.newID("d", existing: doc.rig.deformers.map(\.id)),
-                         name: "\(n.name)の\(preset.displayName)", layer: psdID, kind: preset.deformerKind)
-        d.rect = b
-        d.cols = 2
-        d.rows = 2
-        // 傾きは足元を軸にする
-        d.pivot = RigPoint(b.x + b.width / 2, preset == .sway ? b.y + b.height : b.y + b.height / 2)
-        var p = RigParameter(id: Self.newID("p", existing: doc.rig.parameters.map(\.id)), name: d.name,
-                             min: preset.range.min, max: preset.range.max)
-        p.keys = preset.forms(b).map { RigParameterKey(value: $0.value, forms: [d.id: $0.form]) }
+        var d = makeDeformer(n, bounds: bounds, kind: preset.deformerKind, name: "\(n.name)の\(preset.displayName)", cols: 2, rows: 2)
+        d.pivot = preset.pivot(d.rect)
+        let values = preset.cycle.map(\.value)
+        var p = makeParameter(name: d.name, min: values.min()!, max: values.max()!, defaultValue: 0)
+        p.keys = preset.forms(d.rect).map { RigParameterKey(value: $0.value, forms: [d.id: $0.form]) }
         doc.rig.deformers.append(d)
         doc.rig.parameters.append(p)
 
@@ -128,7 +117,6 @@ extension Editor {
         doc.timeline.parameterTracks.append(track)
         revision += 1
         applyFrame()
-        markAllDirty()
         return p.id
     }
 }

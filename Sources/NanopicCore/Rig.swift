@@ -39,6 +39,10 @@ public struct RigRect: Codable, Equatable, Sendable {
         self.width = width
         self.height = height
     }
+
+    public init(_ r: IntRect) {
+        self.init(x: Double(r.x), y: Double(r.y), width: Double(r.width), height: Double(r.height))
+    }
 }
 
 public enum DeformerKind: String, Codable, Sendable {

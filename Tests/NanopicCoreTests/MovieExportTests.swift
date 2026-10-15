@@ -158,7 +158,7 @@ final class AlphaMovieExportTests: XCTestCase {
 
     func testGIFLongSideIsCapped() {
         var o = options(.gif)
-        o.gifMaxLongSide = 32
+        o.maxLongSide = 32
         let s = MovieExport.sizes(Editor(width: 64, height: 48).doc, o)
         XCTAssertEqual(s.frame.0, 32)
         XCTAssertEqual(s.frame.1, 24)

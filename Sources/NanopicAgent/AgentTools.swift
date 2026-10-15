@@ -964,7 +964,7 @@ extension AgentToolbox {
                 if pivot != nil || rect != nil {
                     editor.updateDeformer(did) { d in
                         if let p = pivot, p.count >= 2 { d.pivot = RigPoint(p[0].doubleValue, p[1].doubleValue) }
-                        if let r = rect { d.rect = RigRect(x: Double(r.x), y: Double(r.y), width: Double(r.width), height: Double(r.height)) }
+                        if let r = rect { d.rect = RigRect(r) }
                     }
                 }
                 return [.text(json(["deformer_id": did, "rig": rigInfo()]))]

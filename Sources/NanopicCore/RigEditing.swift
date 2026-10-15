@@ -58,19 +58,24 @@ extension Editor {
     public func addDeformer(to id: UUID, kind: DeformerKind, name: String? = nil, cols: Int = 4, rows: Int = 4) -> String? {
         doc.assignPSDIDs()
         guard let n = doc.node(id) else { return nil }
-        let b = Self.contentBounds(n) ?? doc.bounds
-        var d = Deformer(id: Self.newID("d", existing: doc.rig.deformers.map(\.id)),
-                         name: name ?? "\(n.name)の\(kind == .rotation ? "移動・回転" : "ワープ")", layer: n.psdID, kind: kind)
-        d.pivot = RigPoint(Double(b.x) + Double(b.width) / 2, Double(b.y) + Double(b.height) / 2)
-        d.rect = RigRect(x: Double(b.x), y: Double(b.y), width: Double(b.width), height: Double(b.height))
-        d.cols = max(1, min(cols, 16))
-        d.rows = max(1, min(rows, 16))
+        let d = makeDeformer(n, bounds: Self.contentBounds(n) ?? doc.bounds, kind: kind,
+                             name: name ?? "\(n.name)の\(kind == .rotation ? "移動・回転" : "ワープ")", cols: cols, rows: rows)
         commitTransform()
         checkpoint("デフォーマを付ける")
         doc.rig.deformers.append(d)
         revision += 1
         markAllDirty()
         return d.id
+    }
+
+    /// レイヤー n（PSD のレイヤー ID が振ってあること）の範囲 b に合わせたデフォーマ（中心は範囲の真ん中）。履歴には触らない
+    func makeDeformer(_ n: LayerNode, bounds b: IntRect, kind: DeformerKind, name: String, cols: Int, rows: Int) -> Deformer {
+        var d = Deformer(id: Self.newID("d", existing: doc.rig.deformers.map(\.id)), name: name, layer: n.psdID, kind: kind)
+        d.rect = RigRect(b)
+        d.pivot = RigPoint(d.rect.x + d.rect.width / 2, d.rect.y + d.rect.height / 2)
+        d.cols = max(1, min(cols, 16))
+        d.rows = max(1, min(rows, 16))
+        return d
     }
 
     public func updateDeformer(_ id: String, label: String = "デフォーマの設定", _ body: (inout Deformer) -> Void) {
@@ -113,7 +118,7 @@ extension Editor {
     public func fitDeformerToContent(_ id: String) {
         guard let d = doc.rig.deformer(id), let n = doc.node(psdID: d.layer), let b = Self.contentBounds(n) else { return }
         updateDeformer(id, label: "範囲を合わせる") { d in
-            d.rect = RigRect(x: Double(b.x), y: Double(b.y), width: Double(b.width), height: Double(b.height))
+            d.rect = RigRect(b)
             if d.kind == .rotation { d.pivot = RigPoint(Double(b.x) + Double(b.width) / 2, Double(b.y) + Double(b.height) / 2) }
         }
     }
@@ -139,13 +144,19 @@ extension Editor {
 
     @discardableResult
     public func addParameter(name: String, min: Double = -1, max: Double = 1, defaultValue: Double = 0) -> String {
-        let id = Self.newID("p", existing: doc.rig.parameters.map(\.id))
-        var p = RigParameter(id: id, name: name, min: Swift.min(min, max), max: Swift.max(min, max))
-        p.defaultValue = p.clamp(defaultValue)
+        let p = makeParameter(name: name, min: min, max: max, defaultValue: defaultValue)
         checkpoint("パラメータを足す")
         doc.rig.parameters.append(p)
         revision += 1
-        return id
+        return p.id
+    }
+
+    /// 新しい ID のパラメータ（範囲は小さい順にし、既定値は範囲に収める）。履歴には触らない
+    func makeParameter(name: String, min: Double, max: Double, defaultValue: Double) -> RigParameter {
+        var p = RigParameter(id: Self.newID("p", existing: doc.rig.parameters.map(\.id)), name: name,
+                             min: Swift.min(min, max), max: Swift.max(min, max))
+        p.defaultValue = p.clamp(defaultValue)
+        return p
     }
 
     public func updateParameter(_ id: String, _ body: (inout RigParameter) -> Void) {
