@@ -203,6 +203,8 @@ public struct RigParameterKey: Codable, Equatable, Sendable {
 public struct Rig: Codable, Equatable, Sendable {
     public var deformers: [Deformer] = []
     public var parameters: [RigParameter] = []
+    /// 立体的に振り向くリグ（カーソルの方を向かせるのに使う）
+    public var turn: TurnRig?
 
     public init() {}
 

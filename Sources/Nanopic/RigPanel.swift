@@ -36,6 +36,10 @@ struct RigPanel: View {
                 Text("つまみを足し、つまみの値ごとにデフォーマの形を記録して動かします。")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            if editor.turnRig != nil {
+                Toggle("カーソルの方を向く", isOn: Binding(get: { state.followsCursor }, set: { state.setFollowsCursor($0) }))
+                    .help("振り向くリグを、キャンバスの上のマウスの方へ向かせます（タイムラインには記録しません）")
+            }
             ForEach(editor.rig.parameters, id: \.id) { p in parameterRow(p) }
             if !editor.rig.parameters.isEmpty {
                 Button("既定値に戻す") { editor.resetPose() }

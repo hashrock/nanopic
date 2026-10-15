@@ -50,4 +50,27 @@ extension AppState {
         startPlayback()
         flashStatus("「\(preset.displayName)」の動きを付けました。ファイル ＞ 動画を書き出し で GIF などにできます")
     }
+
+    /// 編集中のフォルダー（レイヤー）を立体的に振り向かせ、リグモードで見回すループを再生する
+    func addTurn() {
+        guard let id = editor.activeLayerID, editor.addTurn(to: id) != nil else {
+            showError("振り向かせる絵がありません。顔などのパーツをまとめたフォルダーか、描いてあるレイヤーを選んでください。")
+            return
+        }
+        rigEnabled = true
+        followsCursor = false
+        setMode(.rig)
+        startPlayback()
+        flashStatus("振り向くリグを付けました。リグパネルの「カーソルの方を向く」で、マウスの方を向かせられます")
+    }
+
+    /// 振り向くリグをカーソルに追わせるのを入り切りする（追っている間は再生しない）
+    func setFollowsCursor(_ on: Bool) {
+        followsCursor = on
+        if on {
+            stopPlayback()
+        } else {
+            editor.goToFrame(editor.currentFrame)
+        }
+    }
 }

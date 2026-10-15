@@ -52,6 +52,8 @@ final class AppState {
     /// 動画の書き出し中（シートを出す）
     var movieExport: MovieExportProgress?
     var isPlaying = false
+    /// リグモードで、振り向くリグにカーソルの方を向かせる
+    var followsCursor = false
     @ObservationIgnored var playTimer: Timer?
     var shortcuts = ShortcutMap.defaults
     /// ショートカットの入力待ち（この間は単キーのショートカットを無効にする）

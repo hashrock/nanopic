@@ -323,6 +323,8 @@ struct AppCommands: Commands {
                 }
             }
             .disabled(editor.activeLayerID == nil)
+            Button("立体的に振り向かせる") { state.addTurn() }
+                .disabled(editor.activeLayerID == nil)
             Divider()
             Button("下のレイヤーでクリッピング") {
                 if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "クリッピング") { $0.clipping.toggle() } }

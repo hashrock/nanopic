@@ -82,7 +82,6 @@ public enum MotionPreset: String, CaseIterable, Sendable {
 
 extension Editor {
     /// レイヤー（フォルダー）におまかせの動きを付け、タイムラインでくり返す（取り消しは 1 回で戻る）。
-    /// タイムラインが空なら 24fps で動き 1 回分の長さにし、そうでなければ今の長さにちょうど収まる回数でくり返す。
     /// 描かれていなければ nil。作ったパラメータの ID を返す
     @discardableResult
     public func addMotion(_ preset: MotionPreset, to id: UUID) -> String? {
@@ -98,25 +97,31 @@ extension Editor {
         doc.rig.deformers.append(d)
         doc.rig.parameters.append(p)
 
+        addLoopTrack(p.id, cycle: preset.cycle, period: preset.period)
+        revision += 1
+        applyFrame()
+        return p.id
+    }
+
+    /// パラメータのトラックに、cycle のキーを period 秒ごとにくり返して打つ（履歴は呼び出し側で）。
+    /// タイムラインが空なら 24fps で 1 回分の長さにし、そうでなければ今の長さにちょうど収まる回数でくり返す
+    func addLoopTrack(_ parameter: String, cycle: [(phase: Double, value: Double, easing: Easing)], period: Double) {
         if doc.timeline.isEmpty {
             doc.timeline.fps = 24
-            doc.timeline.frameCount = Int((preset.period * 24).rounded())
+            doc.timeline.frameCount = Int((period * 24).rounded())
             doc.timeline.loop = true
         }
         let t = doc.timeline
-        let cycles = max(1, Int((Double(t.frameCount) / (preset.period * Double(t.fps))).rounded()))
-        var track = ParameterTrack(parameter: p.id)
+        let cycles = max(1, Int((Double(t.frameCount) / (period * Double(t.fps))).rounded()))
+        var track = ParameterTrack(parameter: parameter)
         for c in 0..<cycles {
-            for k in preset.cycle {
+            for k in cycle {
                 let f = Int(((Double(c) + k.phase) * Double(t.frameCount) / Double(cycles)).rounded())
                 track.set(frame: f, value: k.value, easing: k.easing)
             }
         }
         // 最後のコマの次（= 次の回の 0 コマ目）に最初のキーを置いて、ループの継ぎ目をなめらかにする
-        track.set(frame: t.frameCount, value: preset.cycle[0].value)
+        track.set(frame: t.frameCount, value: cycle[0].value)
         doc.timeline.parameterTracks.append(track)
-        revision += 1
-        applyFrame()
-        return p.id
     }
 }

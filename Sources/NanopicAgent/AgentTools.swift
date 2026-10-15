@@ -982,6 +982,11 @@ extension AgentToolbox {
                                              max: try a.double("max", default: 1), defaultValue: try a.double("default", default: 0))
                 return [.text(json(["parameter_id": id]))]
             },
+            tool("add_turn") { [unowned self] a in
+                let id = try a.has("layer_id") ? layer(a, "layer_id") : editor.activeLayerID
+                guard let id, let turn = editor.addTurn(to: id) else { throw AgentError("レイヤーに何も描かれていません") }
+                return [.text(json(["yaw_parameter_id": turn.yaw, "pitch_parameter_id": turn.pitch, "rig": rigInfo()]))]
+            },
             tool("set_form") { [unowned self] a in
                 try setForm(a)
             },
