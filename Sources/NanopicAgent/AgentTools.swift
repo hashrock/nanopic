@@ -969,6 +969,14 @@ extension AgentToolbox {
                 }
                 return [.text(json(["deformer_id": did, "rig": rigInfo()]))]
             },
+            tool("add_motion") { [unowned self] a in
+                guard let preset = MotionPreset(rawValue: try a.requireString("preset")) else {
+                    throw AgentError("preset は \(MotionPreset.allCases.map(\.rawValue).joined(separator: " / ")) のどれか")
+                }
+                let id = try a.has("layer_id") ? layer(a, "layer_id") : editor.activeLayerID
+                guard let id, let pid = editor.addMotion(preset, to: id) else { throw AgentError("レイヤーに何も描かれていません") }
+                return [.text(json(["parameter_id": pid, "rig": rigInfo()]))]
+            },
             tool("add_parameter") { [unowned self] a in
                 let id = editor.addParameter(name: try a.requireString("name"), min: try a.double("min", default: -1),
                                              max: try a.double("max", default: 1), defaultValue: try a.double("default", default: 0))

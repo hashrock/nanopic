@@ -26,6 +26,7 @@ extension AppState {
         case .mp4: panel.allowedContentTypes = [.mpeg4Movie]
         case .prores: panel.allowedContentTypes = [.quickTimeMovie]
         case .apng: panel.allowedContentTypes = [.png]
+        case .gif: panel.allowedContentTypes = [.gif]
         case .pngSequence: break
         }
         panel.nameFieldStringValue = format == .pngSequence ? base + "_frames" : base + "." + format.fileExtension

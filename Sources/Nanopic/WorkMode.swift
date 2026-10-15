@@ -36,3 +36,18 @@ extension AppState {
         canvasView?.requestDisplay()
     }
 }
+
+extension AppState {
+    /// 編集中のレイヤー（フォルダー）におまかせの動きを付け、リグモードで再生して見せる
+    func addMotion(_ preset: MotionPreset) {
+        guard let id = editor.activeLayerID, editor.addMotion(preset, to: id) != nil else {
+            showError("動かす絵がありません。描いてあるレイヤーかフォルダーを選んでください。")
+            return
+        }
+        // 動きを見るにはリグモードがいるので、実験的な機能でも入れる
+        rigEnabled = true
+        setMode(.rig)
+        startPlayback()
+        flashStatus("「\(preset.displayName)」の動きを付けました。ファイル ＞ 動画を書き出し で GIF などにできます")
+    }
+}

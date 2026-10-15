@@ -70,6 +70,31 @@ let coreToolSchemas = ##"""
       "type": "object"
     }
   },
+  "add_motion": {
+    "description": "おまかせの動きを付ける。レイヤー（フォルダー）の描かれている所に合わせてデフォーマとパラメータを作り、タイムラインでくり返す（ループの継ぎ目はなめらか）。breathe: 呼吸（下を止めて上を伸び縮み）、sway: ゆらゆら（足元を軸に左右に傾く）、float: ふわふわ（上下に浮き沈み）、bounce: ぴょこぴょこ（縮んで跳ねる）、flutter: なびく（上の方を左右に揺らす）。タイムラインが空なら 24fps で動き 1 回分の長さにし、あれば今の長さに収まる回数でくり返す。動きを見るには rig の show_deformation: true、書き出しは export_movie。",
+    "inputSchema": {
+      "properties": {
+        "layer_id": {
+          "description": "省くと編集中のレイヤー",
+          "type": "string"
+        },
+        "preset": {
+          "enum": [
+            "breathe",
+            "sway",
+            "float",
+            "bounce",
+            "flutter"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "preset"
+      ],
+      "type": "object"
+    }
+  },
   "add_parameter": {
     "description": "パラメータ（名前つきのつまみ。例: 首の向き -1〜1、まばたき 0〜1）を足す。範囲を省くと -1〜1、既定値 0。形は set_form で、つまみのいくつかの値ごとに決める。",
     "inputSchema": {
