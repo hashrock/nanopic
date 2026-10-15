@@ -964,15 +964,28 @@ extension AgentToolbox {
                 if pivot != nil || rect != nil {
                     editor.updateDeformer(did) { d in
                         if let p = pivot, p.count >= 2 { d.pivot = RigPoint(p[0].doubleValue, p[1].doubleValue) }
-                        if let r = rect { d.rect = RigRect(x: Double(r.x), y: Double(r.y), width: Double(r.width), height: Double(r.height)) }
+                        if let r = rect { d.rect = RigRect(r) }
                     }
                 }
                 return [.text(json(["deformer_id": did, "rig": rigInfo()]))]
+            },
+            tool("add_motion") { [unowned self] a in
+                guard let preset = MotionPreset(rawValue: try a.requireString("preset")) else {
+                    throw AgentError("preset は \(MotionPreset.allCases.map(\.rawValue).joined(separator: " / ")) のどれか")
+                }
+                let id = try a.has("layer_id") ? layer(a, "layer_id") : editor.activeLayerID
+                guard let id, let pid = editor.addMotion(preset, to: id) else { throw AgentError("レイヤーに何も描かれていません") }
+                return [.text(json(["parameter_id": pid, "rig": rigInfo()]))]
             },
             tool("add_parameter") { [unowned self] a in
                 let id = editor.addParameter(name: try a.requireString("name"), min: try a.double("min", default: -1),
                                              max: try a.double("max", default: 1), defaultValue: try a.double("default", default: 0))
                 return [.text(json(["parameter_id": id]))]
+            },
+            tool("add_turn") { [unowned self] a in
+                let id = try a.has("layer_id") ? layer(a, "layer_id") : editor.activeLayerID
+                guard let id, let turn = editor.addTurn(to: id) else { throw AgentError("レイヤーに何も描かれていません") }
+                return [.text(json(["yaw_parameter_id": turn.yaw, "pitch_parameter_id": turn.pitch, "rig": rigInfo()]))]
             },
             tool("set_form") { [unowned self] a in
                 try setForm(a)

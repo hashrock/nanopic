@@ -67,7 +67,7 @@ final class MovieExportTests: XCTestCase {
     }
 }
 
-/// 透明を持つ形式（ProRes 4444・APNG・PNG の連番）
+/// 透明を持つ形式（ProRes 4444・APNG・PNG の連番）と GIF
 final class AlphaMovieExportTests: XCTestCase {
     /// 64×48、用紙は隠す。左半分を赤く塗ったレイヤーを、0・1 コマ目は出し、2・3 コマ目は隠す（4 fps）
     func document() -> DocumentState {
@@ -137,6 +137,31 @@ final class AlphaMovieExportTests: XCTestCase {
         let first = ImageUtil.loadPremultiplied(CGImageSourceCreateImageAtIndex(src, 0, nil)!)!.buffer
         XCTAssertEqual(first[(24 * 64 + 50) * 4 + 3], 0, "透明のまま")
         XCTAssertEqual(first[(24 * 64 + 10) * 4 + 3], 255)
+    }
+
+    func testGIFMergesSameFramesOnWhite() throws {
+        let url = temp("gif")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let o = options(.gif)
+        XCTAssertEqual(o.effectiveBackground, .white, "GIF は透明を持てない")
+        try MovieExport.export(document(), to: url, options: o)
+        let src = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
+        XCTAssertEqual(CGImageSourceGetCount(src), 2, "同じ見た目が続くコマは 1 枚にまとめる")
+        let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as! [CFString: Any]
+        let gif = props[kCGImagePropertyGIFDictionary] as! [CFString: Any]
+        let delay = (gif[kCGImagePropertyGIFUnclampedDelayTime] ?? gif[kCGImagePropertyGIFDelayTime]) as! Double
+        XCTAssertEqual(delay, 0.5, accuracy: 0.01, "2 コマ分（4 fps）")
+        let last = ImageUtil.loadPremultiplied(CGImageSourceCreateImageAtIndex(src, 1, nil)!)!.buffer
+        XCTAssertEqual(last[(24 * 64 + 10) * 4 + 3], 255, "隠したコマは白")
+        XCTAssertGreaterThan(last[(24 * 64 + 10) * 4], 240)
+    }
+
+    func testGIFLongSideIsCapped() {
+        var o = options(.gif)
+        o.maxLongSide = 32
+        let s = MovieExport.sizes(Editor(width: 64, height: 48).doc, o)
+        XCTAssertEqual(s.frame.0, 32)
+        XCTAssertEqual(s.frame.1, 24)
     }
 
     func testPNGSequenceWritesEveryFrame() throws {

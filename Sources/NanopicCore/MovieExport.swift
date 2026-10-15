@@ -12,6 +12,8 @@ public enum MovieFormat: String, CaseIterable, Sendable {
     case prores
     /// アニメーション PNG。透明を持てる（Web 向け）
     case apng
+    /// アニメーション GIF。透明は持てない（白で埋める）。SNS やチャットに貼る向け
+    case gif
     /// コマごとの PNG をフォルダーに並べる
     case pngSequence
 
@@ -20,6 +22,7 @@ public enum MovieFormat: String, CaseIterable, Sendable {
         case .mp4: return "MP4（H.264）"
         case .prores: return "MOV（ProRes 4444、透過）"
         case .apng: return "APNG（透過）"
+        case .gif: return "GIF（SNS・チャット向け）"
         case .pngSequence: return "PNG の連番（透過）"
         }
     }
@@ -29,11 +32,21 @@ public enum MovieFormat: String, CaseIterable, Sendable {
         case .mp4: return "mp4"
         case .prores: return "mov"
         case .apng: return "png"
+        case .gif: return "gif"
         case .pngSequence: return ""
         }
     }
 
-    public var supportsAlpha: Bool { self != .mp4 }
+    public var supportsAlpha: Bool { self != .mp4 && self != .gif }
+    /// 長辺の上限（MP4 は H.264 の上限、GIF は重くなりすぎないように）。nil なら上限なし
+    public var maxLongSide: Int? {
+        switch self {
+        case .mp4: return 3840
+        case .prores: return 8192
+        case .gif: return 1080
+        case .apng, .pngSequence: return nil
+        }
+    }
     /// 動画ファイル（大きさを偶数にそろえる）か
     var isVideo: Bool { self == .mp4 || self == .prores }
 }
@@ -44,8 +57,8 @@ public enum MovieExport {
         public var format = MovieFormat.mp4
         /// 透明な所の扱い（MP4 はいつも白）
         public var background = PublishBackground.white
-        /// MP4 の長辺の上限（H.264 の上限に収めるため）
-        public var maxLongSide = 3840
+        /// 長辺の上限。nil なら形式ごとの上限（MovieFormat.maxLongSide）
+        public var maxLongSide: Int?
         /// 切り抜く範囲（キャンバスの座標）。nil ならキャンバス全体
         public var crop: IntRect?
         /// 出力の大きさ。nil なら範囲と同じ
@@ -62,13 +75,15 @@ public enum MovieExport {
 
         /// 透明の扱い（透明を持てない形式は白）
         public var effectiveBackground: PublishBackground { format.supportsAlpha ? background : .white }
+
+        var longSideLimit: Int? { maxLongSide ?? format.maxLongSide }
     }
 
     public struct Cancelled: Error {}
 
-    /// 出力される動画の大きさ（偶数に切り上げ、長辺を maxLongSide 以下に）
+    /// 出力される動画の大きさ（偶数に切り上げ、長辺を上限以下に）
     public static func outputSize(width: Int, height: Int, options: Options = Options()) -> (width: Int, height: Int) {
-        let scale = min(1, Double(options.maxLongSide) / Double(max(width, height)))
+        let scale = min(1, Double(options.longSideLimit ?? max(width, height)) / Double(max(width, height)))
         func even(_ v: Double) -> Int { max(2, Int((v / 2).rounded(.up)) * 2) }
         return (even(Double(width) * scale), even(Double(height) * scale))
     }
@@ -80,7 +95,7 @@ public enum MovieExport {
                               progress: (Int, Int) -> Bool = { _, _ in true }) throws {
         switch options.format {
         case .mp4, .prores: try writeVideo(doc, to: url, values: values, options: options, progress: progress)
-        case .apng: try writeAPNG(doc, to: url, values: values, options: options, progress: progress)
+        case .apng, .gif: try writeAnimatedImage(doc, to: url, values: values, options: options, progress: progress)
         case .pngSequence: try writePNGSequence(doc, to: url, values: values, options: options, progress: progress)
         }
         _ = progress(max(doc.timeline.frameCount, 1), max(doc.timeline.frameCount, 1))
@@ -92,12 +107,9 @@ public enum MovieExport {
     static func sizes(_ doc: DocumentState, _ options: Options) -> (crop: IntRect, frame: (Int, Int), file: (Int, Int)) {
         let crop = (options.crop ?? doc.bounds).intersection(doc.bounds)
         let w = options.outputWidth ?? crop.width, h = options.outputHeight ?? crop.height
-        guard options.format.isVideo else { return (crop, (w, h), (w, h)) }
-        var o = options
-        if options.format == .prores { o.maxLongSide = 8192 }
-        let file = outputSize(width: w, height: h, options: o)
-        let scale = min(1, Double(o.maxLongSide) / Double(max(w, h)))
-        return (crop, (max(1, Int((Double(w) * scale).rounded())), max(1, Int((Double(h) * scale).rounded()))), file)
+        let scale = min(1, Double(options.longSideLimit ?? max(w, h)) / Double(max(w, h)))
+        let frame = (max(1, Int((Double(w) * scale).rounded())), max(1, Int((Double(h) * scale).rounded())))
+        return (crop, frame, options.format.isVideo ? outputSize(width: w, height: h, options: options) : frame)
     }
 
     /// 同じ見た目のコマのまとまり（先頭のコマと長さ）
@@ -194,19 +206,28 @@ public enum MovieExport {
         if writer.status != .completed { throw writer.error ?? CocoaError(.fileWriteUnknown) }
     }
 
-    /// 同じ見た目が続くコマは、1 枚の表示時間を延ばしてまとめる
-    private static func writeAPNG(_ doc: DocumentState, to url: URL, values: [String: Double], options: Options,
-                                  progress: (Int, Int) -> Bool) throws {
+    /// APNG と GIF。同じ見た目が続くコマは、1 枚の表示時間を延ばしてまとめる
+    private static func writeAnimatedImage(_ doc: DocumentState, to url: URL, values: [String: Double], options: Options,
+                                           progress: (Int, Int) -> Bool) throws {
         let t = doc.timeline
         let (crop, frame, _) = sizes(doc, options)
         let white = options.effectiveBackground == .white
         let runs = runs(doc, values: values)
         try? FileManager.default.removeItem(at: url)
-        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, runs.count, nil) else {
+        let gif = options.format == .gif
+        let (type, dict, loopKey, delayKey, unclampedDelayKey) = gif
+            ? (UTType.gif, kCGImagePropertyGIFDictionary, kCGImagePropertyGIFLoopCount,
+               kCGImagePropertyGIFDelayTime, kCGImagePropertyGIFUnclampedDelayTime)
+            : (UTType.png, kCGImagePropertyPNGDictionary, kCGImagePropertyAPNGLoopCount,
+               kCGImagePropertyAPNGDelayTime, kCGImagePropertyAPNGUnclampedDelayTime)
+        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, type.identifier as CFString, runs.count, nil) else {
             throw CocoaError(.fileWriteUnknown)
         }
-        let loop: [CFString: Any] = [kCGImagePropertyPNGDictionary: [kCGImagePropertyAPNGLoopCount: t.loop ? 0 : 1]]
-        CGImageDestinationSetProperties(dest, loop as CFDictionary)
+        // 0 はくり返し。GIF はくり返しの指定がなければ 1 回だけ再生する
+        if t.loop || !gif {
+            let loop: [CFString: Any] = [dict: [loopKey: t.loop ? 0 : 1]]
+            CGImageDestinationSetProperties(dest, loop as CFDictionary)
+        }
         var written = 0
         for run in runs {
             guard progress(written, t.frameCount) else {
@@ -215,8 +236,7 @@ public enum MovieExport {
             }
             let image = try frameImage(doc, frame: run.frame, values: values, crop: crop, size: frame, white: white)
             let delay = Double(run.length) / Double(max(t.fps, 1))
-            let props: [CFString: Any] = [kCGImagePropertyPNGDictionary: [kCGImagePropertyAPNGDelayTime: delay,
-                                                                          kCGImagePropertyAPNGUnclampedDelayTime: delay]]
+            let props: [CFString: Any] = [dict: [delayKey: delay, unclampedDelayKey: delay]]
             CGImageDestinationAddImage(dest, image, props as CFDictionary)
             written += run.length
         }

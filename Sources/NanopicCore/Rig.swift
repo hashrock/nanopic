@@ -39,6 +39,10 @@ public struct RigRect: Codable, Equatable, Sendable {
         self.width = width
         self.height = height
     }
+
+    public init(_ r: IntRect) {
+        self.init(x: Double(r.x), y: Double(r.y), width: Double(r.width), height: Double(r.height))
+    }
 }
 
 public enum DeformerKind: String, Codable, Sendable {
@@ -199,6 +203,8 @@ public struct RigParameterKey: Codable, Equatable, Sendable {
 public struct Rig: Codable, Equatable, Sendable {
     public var deformers: [Deformer] = []
     public var parameters: [RigParameter] = []
+    /// 立体的に振り向くリグ（カーソルの方を向かせるのに使う）
+    public var turn: TurnRig?
 
     public init() {}
 

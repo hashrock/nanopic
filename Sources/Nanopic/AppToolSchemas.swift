@@ -7,11 +7,12 @@ let appToolSchemas = ##"""
     "inputSchema": {
       "properties": {
         "format": {
-          "description": "mp4: H.264（透明なし、白）、prores: MOV ProRes 4444（透過、動画編集ソフト向け）、apng: アニメーション PNG（透過、Web 向け）、pngSequence: コマごとの PNG（透過）。既定は mp4",
+          "description": "mp4: H.264（透明なし、白）、prores: MOV ProRes 4444（透過、動画編集ソフト向け）、apng: アニメーション PNG（透過、Web 向け）、gif: アニメーション GIF（透明なし、白。大きいときは縮める。SNS・チャット向け）、pngSequence: コマごとの PNG（透過）。既定は mp4",
           "enum": [
             "mp4",
             "prores",
             "apng",
+            "gif",
             "pngSequence"
           ],
           "type": "string"

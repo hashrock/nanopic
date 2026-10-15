@@ -482,6 +482,10 @@ final class CanvasView: NSView {
     override func mouseMoved(with e: NSEvent) {
         mouseViewPoint = viewPoint(e)
         state.cursorCanvasPoint = canvasPoint(e)
+        if state.mode == .rig && state.followsCursor && !state.isPlaying {
+            let p = canvasPoint(e)
+            editor.lookAt(RigPoint(Double(p.x), Double(p.y)))
+        }
         overlay.needsDisplay = true
     }
 

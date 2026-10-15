@@ -317,6 +317,15 @@ struct AppCommands: Commands {
                 .keyboardShortcut("e")
             Button("レイヤーを削除") { editor.deleteSelectedLayers() }
             Divider()
+            Menu("おまかせで動かす") {
+                ForEach(MotionPreset.allCases, id: \.self) { p in
+                    Button(p.displayName) { state.addMotion(p) }
+                }
+            }
+            .disabled(editor.activeLayerID == nil)
+            Button("立体的に振り向かせる") { state.addTurn() }
+                .disabled(editor.activeLayerID == nil)
+            Divider()
             Button("下のレイヤーでクリッピング") {
                 if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "クリッピング") { $0.clipping.toggle() } }
             }
