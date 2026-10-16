@@ -14,12 +14,14 @@ struct LayerPanel: View {
             propertiesBar
                 .padding(8)
             Divider()
+            ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(rowModels(), id: \.id) { model in
                         LayerRowView(model: model,
-                                     actions: LayerRowActions(editor: editor, rename: rename, drag: drag))
+                                     actions: LayerRowActions(state: state, editor: editor, rename: rename, drag: drag))
                             .equatable()
+                            .id(model.id)
                     }
                 }
                 .coordinateSpace(name: LayerDragState.space)
@@ -27,8 +29,12 @@ struct LayerPanel: View {
                 // ドラッグ中の表示はこのオーバーレイだけが更新される（行は再描画しない）
                 .overlay(alignment: .topLeading) { LayerDropIndicator(drag: drag) }
             }
-            // 編集レイヤーが変わったら名前の編集を確定する
-            .onChange(of: editor.doc.activeLayerID) { _, _ in rename.commit(editor) }
+            // 編集レイヤーが変わったら名前の編集を確定し、見えていなければその行まで送る（リグのパネルから移ったときなど）
+            .onChange(of: editor.doc.activeLayerID) { _, id in
+                rename.commit(editor)
+                if let id { withAnimation { proxy.scrollTo(id) } }
+            }
+            }
             Divider()
             actionBar
                 .padding(6)
@@ -105,11 +111,13 @@ struct LayerPanel: View {
 
     private func rowModels() -> [LayerRowModel] {
         let activeID = editor.doc.activeLayerID
+        let focus = state.rigFocus
         return editor.doc.flattenedForDisplay().map { node, depth in
             // リグモード（実験的な機能）を切っていれば、デフォーマは出さない
             LayerRowModel(node: node, depth: depth, inSwitch: editor.isInSwitch(node.id), showsRig: state.rigEnabled,
                           timelineOpen: state.timelineOpen, hasTrack: editor.hasTrack(node.id),
                           deformers: state.rigEnabled ? editor.deformers(on: node.id).map(\.name) : [],
+                          rigLink: focus.map { $0.layers.contains(node.id) ? .target : $0.affectedLayers.contains(node.id) ? .affected : .none } ?? .none,
                           active: node.id == activeID,
                           selected: editor.selectedLayerIDs.contains(node.id), renaming: node.id == rename.id,
                           thumbnail: node.isFolder ? nil : state.thumbnail(for: node))
@@ -161,6 +169,15 @@ struct CheckerboardView: View {
 
 // MARK: - レイヤー行
 
+/// リグモードで指しているものとの関係（行を光らせる）
+enum LayerRigLink: Equatable {
+    case none
+    /// 関係するデフォーマが付いている
+    case target
+    /// 付いているフォルダーの中にあって一緒に動く
+    case affected
+}
+
 /// 行の表示に必要な値だけを持つモデル。等しければ SwiftUI は行を再描画しない。
 struct LayerRowModel: Equatable {
     let id: UUID
@@ -177,6 +194,7 @@ struct LayerRowModel: Equatable {
     let hasTrack: Bool
     /// 付いているデフォーマの名前
     let deformers: [String]
+    let rigLink: LayerRigLink
     let expanded: Bool
     let visible: Bool
     let clipping: Bool
@@ -191,7 +209,7 @@ struct LayerRowModel: Equatable {
     let renaming: Bool
     let thumbnail: NSImage?
 
-    init(node: LayerNode, depth: Int, inSwitch: Bool, showsRig: Bool, timelineOpen: Bool, hasTrack: Bool, deformers: [String], active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
+    init(node: LayerNode, depth: Int, inSwitch: Bool, showsRig: Bool, timelineOpen: Bool, hasTrack: Bool, deformers: [String], rigLink: LayerRigLink, active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
         id = node.id
         name = node.name
         isFolder = node.isFolder
@@ -201,6 +219,7 @@ struct LayerRowModel: Equatable {
         self.timelineOpen = timelineOpen
         self.hasTrack = hasTrack
         self.deformers = deformers
+        self.rigLink = rigLink
         expanded = node.expanded
         visible = node.visible
         clipping = node.clipping
@@ -218,7 +237,7 @@ struct LayerRowModel: Equatable {
 
     static func == (a: LayerRowModel, b: LayerRowModel) -> Bool {
         a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.isSwitch == b.isSwitch && a.inSwitch == b.inSwitch && a.showsRig == b.showsRig && a.timelineOpen == b.timelineOpen && a.hasTrack == b.hasTrack
-            && a.deformers == b.deformers
+            && a.deformers == b.deformers && a.rigLink == b.rigLink
             && a.expanded == b.expanded
             && a.visible == b.visible && a.clipping == b.clipping && a.lockAlpha == b.lockAlpha
             && a.locked == b.locked && a.isReference == b.isReference && a.opacity == b.opacity
@@ -229,6 +248,7 @@ struct LayerRowModel: Equatable {
 
 /// 行から呼ぶ操作（比較対象外）
 struct LayerRowActions {
+    let state: AppState
     let editor: Editor
     let rename: LayerRenameState
     let drag: LayerDragState
@@ -446,7 +466,16 @@ struct LayerRowView: View, Equatable {
                         if m.locked { Image(systemName: "lock.fill") }
                         if m.isReference { Image(systemName: "scope") }
                         if !m.deformers.isEmpty {
-                            Image(systemName: "skew").help("デフォーマ: " + m.deformers.joined(separator: "、"))
+                            // リグモードでクリックすると、このレイヤーのデフォーマのハンドルを出す
+                            Button {
+                                rename.commit(editor)
+                                if let d = editor.deformers(on: m.id).first { actions.state.revealDeformer(d.id) }
+                            } label: {
+                                Image(systemName: "skew")
+                                    .foregroundStyle(m.rigLink == .target ? Color.orange : Color.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("デフォーマ: " + m.deformers.joined(separator: "、") + "（クリックでハンドルを出す）")
                         }
                     }
                     .font(.caption2)
@@ -477,7 +506,16 @@ struct LayerRowView: View, Equatable {
             .onTapGesture { tap() }
         }
         .background(m.active ? Color.accentColor.opacity(0.28) : m.selected ? Color.accentColor.opacity(0.14) : Color.clear)
+        // リグモードで指しているものと関係する行
+        .background(m.rigLink == .target ? Color.orange.opacity(0.22) : m.rigLink == .affected ? Color.orange.opacity(0.08) : Color.clear)
+        .overlay(alignment: .leading) {
+            if m.rigLink == .target { Rectangle().fill(Color.orange).frame(width: 3) }
+        }
         .overlay(alignment: .bottom) { Divider() }
+        .onHover { h in
+            guard actions.state.mode == .rig else { return }
+            actions.state.hoverRig(.layer(m.id), h)
+        }
         .background(GeometryReader { geo in
             Color.clear.preference(key: LayerRowFramesKey.self,
                                    value: [LayerRowFrame(id: m.id, isFolder: m.isFolder, name: m.name,

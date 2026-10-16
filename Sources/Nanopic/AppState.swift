@@ -49,6 +49,10 @@ final class AppState {
     var selectedDeformer: String? {
         didSet { if selectedDeformer != oldValue { canvasView?.selectedDeformerHandles = []; canvasView?.requestDisplay() } }
     }
+    /// リグモードで指している（カーソルを乗せている）パラメータ・デフォーマ・レイヤー。関係するものを光らせる
+    var rigHover: RigLinkTarget? {
+        didSet { if rigHover != oldValue { canvasView?.requestDisplay() } }
+    }
     /// 動画の書き出し中（シートを出す）
     var movieExport: MovieExportProgress?
     var isPlaying = false

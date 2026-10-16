@@ -7,16 +7,29 @@ struct RigPanel: View {
     @Bindable var editor: Editor
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                parameters
-                Divider()
-                deformers
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    parameters
+                    Divider()
+                    deformers
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // デフォーマの札などからパラメータへ移ったら、その行まで送る
+            .onChange(of: state.editingParameter) { _, id in
+                guard let id else { return }
+                withAnimation { proxy.scrollTo(id) }
+            }
         }
     }
+
+    /// 指しているものと関係するか（行を光らせる）
+    private func linked(parameter id: String) -> Bool { state.rigFocus?.parameters.contains(id) ?? false }
+    private func linked(deformer id: String) -> Bool { state.rigFocus?.deformers.contains(id) ?? false }
+
+    private func layerName(_ d: Deformer) -> String { editor.doc.node(psdID: d.layer)?.name ?? "" }
 
     // MARK: パラメータ
 
@@ -93,9 +106,24 @@ struct RigPanel: View {
             .contentShape(Rectangle())
             .onTapGesture { state.editingParameter = editing ? nil : p.id }
             ParameterSlider(editor: editor, parameter: p, value: editor.parameterValue(p.id))
+            // 動かしているデフォーマ（クリックでそのデフォーマのレイヤーへ）
+            let driven = editor.rig.deformers(drivenBy: p.id)
+            if !driven.isEmpty {
+                FlowLayout {
+                    ForEach(driven, id: \.id) { d in
+                        RigLinkChip(state: state, target: .deformer(d.id),
+                                    systemImage: d.kind == .rotation ? "arrow.triangle.2.circlepath" : "squareshape.split.2x2",
+                                    title: d.name, outer: .parameter(p.id)) { state.revealDeformer(d.id) }
+                            .help("「\(layerName(d))」のデフォーマ。クリックでそのレイヤーを編集中にして、このデフォーマのハンドルだけを出す")
+                    }
+                }
+            }
         }
         .padding(6)
         .background(RoundedRectangle(cornerRadius: 6).fill(editing ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04)))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.orange, lineWidth: linked(parameter: p.id) ? 1.5 : 0))
+        .onHover { state.hoverRig(.parameter(p.id), $0) }
+        .id(p.id)
     }
 
     // MARK: デフォーマ
@@ -144,7 +172,14 @@ struct RigPanel: View {
                     .foregroundStyle(selected ? Color.accentColor : .secondary)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(d.name).font(.callout.weight(selected ? .semibold : .regular)).lineLimit(1)
-                    Text(layerName).font(.caption2).foregroundStyle(.secondary)
+                    if let n = editor.doc.node(psdID: d.layer), n.id != editor.activeLayerID {
+                        // 親フォルダーのデフォーマ: クリックでそのフォルダーを編集中に
+                        RigLinkChip(state: state, target: .layer(n.id), systemImage: n.isFolder ? "folder" : "photo",
+                                    title: layerName, outer: .deformer(d.id)) { state.revealLayer(n.id) }
+                            .help("このデフォーマが付いているレイヤー。クリックで編集中にする")
+                    } else {
+                        Text(layerName).font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
                 Menu {
@@ -170,6 +205,18 @@ struct RigPanel: View {
             .contentShape(Rectangle())
             .onTapGesture { state.selectedDeformer = selected ? nil : d.id }
             .help("クリックでこのデフォーマのハンドルだけを出す")
+            // 形を決めているパラメータ（クリックでそのパラメータを記録の対象に）
+            let drivers = editor.rig.parameters(driving: d.id)
+            FlowLayout {
+                ForEach(drivers, id: \.id) { p in
+                    RigLinkChip(state: state, target: .parameter(p.id), systemImage: "slider.horizontal.3",
+                                title: p.name, outer: .deformer(d.id)) { state.revealParameter(p.id) }
+                        .help("このデフォーマを動かすパラメータ。クリックで形を記録する対象にする")
+                }
+            }
+            if drivers.isEmpty {
+                Text("まだどのパラメータにも動かされていません").font(.caption2).foregroundStyle(.tertiary)
+            }
             if d.kind == .warp {
                 HStack(spacing: 8) {
                     Text("格子").font(.caption).foregroundStyle(.secondary)
@@ -182,5 +229,7 @@ struct RigPanel: View {
         }
         .padding(6)
         .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04)))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.orange, lineWidth: linked(deformer: d.id) ? 1.5 : 0))
+        .onHover { state.hoverRig(.deformer(d.id), $0) }
     }
 }
