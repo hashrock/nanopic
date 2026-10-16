@@ -276,4 +276,49 @@ final class BezierWarpTests: XCTestCase {
         XCTAssertEqual(back, a)
         XCTAssertFalse(DeformerForm(tangents: [RigTangent(v: RigPoint(0, 1))]).isZero)
     }
+
+}
+
+extension RigTests {
+    func testRigFocusLinksParametersDeformersAndLayers() {
+        let (ed, bar) = editor()
+        ed.groupSelectedLayers()
+        let folder = ed.doc.node(at: Array(ed.doc.indexPath(of: bar)!.dropLast()))!.id
+        let onFolder = ed.addDeformer(to: folder, kind: .rotation)!
+        let onBar = ed.addDeformer(to: bar, kind: .rotation)!
+        let idle = ed.addDeformer(to: bar, kind: .warp)!
+        let a = ed.addParameter(name: "a"), b = ed.addParameter(name: "b")
+        ed.setForm(parameter: a, value: 1, deformer: onFolder, DeformerForm(angle: 10))
+        ed.setForm(parameter: b, value: 1, deformer: onFolder, DeformerForm(move: RigPoint(0, -3)))
+        ed.setForm(parameter: b, value: 1, deformer: onBar, DeformerForm(angle: 5))
+        // ずれ 0 の形はつながりに数えない
+        ed.setForm(parameter: a, value: 1, deformer: idle, DeformerForm())
+
+        XCTAssertEqual(ed.rig.deformers(drivenBy: a).map(\.id), [onFolder])
+        XCTAssertEqual(ed.rig.deformers(drivenBy: b).map(\.id), [onFolder, onBar])
+        XCTAssertEqual(ed.rig.parameters(driving: onFolder).map(\.id), [a, b])
+        XCTAssertTrue(ed.rig.parameters(driving: idle).isEmpty)
+
+        let fa = ed.doc.rigFocus(.parameter(a))
+        XCTAssertEqual(fa.deformers, [onFolder])
+        XCTAssertEqual(fa.layers, [folder])
+        XCTAssertEqual(fa.affectedLayers, [bar], "フォルダーの中のレイヤーも一緒に動く")
+
+        let fd = ed.doc.rigFocus(.deformer(onBar))
+        XCTAssertEqual(fd.parameters, [b])
+        XCTAssertEqual(fd.layers, [bar])
+
+        // レイヤーには自分と親フォルダーのデフォーマがかかる
+        let fl = ed.doc.rigFocus(.layer(bar))
+        XCTAssertEqual(fl.deformers, [onFolder, onBar, idle])
+        XCTAssertEqual(fl.parameters, [a, b])
+        XCTAssertEqual(fl.layers, [folder, bar])
+        XCTAssertTrue(fl.affectedLayers.isEmpty)
+
+        // 輪郭はポーズに合わせて動く（棒は x 30〜70、y 48〜52。上へ 3 ずらす）
+        let rest = ed.doc.posedOutline(of: bar, forms: [:])!
+        let moved = ed.doc.posedOutline(of: bar, forms: ed.rig.forms(values: [b: 1]))!
+        XCTAssertEqual(rest.map(\.y).min()!, 48, accuracy: 1e-9)
+        XCTAssertNotEqual(moved.map(\.y).min()!, 48)
+    }
 }

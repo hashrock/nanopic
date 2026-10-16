@@ -832,6 +832,9 @@ final class OverlayView: NSView {
             }
         }
 
+        // 指しているパラメータ・デフォーマ・レイヤーと関係するもの
+        drawRigFocus(ctx, canvas: canvas, t: t)
+
         // デフォーマのハンドル
         drawDeformerHandles(ctx, canvas: canvas, t: t)
 
