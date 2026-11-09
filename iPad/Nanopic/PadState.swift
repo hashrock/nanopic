@@ -120,6 +120,12 @@ final class PadState {
         canvas?.fitToView()
     }
 
+    /// 今の書類を閉じて、起動したときと同じ白紙に戻す
+    func closeDocument() {
+        let blank = Editor().doc
+        newDocument(width: blank.width, height: blank.height)
+    }
+
     /// ファイル App などから渡されたファイルを開く
     func open(url: URL) {
         releaseAccess()

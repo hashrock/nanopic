@@ -27,7 +27,7 @@ struct PadContentView: View {
     enum PendingAction: Hashable, Identifiable {
         /// ドロップされたファイル。scoped なら開いたあとアクセス権を手放す
         case openFile(URL, scoped: Bool)
-        case new, open
+        case new, open, close
         var id: Self { self }
     }
 
@@ -114,6 +114,7 @@ struct PadContentView: View {
         switch action {
         case .new: showNewDocument = true
         case .open: importing = .open
+        case .close: state.closeDocument()
         case let .openFile(url, scoped):
             state.open(url: url)
             if scoped { url.stopAccessingSecurityScopedResource() }
@@ -145,6 +146,8 @@ struct PadContentView: View {
                 Button { requestDiscard(.new) } label: { Label("新規…", systemImage: "doc.badge.plus") }
                     .keyboardShortcut("n")
                 Button { requestDiscard(.open) } label: { Label("開く…", systemImage: "folder") }
+                Button { requestDiscard(.close) } label: { Label("閉じる", systemImage: "xmark.circle") }
+                    .disabled(editor.fileURL == nil && !editor.isDirty)
                     .keyboardShortcut("o")
                 Divider()
                 Button { state.save() } label: { Label("保存", systemImage: "square.and.arrow.down") }
