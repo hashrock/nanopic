@@ -14,6 +14,12 @@ public struct StrokeInput: Sendable {
         self.pressure = pressure
         self.time = time
     }
+
+    /// Apple Pencil の力を筆圧 (0...1) にする。普段の筆圧で 0.5 前後、軽く触れたときは十分小さくなる曲線
+    public static func applePencilPressure(force: Double, maximum: Double) -> Double {
+        guard maximum > 0 else { return 1 }
+        return pow(min(1, force / maximum * 1.6), 1.15)
+    }
 }
 
 /// One Euro Filter（速度に応じてカットオフを変える低域通過フィルタ）
@@ -54,7 +60,9 @@ struct OneEuroFilter2D {
     var minCutoff: Double
     var beta: Double
     var dCutoff: Double = 8.0
+    /// 1 段目と 2 段目の出力（2 段重ねて、手の揺れを強く落としつつ接線の折れをなくす）
     private var pos: (x: Double, y: Double)?
+    private var out: (x: Double, y: Double)?
     private var dx: Double = 0
     private var dy: Double = 0
 
@@ -69,17 +77,20 @@ struct OneEuroFilter2D {
     }
 
     mutating func filter(x: Double, y: Double, dt: Double) -> (x: Double, y: Double) {
-        guard let prev = pos else {
+        guard let prev = pos, let prevOut = out else {
             pos = (x, y)
+            out = (x, y)
             return (x, y)
         }
         let da = Self.alpha(dCutoff, dt)
         dx += ((x - prev.x) / dt - dx) * da
         dy += ((y - prev.y) / dt - dy) * da
         let a = Self.alpha(minCutoff + beta * hypot(dx, dy), dt)
-        let v = (x: prev.x + (x - prev.x) * a, y: prev.y + (y - prev.y) * a)
-        pos = v
-        return v
+        let first = (x: prev.x + (x - prev.x) * a, y: prev.y + (y - prev.y) * a)
+        let second = (x: prevOut.x + (first.x - prevOut.x) * a, y: prevOut.y + (first.y - prevOut.y) * a)
+        pos = first
+        out = second
+        return second
     }
 }
 
@@ -87,8 +98,8 @@ struct OneEuroFilter2D {
 ///
 /// 1. 位置を One Euro Filter で平滑化（手ブレ補正。速く動かすほど補正が弱まり遅延が減る）
 /// 2. Centripetal Catmull-Rom スプラインで補間し、弧長に沿ってダブを配置
-/// 3. 筆圧はスプライン上で連続に補間したうえで、移動距離あたりの変化量を制限
-///    （入り抜きや筆圧の急変でブラシサイズが急に変わらないようにする）
+/// 3. 筆圧は時間でならしたうえで移動距離あたりの変化量を制限する（速いストロークほど長い距離でならされる）
+/// 4. 最後の少しの区間は描くのを遅らせ、ペンを離したと分かったら、その区間で筆圧を 0 まで抜く
 public final class StrokeEngine {
     struct Point {
         var x: Double
@@ -104,7 +115,19 @@ public final class StrokeEngine {
     public var emit: (Dab) -> Void = { _ in }
 
     private var fpos: OneEuroFilter2D
-    private var fp: OneEuroFilter
+    /// 筆圧をならす 2 段のフィルタの状態
+    private var pressure1: Double = 0
+    private var pressure2: Double = 0
+    /// 描くのを遅らせている点（離したときに抜きをつけるため）
+    private var held: [Point] = []
+    /// ペンを離したあとの抜きを描いている
+    private var tailing = false
+    /// 抜きの始まりで、実効筆圧と目標がつながるようにする係数
+    private var tailScale: Double = 1
+    /// 筆圧をならす時定数（秒）。2 段なので目標の 90% に届くまでこの約 3.9 倍かかる
+    private var pressureTimeConstant: Double { Double(clamp01(brush.pressureSmoothing)) * 0.04 }
+    /// 描くのを遅らせる時間（秒）
+    private var liftHoldback: Double { Double(clamp01(brush.liftTaper)) * 0.06 }
     private var pts: [Point] = []
     private var lastRaw: StrokeInput?
     private var lastTime: Double = 0
@@ -133,9 +156,8 @@ public final class StrokeEngine {
         let s = Double(clamp01(brush.smoothing))
         // 手ブレ補正: 強いほど最小カットオフを下げる。速度係数 beta は画面座標基準。
         let minCutoff = 14.0 * pow(0.02, s)        // s=0: 14Hz, s=1: 0.28Hz
-        let beta = 0.05 * pow(0.15, s) * self.zoom  // 速度 (canvas px/s) × zoom = 画面 px/s
+        let beta = 0.03 * pow(0.2, s) * self.zoom  // 速度 (canvas px/s) × zoom = 画面 px/s
         fpos = OneEuroFilter2D(minCutoff: minCutoff, beta: beta)
-        fp = OneEuroFilter(minCutoff: 12, beta: 0.5)
         effP = usePressure ? 0 : 1
         jitterSeed = seed
         nextSizeRandom = rollSizeRandom()
@@ -182,7 +204,6 @@ public final class StrokeEngine {
         lastTime = s.time
         let p = curvedPressure(s.pressure)
         _ = fpos.filter(x: s.x, y: s.y, dt: 1.0 / 240)
-        _ = fp.filter(p, dt: 1.0 / 240)
         pts = [Point(x: s.x, y: s.y, p: p, t: s.time)]
         if !usePressure {
             emitDab(x: s.x, y: s.y, dirX: 0, dirY: 0)
@@ -194,6 +215,8 @@ public final class StrokeEngine {
             begin(s)
             return
         }
+        // 離した瞬間の 0 は本当の筆圧ではない（抜きは end でつける）
+        if usePressure && s.pressure <= 0 { return }
         var dt = s.time - prev.time
         if dt <= 0.0005 { dt = 1.0 / 240 }
         dt = min(dt, 0.1)
@@ -205,21 +228,55 @@ public final class StrokeEngine {
             x = s.x
             y = s.y
         }
-        let p = usePressure ? fp.filter(curvedPressure(s.pressure), dt: dt) : 1
-        pushPoint(Point(x: x, y: y, p: p, t: s.time))
+        let q = Point(x: x, y: y, p: usePressure ? curvedPressure(s.pressure) : 1, t: s.time)
+        guard holdsBackForLift else {
+            pushPoint(q)
+            return
+        }
+        held.append(q)
+        var n = 0
+        while n < held.count, q.t - held[n].t > liftHoldback {
+            pushPoint(held[n])
+            n += 1
+        }
+        if n > 0 { held.removeFirst(n) }
+    }
+
+    private var holdsBackForLift: Bool { usePressure && continuousInterval == nil && brush.liftTaper > 0.001 }
+
+    /// 残りの区間の筆圧を、弧長に沿って 0 まで落とす
+    private func applyLiftTaper(_ tail: inout [Point]) {
+        guard tail.count >= 2 else { return }
+        var total = 0.0
+        for i in 1..<tail.count { total += hypot(tail[i].x - tail[i - 1].x, tail[i].y - tail[i - 1].y) }
+        // ほとんど動いていない（タップなど）なら抜かない
+        guard total >= 2 else { return }
+        let start = pts.last?.p ?? tail[0].p
+        var run = 0.0
+        for i in 1..<tail.count {
+            run += hypot(tail[i].x - tail[i - 1].x, tail[i].y - tail[i - 1].y)
+            tail[i].p = start * max(0, 1 - run / total)
+        }
+        tail[0].p = start
+        tailScale = start > 0.001 ? min(effP / start, 1.5) : 1
     }
 
     public func end() {
         // 手ブレ補正の遅れを取り戻す：最後の位置でフィルタを回し続けて滑らかに収束させる
-        if let raw = lastRaw, brush.smoothing > 0.001, let lastP = pts.last?.p {
+        var tail = held
+        held.removeAll()
+        if let raw = lastRaw, brush.smoothing > 0.001, let lastP = tail.last?.p ?? pts.last?.p {
             var t = raw.time
             for _ in 0..<60 {
                 t += 1.0 / 240
                 let (x, y) = fpos.filter(x: raw.x, y: raw.y, dt: 1.0 / 240)
-                pushPoint(Point(x: x, y: y, p: lastP, t: t))
+                tail.append(Point(x: x, y: y, p: lastP, t: t))
                 if hypot(raw.x - x, raw.y - y) < 0.3 { break }
             }
         }
+        if holdsBackForLift { applyLiftTaper(&tail) }
+        tailing = holdsBackForLift && tail.count >= 2
+        for q in tail { pushPoint(q) }
         if pts.count >= 2 {
             drawPendingSegment(final: true)
         } else if let only = pts.first, dabCount == 0 {
@@ -358,13 +415,21 @@ public final class StrokeEngine {
             effP = 1
             return
         }
+        if tailing {
+            effP = min(max(target * tailScale, 0), 1)
+            return
+        }
+        let tau = pressureTimeConstant
+        let k = tau < 0.0005 ? 1 : 1 - exp(-max(dt, 0) / tau)
+        pressure1 += (target - pressure1) * k
+        pressure2 += (pressure1 - pressure2) * k
         let slope = Double(max(brush.pressureSlope, 0.02))
         // サイズ変化の最大勾配（半径 px / 移動 px）→ 筆圧単位へ換算。
         // サイズが筆圧で変わらないブラシでも濃度の急変を抑えるため最大半径を基準にする。
         let perPx = slope / max(maxRadius, 1.0)
-        // 静止中もゆっくり変化できるよう時間成分も加える（0→1 に約 0.12 秒）
-        let allowed = perPx * ds + dt / 0.12
-        let diff = target - effP
+        // 静止中も変化できるよう時間成分も加える（0→1 に約 0.06 秒）
+        let allowed = perPx * ds + dt / 0.06
+        let diff = pressure2 - effP
         effP += min(max(diff, -allowed), allowed)
         effP = min(max(effP, 0), 1)
     }

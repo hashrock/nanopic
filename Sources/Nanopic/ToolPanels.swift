@@ -158,6 +158,8 @@ struct BrushOptionsView: View {
                     LabeledSlider(label: "筆圧カーブ（硬↔軟）", value: Binding(get: { log2(brush.wrappedValue.pressureGamma) },
                                                                           set: { brush.wrappedValue.pressureGamma = pow(2, $0) }),
                                   range: -2...2, format: "%.2f")
+                    LabeledSlider(label: "筆圧のならし（入りの遅さ）", value: brush.pressureSmoothing, range: 0...1, scale: 100, suffix: "%")
+                    LabeledSlider(label: "抜きの長さ", value: brush.liftTaper, range: 0...1, scale: 100, suffix: "%")
                     LabeledSlider(label: "サイズ変化の滑らかさ", value: Binding(get: { 1 - (brush.wrappedValue.pressureSlope - 0.05) / 1.95 },
                                                                         set: { brush.wrappedValue.pressureSlope = 0.05 + (1 - $0) * 1.95 }),
                                   range: 0...1, scale: 100, suffix: "%")

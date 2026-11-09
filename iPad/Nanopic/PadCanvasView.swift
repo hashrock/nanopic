@@ -222,7 +222,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
         let p = t.preciseLocation(in: self).applying(viewToCanvas)
         let pressure: Double
         if t.type == .pencil, t.maximumPossibleForce > 0 {
-            pressure = min(1, Double(t.force / t.maximumPossibleForce) * 1.6)
+            pressure = StrokeInput.applePencilPressure(force: Double(t.force), maximum: Double(t.maximumPossibleForce))
         } else {
             pressure = 1
         }

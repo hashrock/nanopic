@@ -2,6 +2,24 @@ import XCTest
 @testable import NanopicCore
 
 final class StrokeFilterTests: XCTestCase {
+    /// 既定の設定なら、一定の筆圧で描いた短い線（0.2 秒）の序盤で太さがほぼ最大になること
+    func testEntryReachesPeakEarly() {
+        var brush = BrushSettings(name: "test")
+        brush.size = 8
+        brush.spacing = 0.1
+        brush.smoothing = 0
+        let engine = StrokeEngine(brush: brush, usePressure: true, zoom: 1)
+        var dabs: [Dab] = []
+        engine.emit = { dabs.append($0) }
+        engine.begin(StrokeInput(x: 0, y: 0, pressure: 0.6, time: 0))
+        for i in 1...48 { engine.add(StrokeInput(x: Double(i) * 6, y: 0, pressure: 0.6, time: Double(i) / 240)) }
+        engine.end()
+        let peak = dabs.map(\.radius).max()!
+        let reached = dabs.first { $0.radius >= peak * 0.9 }!
+        print("ENTRY 90% at \(reached.x) of 288")
+        XCTAssertLessThan(reached.x, 288 * 0.3)
+    }
+
     /// 手ブレ補正をかけても、円は（少し小さくなるだけで）円のままであること
     func testStabilizerKeepsCircleRound() {
         for smoothing: Float in [0.3, 0.6, 1.0] {
