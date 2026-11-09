@@ -1,7 +1,8 @@
-import AppKit
+import CoreGraphics
 import Metal
 import MetalKit
 import NanopicCore
+import QuartzCore
 
 private let shaderSource = """
 #include <metal_stdlib>
@@ -39,6 +40,33 @@ fragment float4 fmain(VOut in [[stage_in]], texture2d<float> tex [[texture(0)]],
 }
 """
 
+/// レンダラーが表示に使う情報（Mac・iPad のキャンバスがそれぞれ実装する）
+public protocol CanvasRenderHost: AnyObject {
+    var editor: Editor { get }
+    /// 再生中（オニオンスキンを出さない）
+    var isPlaybackActive: Bool { get }
+    /// キャンバスの外の灰色（0...1）
+    var backgroundGray: Double { get }
+    /// キャンバス座標 → ビュー座標（ポイント）
+    var canvasToView: CGAffineTransform { get }
+    var zoom: CGFloat { get }
+    /// 1 ポイントあたりのピクセル数
+    var displayScale: CGFloat { get }
+}
+
+/// 1 フレームの時間の内訳（ミリ秒）
+public struct RenderTiming: Sendable {
+    public var start: Double
+    public var dirtyWidth: Int
+    public var dirtyHeight: Int
+    public var compositeMs: Double
+    public var waitMs: Double
+    public var uploadMs: Double
+    public var drawableMs: Double
+    public var totalMs: Double
+    public var gpuMs: Double
+}
+
 struct RenderUniforms {
     var m0: SIMD4<Float>
     var m1: SIMD4<Float>
@@ -46,7 +74,7 @@ struct RenderUniforms {
 }
 
 /// 合成結果をテクスチャに保持し、変更された領域だけ再合成・転送して表示する
-final class MetalRenderer: NSObject, MTKViewDelegate {
+public final class MetalRenderer: NSObject, MTKViewDelegate {
     let device: MTLDevice
     let queue: MTLCommandQueue
     let pipeline: MTLRenderPipelineState
@@ -59,9 +87,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     private var lastCommand: MTLCommandBuffer?
     private var lastOnionVersion = -1
     private var lastPlaybackKey: String?
-    weak var canvas: CanvasView?
+    public weak var canvas: CanvasRenderHost?
+    /// 設定するとフレームごとの時間の内訳をメインスレッドで受け取れる（性能計測用）
+    public var onTiming: ((RenderTiming) -> Void)?
 
-    init?(view: MTKView) {
+    public init?(view: MTKView) {
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else { return nil }
         self.device = device
         self.queue = queue
@@ -73,7 +103,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             desc.colorAttachments[0].pixelFormat = view.colorPixelFormat
             pipeline = try device.makeRenderPipelineState(descriptor: desc)
         } catch {
-            NSLog("Metal pipeline error: \(error)")
+            print("Metal pipeline error: \(error)")
             return nil
         }
         let sd = MTLSamplerDescriptor()
@@ -97,7 +127,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         if texSize == (width, height), texture != nil { return false }
         let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: width, height: height, mipmapped: true)
         desc.usage = [.shaderRead]
+        #if os(macOS)
         desc.storageMode = device.hasUnifiedMemory ? .shared : .managed
+        #else
+        desc.storageMode = .shared
+        #endif
         texture = device.makeTexture(descriptor: desc)
         composite?.deallocate()
         composite = .allocate(capacity: width * height * 4)
@@ -106,7 +140,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         return true
     }
 
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+    public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
     /// premultiplied の over 合成（rect の中だけ）
     private func blendOver(_ top: [UInt8], into dst: UnsafeMutablePointer<UInt8>, rect: IntRect, width w: Int) {
@@ -124,8 +158,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
     }
 
-    func draw(in view: MTKView) {
+    public func draw(in view: MTKView) {
         guard let canvas else { return }
+        let frameStart = CACurrentMediaTime()
+        var timing = RenderTiming(start: frameStart, dirtyWidth: 0, dirtyHeight: 0, compositeMs: 0, waitMs: 0,
+                                  uploadMs: 0, drawableMs: 0, totalMs: 0, gpuMs: 0)
         let editor = canvas.editor
         // ポーズ中はデフォーマをかけた絵を出す
         let doc = editor.displayDoc
@@ -153,7 +190,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             dirty = doc.bounds
         }
         // オニオンスキン（再生中は出さない）。作り直したら全体を描き直す
-        let onion = canvas.state.isPlaying ? nil : editor.onionSkinImage()
+        let onion = canvas.isPlaybackActive ? nil : editor.onionSkinImage()
         let onionVersion = onion == nil ? -1 : editor.onionSkinVersion
         if playbackFrame == nil, onionVersion != lastOnionVersion {
             dirty = doc.bounds
@@ -161,18 +198,29 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
 
         if !dirty.isEmpty {
+            timing.dirtyWidth = dirty.width
+            timing.dirtyHeight = dirty.height
+            let t0 = CACurrentMediaTime()
             // タイル境界に揃えて合成（並列化の単位）
             Compositor.composite(doc, rect: dirty, options: editor.compositeOptions(), into: composite, bufferWidth: w)
             if let onion, onion.count == w * h * 4 { blendOver(onion, into: composite, rect: dirty, width: w) }
+            let t1 = CACurrentMediaTime()
             // 前フレームの GPU 読み出しが終わってから書き換える
             lastCommand?.waitUntilCompleted()
+            let t2 = CACurrentMediaTime()
             texture.replace(region: MTLRegionMake2D(dirty.x, dirty.y, dirty.width, dirty.height), mipmapLevel: 0,
                             withBytes: composite + (dirty.y * w + dirty.x) * 4, bytesPerRow: w * 4)
             needsMipmaps = true
+            let t3 = CACurrentMediaTime()
+            timing.compositeMs = (t1 - t0) * 1000
+            timing.waitMs = (t2 - t1) * 1000
+            timing.uploadMs = (t3 - t2) * 1000
         }
 
+        let drawableStart = CACurrentMediaTime()
         guard let rpd = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
               let cmd = queue.makeCommandBuffer() else { return }
+        timing.drawableMs = (CACurrentMediaTime() - drawableStart) * 1000
         if needsMipmaps, let blit = cmd.makeBlitCommandEncoder() {
             blit.generateMipmaps(for: texture)
             blit.endEncoding()
@@ -184,7 +232,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         guard let enc = cmd.makeRenderCommandEncoder(descriptor: rpd) else { return }
         let t = canvas.canvasToView
         let vs = view.bounds.size
-        let scale = Float(view.window?.backingScaleFactor ?? 2)
+        let scale = Float(canvas.displayScale)
         var u = RenderUniforms(
             m0: SIMD4(Float(t.a), Float(t.b), Float(t.c), Float(t.d)),
             m1: SIMD4(Float(t.tx), Float(t.ty), Float(vs.width), Float(vs.height)),
@@ -198,6 +246,15 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         enc.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         enc.endEncoding()
         cmd.present(drawable)
+        if onTiming != nil {
+            timing.totalMs = (CACurrentMediaTime() - frameStart) * 1000
+            let finished = timing
+            cmd.addCompletedHandler { [weak self] c in
+                var t = finished
+                t.gpuMs = (c.gpuEndTime - c.gpuStartTime) * 1000
+                DispatchQueue.main.async { self?.onTiming?(t) }
+            }
+        }
         cmd.commit()
         lastCommand = cmd
     }

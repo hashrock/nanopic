@@ -1,5 +1,6 @@
 import AppKit
 import NanopicCore
+import NanopicUI
 import SwiftUI
 
 struct ContentView: View {

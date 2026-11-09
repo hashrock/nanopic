@@ -1,11 +1,12 @@
 import AppKit
 import MetalKit
 import NanopicCore
+import NanopicUI
 import SwiftUI
 
 /// キャンバス。Metal で画像を表示し、上に補助表示（グリッド・選択範囲・ハンドル）を重ねる。
 /// マウス・ペンタブレットのイベントはすべてこのビューで受ける。
-final class CanvasView: NSView {
+final class CanvasView: NSView, CanvasRenderHost {
     let state: AppState
     var editor: Editor { state.editor }
     private let mtkView: MTKView
@@ -205,6 +206,9 @@ final class CanvasView: NSView {
     }
 
     // MARK: - 座標
+
+    var isPlaybackActive: Bool { state.isPlaying }
+    var displayScale: CGFloat { window?.backingScaleFactor ?? 2 }
 
     private func viewPoint(_ e: NSEvent) -> CGPoint {
         convert(e.locationInWindow, from: nil)

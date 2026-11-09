@@ -1,0 +1,390 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1AF9B843C9E13356032B9535 /* PadState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281191610BBAA45D970DB8C7 /* PadState.swift */; };
+		201222756EE8C390035ECB77 /* PadCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E090EB7BBDBA0C46666CA1 /* PadCanvasView.swift */; };
+		45C5D81A745D40CF682872A4 /* PerfMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 054ACB290392C69D1E7A0DD9 /* PerfMonitor.swift */; };
+		4ABF2B89126B83F4456DAC0D /* Panels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA6622FD89C50750201202F9 /* Panels.swift */; };
+		830577A4DE868586BBB18991 /* NanopicKit in Frameworks */ = {isa = PBXBuildFile; productRef = F7D5C7327E79C75891F87128 /* NanopicKit */; };
+		8E90A9B2DD1820B5B6D78F31 /* PadContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EA38FFBE5E505105B08818D /* PadContentView.swift */; };
+		9CA20415D964A8B24349A6C0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EBF02326C7AA7BFB1D94C0FD /* Assets.xcassets */; };
+		E5EABF867C1B291EFB5C22C6 /* NanopicPadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7267E97985E62365F8C3A6B8 /* NanopicPadApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		054ACB290392C69D1E7A0DD9 /* PerfMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfMonitor.swift; sourceTree = "<group>"; };
+		16D197BC63A0881F02AF7134 /* NanopicPad.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NanopicPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		21E090EB7BBDBA0C46666CA1 /* PadCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadCanvasView.swift; sourceTree = "<group>"; };
+		281191610BBAA45D970DB8C7 /* PadState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadState.swift; sourceTree = "<group>"; };
+		54E9183CA8042B0B6243B155 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7267E97985E62365F8C3A6B8 /* NanopicPadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NanopicPadApp.swift; sourceTree = "<group>"; };
+		7EA38FFBE5E505105B08818D /* PadContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadContentView.swift; sourceTree = "<group>"; };
+		BA6622FD89C50750201202F9 /* Panels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Panels.swift; sourceTree = "<group>"; };
+		BAD152E1A6B631A6A1BB9CB1 /* nanopic */ = {isa = PBXFileReference; lastKnownFileType = folder; name = nanopic; path = ..; sourceTree = SOURCE_ROOT; };
+		EBF02326C7AA7BFB1D94C0FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C65092B54B4F0C22E87412E3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				830577A4DE868586BBB18991 /* NanopicKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0A546A25B2678D3A6B1DDF65 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				16D197BC63A0881F02AF7134 /* NanopicPad.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		3829660ADE909546D29491C7 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				BAD152E1A6B631A6A1BB9CB1 /* nanopic */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		A632AF586670D32E55D57483 = {
+			isa = PBXGroup;
+			children = (
+				D430B278A604BC89AF5A1C18 /* Nanopic */,
+				3829660ADE909546D29491C7 /* Packages */,
+				0A546A25B2678D3A6B1DDF65 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D430B278A604BC89AF5A1C18 /* Nanopic */ = {
+			isa = PBXGroup;
+			children = (
+				EBF02326C7AA7BFB1D94C0FD /* Assets.xcassets */,
+				54E9183CA8042B0B6243B155 /* Info.plist */,
+				7267E97985E62365F8C3A6B8 /* NanopicPadApp.swift */,
+				21E090EB7BBDBA0C46666CA1 /* PadCanvasView.swift */,
+				7EA38FFBE5E505105B08818D /* PadContentView.swift */,
+				281191610BBAA45D970DB8C7 /* PadState.swift */,
+				BA6622FD89C50750201202F9 /* Panels.swift */,
+				054ACB290392C69D1E7A0DD9 /* PerfMonitor.swift */,
+			);
+			path = Nanopic;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3752E43A56BFA9D92334A1BB /* NanopicPad */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7336AA04E9025F82111EF27D /* Build configuration list for PBXNativeTarget "NanopicPad" */;
+			buildPhases = (
+				351DEF4A80C5FCA625904F1A /* Sources */,
+				5A768E36E88944E4808A8E73 /* Resources */,
+				C65092B54B4F0C22E87412E3 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NanopicPad;
+			packageProductDependencies = (
+				F7D5C7327E79C75891F87128 /* NanopicKit */,
+			);
+			productName = NanopicPad;
+			productReference = 16D197BC63A0881F02AF7134 /* NanopicPad.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		370923E692AEF06449BA0852 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					3752E43A56BFA9D92334A1BB = {
+						DevelopmentTeam = 5WLLZHK49R;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = A894B2B815FAF0EA628A9EE0 /* Build configuration list for PBXProject "NanopicPad" */;
+			developmentRegion = ja;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				ja,
+			);
+			mainGroup = A632AF586670D32E55D57483;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0834FDAF2CB43B01BB45D248 /* XCLocalSwiftPackageReference ".." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0A546A25B2678D3A6B1DDF65 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3752E43A56BFA9D92334A1BB /* NanopicPad */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5A768E36E88944E4808A8E73 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9CA20415D964A8B24349A6C0 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		351DEF4A80C5FCA625904F1A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E5EABF867C1B291EFB5C22C6 /* NanopicPadApp.swift in Sources */,
+				201222756EE8C390035ECB77 /* PadCanvasView.swift in Sources */,
+				8E90A9B2DD1820B5B6D78F31 /* PadContentView.swift in Sources */,
+				1AF9B843C9E13356032B9535 /* PadState.swift in Sources */,
+				4ABF2B89126B83F4456DAC0D /* Panels.swift in Sources */,
+				45C5D81A745D40CF682872A4 /* PerfMonitor.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1AF91099CEE6C3538D5A24EB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.9.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+		1E8F63902D700211FE2C3526 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 5WLLZHK49R;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Nanopic/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Nanopic;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIFileSharingEnabled = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiresFullScreen = NO;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportsDocumentBrowser = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hashrock.nanopic.ipad;
+				PRODUCT_NAME = Nanopic;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		A6C8D276D5B4BBE54BC9E4A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 5WLLZHK49R;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Nanopic/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Nanopic;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIFileSharingEnabled = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiresFullScreen = NO;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportsDocumentBrowser = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hashrock.nanopic.ipad;
+				PRODUCT_NAME = Nanopic;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+		FC1CAFDFB47112B8CAF297B4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.9.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7336AA04E9025F82111EF27D /* Build configuration list for PBXNativeTarget "NanopicPad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1E8F63902D700211FE2C3526 /* Debug */,
+				A6C8D276D5B4BBE54BC9E4A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A894B2B815FAF0EA628A9EE0 /* Build configuration list for PBXProject "NanopicPad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1AF91099CEE6C3538D5A24EB /* Debug */,
+				FC1CAFDFB47112B8CAF297B4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		0834FDAF2CB43B01BB45D248 /* XCLocalSwiftPackageReference ".." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F7D5C7327E79C75891F87128 /* NanopicKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NanopicKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 370923E692AEF06449BA0852 /* Project object */;
+}

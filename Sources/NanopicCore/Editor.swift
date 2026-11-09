@@ -125,7 +125,7 @@ public final class Editor {
     @ObservationIgnored private var strokeMode: StrokeApplyMode = .normal
     @ObservationIgnored private var strokeBrush: BrushSettings?
     @ObservationIgnored private var strokeTip: BrushTip?
-    @ObservationIgnored private var strokeDabCount = 0
+    @ObservationIgnored public private(set) var strokeDabCount = 0
     public var isStroking: Bool { engine != nil }
 
     public init(width: Int = 1920, height: Int = 1080) {
