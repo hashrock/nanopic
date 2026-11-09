@@ -9,6 +9,7 @@ struct PadContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var showBrushes = false
+    @State private var dropTargeted = false
     @State private var showLayers = false
     @State private var showColors = false
     @State private var showNewDocument = false
@@ -23,7 +24,9 @@ struct PadContentView: View {
         var id: Self { self }
     }
 
-    enum PendingAction: Identifiable {
+    enum PendingAction: Hashable, Identifiable {
+        /// ドロップされたファイル。scoped なら開いたあとアクセス権を手放す
+        case openFile(URL, scoped: Bool)
         case new, open
         var id: Self { self }
     }
@@ -55,6 +58,17 @@ struct PadContentView: View {
                 }
             }
             .allowsHitTesting(false)
+            if dropTargeted {
+                Rectangle()
+                    .strokeBorder(Color.accentColor, lineWidth: 4)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
+        }
+        .onDrop(of: PadState.openableTypes, isTargeted: $dropTargeted) { providers in
+            state.receiveDropped(providers) { url, scoped in
+                requestDiscard(.openFile(url, scoped: scoped))
+            }
         }
         .safeAreaInset(edge: .top, spacing: 0) { toolbar }
         .sheet(isPresented: $showNewDocument) {
@@ -78,7 +92,9 @@ struct PadContentView: View {
                 if state.save() { perform(action) }
             }
             Button("変更を破棄", role: .destructive) { perform(action) }
-            Button("キャンセル", role: .cancel) {}
+            Button("キャンセル", role: .cancel) {
+                if case let .openFile(url, scoped: true) = action { url.stopAccessingSecurityScopedResource() }
+            }
         }
         .onOpenURL { url in state.open(url: url) }
         .onChange(of: scenePhase) { _, phase in
@@ -98,6 +114,9 @@ struct PadContentView: View {
         switch action {
         case .new: showNewDocument = true
         case .open: importing = .open
+        case let .openFile(url, scoped):
+            state.open(url: url)
+            if scoped { url.stopAccessingSecurityScopedResource() }
         }
     }
 

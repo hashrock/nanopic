@@ -151,6 +151,53 @@ final class PadState {
         }
     }
 
+    /// ドロップされたファイルを受け取る。元の場所のまま開ければそのまま（scoped = true で受け取り側がアクセス権を手放す）、
+    /// 開けなければコピーを渡す。PSD のコピーは上書き保存できるよう書類フォルダーに置く
+    func receiveDropped(_ providers: [NSItemProvider], completion: @escaping (URL, Bool) -> Void) -> Bool {
+        for provider in providers {
+            guard let type = Self.openableTypes.first(where: { provider.hasItemConformingToTypeIdentifier($0.identifier) }) else { continue }
+            provider.loadInPlaceFileRepresentation(forTypeIdentifier: type.identifier) { [self] url, inPlace, _ in
+                guard let url else {
+                    DispatchQueue.main.async { self.show("ファイルを受け取れませんでした") }
+                    return
+                }
+                if inPlace && url.startAccessingSecurityScopedResource() {
+                    DispatchQueue.main.async { completion(url, true) }
+                    return
+                }
+                do {
+                    let copy = try Self.copyDropped(url)
+                    DispatchQueue.main.async { completion(copy, false) }
+                } catch {
+                    DispatchQueue.main.async { self.show("ファイルを受け取れませんでした: \(error.localizedDescription)") }
+                }
+            }
+            return true
+        }
+        return false
+    }
+
+    private static func copyDropped(_ url: URL) throws -> URL {
+        let fm = FileManager.default
+        let ext = url.pathExtension
+        let name = url.deletingPathExtension().lastPathComponent
+        var dst: URL
+        if ["psd", "psb"].contains(ext.lowercased()) {
+            dst = documentsDirectory.appendingPathComponent(url.lastPathComponent)
+            var i = 2
+            while fm.fileExists(atPath: dst.path) {
+                dst = documentsDirectory.appendingPathComponent("\(name) \(i).\(ext)")
+                i += 1
+            }
+        } else {
+            let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            dst = dir.appendingPathComponent(url.lastPathComponent)
+        }
+        try fm.copyItem(at: url, to: dst)
+        return dst
+    }
+
     /// 画像を新しいレイヤーとして読み込む
     func importLayer(url: URL) {
         let scoped = url.startAccessingSecurityScopedResource()
