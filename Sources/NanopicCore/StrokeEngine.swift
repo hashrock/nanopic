@@ -48,6 +48,41 @@ struct OneEuroFilter {
     }
 }
 
+/// 位置用の One Euro Filter。カットオフは 2 次元の速さで決め、X と Y に同じ強さでかける
+/// （軸ごとに決めると、片方の軸の速度が 0 になる場所でそちらだけ強く補正され、円が角張る）
+struct OneEuroFilter2D {
+    var minCutoff: Double
+    var beta: Double
+    var dCutoff: Double = 8.0
+    private var pos: (x: Double, y: Double)?
+    private var dx: Double = 0
+    private var dy: Double = 0
+
+    init(minCutoff: Double, beta: Double) {
+        self.minCutoff = minCutoff
+        self.beta = beta
+    }
+
+    private static func alpha(_ cutoff: Double, _ dt: Double) -> Double {
+        let tau = 1.0 / (2 * .pi * cutoff)
+        return 1.0 / (1.0 + tau / dt)
+    }
+
+    mutating func filter(x: Double, y: Double, dt: Double) -> (x: Double, y: Double) {
+        guard let prev = pos else {
+            pos = (x, y)
+            return (x, y)
+        }
+        let da = Self.alpha(dCutoff, dt)
+        dx += ((x - prev.x) / dt - dx) * da
+        dy += ((y - prev.y) / dt - dy) * da
+        let a = Self.alpha(minCutoff + beta * hypot(dx, dy), dt)
+        let v = (x: prev.x + (x - prev.x) * a, y: prev.y + (y - prev.y) * a)
+        pos = v
+        return v
+    }
+}
+
 /// 入力サンプル列を滑らかな曲線に補間し、等間隔のダブを生成する。
 ///
 /// 1. 位置を One Euro Filter で平滑化（手ブレ補正。速く動かすほど補正が弱まり遅延が減る）
@@ -68,8 +103,7 @@ public final class StrokeEngine {
     public let zoom: Double
     public var emit: (Dab) -> Void = { _ in }
 
-    private var fx: OneEuroFilter
-    private var fy: OneEuroFilter
+    private var fpos: OneEuroFilter2D
     private var fp: OneEuroFilter
     private var pts: [Point] = []
     private var lastRaw: StrokeInput?
@@ -100,8 +134,7 @@ public final class StrokeEngine {
         // 手ブレ補正: 強いほど最小カットオフを下げる。速度係数 beta は画面座標基準。
         let minCutoff = 14.0 * pow(0.02, s)        // s=0: 14Hz, s=1: 0.28Hz
         let beta = 0.05 * pow(0.15, s) * self.zoom  // 速度 (canvas px/s) × zoom = 画面 px/s
-        fx = OneEuroFilter(minCutoff: minCutoff, beta: beta)
-        fy = OneEuroFilter(minCutoff: minCutoff, beta: beta)
+        fpos = OneEuroFilter2D(minCutoff: minCutoff, beta: beta)
         fp = OneEuroFilter(minCutoff: 12, beta: 0.5)
         effP = usePressure ? 0 : 1
         jitterSeed = seed
@@ -148,8 +181,7 @@ public final class StrokeEngine {
         lastRaw = s
         lastTime = s.time
         let p = curvedPressure(s.pressure)
-        _ = fx.filter(s.x, dt: 1.0 / 240)
-        _ = fy.filter(s.y, dt: 1.0 / 240)
+        _ = fpos.filter(x: s.x, y: s.y, dt: 1.0 / 240)
         _ = fp.filter(p, dt: 1.0 / 240)
         pts = [Point(x: s.x, y: s.y, p: p, t: s.time)]
         if !usePressure {
@@ -168,8 +200,7 @@ public final class StrokeEngine {
         lastRaw = s
         let x: Double, y: Double
         if brush.smoothing > 0.001 {
-            x = fx.filter(s.x, dt: dt)
-            y = fy.filter(s.y, dt: dt)
+            (x, y) = fpos.filter(x: s.x, y: s.y, dt: dt)
         } else {
             x = s.x
             y = s.y
@@ -184,8 +215,7 @@ public final class StrokeEngine {
             var t = raw.time
             for _ in 0..<60 {
                 t += 1.0 / 240
-                let x = fx.filter(raw.x, dt: 1.0 / 240)
-                let y = fy.filter(raw.y, dt: 1.0 / 240)
+                let (x, y) = fpos.filter(x: raw.x, y: raw.y, dt: 1.0 / 240)
                 pushPoint(Point(x: x, y: y, p: lastP, t: t))
                 if hypot(raw.x - x, raw.y - y) < 0.3 { break }
             }
