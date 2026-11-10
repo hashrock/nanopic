@@ -7,6 +7,14 @@ import Foundation
 /// アプリの設定（UserDefaults）に持ち、次からはそれを解いて書く（entitlement は files.bookmarks.app-scope）。
 /// bookmark は実在するファイルにしか作れないので、初回は書いたあとで覚える。
 /// Sandbox の外では要らない（パスの文字列だけで書ける）。
+/// bookmark の置き場。本物は UserDefaults。テストでは実際の設定に触らないよう、メモリー上の入れ物を渡す
+public protocol BookmarkStorage {
+    func data(forKey key: String) -> Data?
+    func set(_ value: Any?, forKey key: String)
+}
+
+extension UserDefaults: BookmarkStorage {}
+
 public struct ScopedBookmarks {
     /// App Sandbox の中で動いているか
     public static var isSandboxed: Bool { ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil }
@@ -19,12 +27,12 @@ public struct ScopedBookmarks {
         var bookmark: Data
     }
 
-    private let defaults: UserDefaults
+    private let defaults: BookmarkStorage
     private let key: String
     private let securityScoped: Bool
 
     /// securityScoped を false にすると、ふつうの bookmark を使う（テスト用）
-    public init(defaults: UserDefaults = .standard, key: String = "publish.bookmarks.v1", securityScoped: Bool = true) {
+    public init(defaults: BookmarkStorage = UserDefaults.standard, key: String = "publish.bookmarks.v1", securityScoped: Bool = true) {
         self.defaults = defaults
         self.key = key
         self.securityScoped = securityScoped

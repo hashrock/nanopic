@@ -1,11 +1,21 @@
 import XCTest
 @testable import NanopicCore
 
+/// 実際の UserDefaults（~/Library/Preferences）に触らないための、メモリー上の設定の置き場
+private final class MemoryDefaults: DefaultsDomains, BookmarkStorage {
+    var domains: [String: [String: Any]] = [:]
+    var values: [String: Any] = [:]
+
+    func persistentDomain(forName domainName: String) -> [String: Any]? { domains[domainName] }
+    func setPersistentDomain(_ domain: [String: Any], forName domainName: String) { domains[domainName] = domain }
+    func data(forKey key: String) -> Data? { values[key] as? Data }
+    func set(_ value: Any?, forKey key: String) { values[key] = value }
+}
+
 final class MigrationTests: XCTestCase {
     func testLegacyDefaultsAreCopiedOnce() {
-        let old = "test.nanopic.old." + UUID().uuidString, new = "test.nanopic.new." + UUID().uuidString
-        let d = UserDefaults.standard
-        defer { d.removePersistentDomain(forName: old); d.removePersistentDomain(forName: new) }
+        let old = "old.example", new = "new.example"
+        let d = MemoryDefaults()
         d.setPersistentDomain(["palette.v1": ["#FF0000"], "experimental.rig": true, "grid.v1": Data([1])], forName: old)
         d.setPersistentDomain(["experimental.rig": false], forName: new)
 
@@ -25,16 +35,14 @@ final class MigrationTests: XCTestCase {
     }
 
     func testMigrationWithoutLegacyDomain() {
-        let new = "test.nanopic.new." + UUID().uuidString
-        defer { UserDefaults.standard.removePersistentDomain(forName: new) }
-        XCTAssertEqual(LegacyDefaults.migrate(from: "test.nanopic.none." + UUID().uuidString, to: new), 0)
+        let d = MemoryDefaults()
+        XCTAssertEqual(LegacyDefaults.migrate(from: "none.example", to: "new.example", defaults: d), 0)
+        XCTAssertEqual(d.persistentDomain(forName: "new.example")?.count, 1, "済んだ印だけが付く")
     }
 
     #if os(macOS)
     func testBookmarksRememberWritablePlaces() throws {
-        let suite = "test.nanopic.bookmarks." + UUID().uuidString
-        let d = UserDefaults(suiteName: suite)!
-        defer { d.removePersistentDomain(forName: suite) }
+        let d = MemoryDefaults()
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
