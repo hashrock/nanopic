@@ -2,6 +2,7 @@
 # App Store 用のビルドを作る: エージェント連携（MCP）を外した build/appstore/Nanopic.app
 #
 #   ./scripts/build-appstore.sh
+#   SANDBOX=1 ./scripts/build-appstore.sh   # App Sandbox を付けて ad-hoc 署名する（手元で Sandbox の中の動作を確かめる用）
 #
 # MCP はコンパイルの段階で外す（Package.swift の NANOPIC_APPSTORE）。実行時に隠しているのではないことを、
 # できたバイナリに MCP の文字列・シンボルが残っていないことで確かめる。
@@ -29,3 +30,8 @@ if otool -L "$BIN" | grep -q 'Network.framework'; then
     exit 1
 fi
 echo "OK: MCP の文字列・シンボル、待ち受けは入っていません（${BIN}）"
+
+if [ "${SANDBOX:-}" = "1" ]; then
+    codesign --force --sign - --entitlements scripts/appstore.entitlements build/appstore/Nanopic.app
+    echo "App Sandbox を付けて ad-hoc 署名しました（配布用の署名ではありません）"
+fi

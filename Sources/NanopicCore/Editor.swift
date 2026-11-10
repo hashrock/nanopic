@@ -88,7 +88,7 @@ public final class Editor {
     /// 色調補正のプレビュー中（確定するまでレイヤーの中身は変えず、表示だけに補正をかける）
     public private(set) var adjustment: (layerID: UUID, value: ColorAdjustment)?
     public var fileURL: URL?
-    /// PSD の隣に置くサイドカーの中身
+    /// PSD の隣に置くサイドカー（作品.nanopic）の中身
     public var sidecar = Sidecar()
     /// タイムラインの再生位置（コマ）
     public internal(set) var currentFrame = 0

@@ -46,6 +46,15 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
             <key>LSHandlerRank</key><string>Alternate</string>
             <key>LSItemContentTypes</key><array><string>com.adobe.photoshop-image</string></array>
         </dict>
+        <!-- サイドカー（作品.psd の隣の 作品.nanopic）。App Sandbox の中で隣のファイルを読み書きするための「関連ファイル」の宣言。
+             Role が Editor でないと書けない。LSHandlerRank を None にして、Finder からこのアプリで開く候補にはしない -->
+        <dict>
+            <key>CFBundleTypeName</key><string>Nanopic Sidecar</string>
+            <key>CFBundleTypeRole</key><string>Editor</string>
+            <key>LSHandlerRank</key><string>None</string>
+            <key>CFBundleTypeExtensions</key><array><string>nanopic</string></array>
+            <key>NSIsRelatedItemType</key><true/>
+        </dict>
     </array>
 </dict>
 </plist>

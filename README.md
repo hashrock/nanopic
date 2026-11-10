@@ -34,6 +34,7 @@ App Store 用のビルドには、エージェント連携（MCP サーバー、
 - `Package.swift` が環境変数 `NANOPIC_APPSTORE=1` を見て、アプリを `NanopicAgent` に依存させず、`Sources/Nanopic/Agent/`（MCP サーバー・設定画面・アプリ側のツール）をビルドから外し、`APPSTORE` を定義します。残りの呼び出し側は `#if !APPSTORE` で分けています
 - ふだんのビルドと中間ファイルが混ざらないよう、ビルド先は `.build-appstore/` に分けます
 - `build-appstore.sh` は、できたバイナリに MCP の文字列・シンボルと待ち受け（`NWListener`、Network.framework）が残っていないことを `strings`／`nm`／`otool` で確かめ、残っていれば失敗します
+- `SANDBOX=1 ./scripts/build-appstore.sh` とすると、App Sandbox の entitlement（`scripts/appstore.entitlements`）を付けて ad-hoc 署名します。Sandbox の中での動作（サイドカーの読み書きなど）を手元で確かめるためのもので、配布用の署名ではありません
 - 直接配布（Developer ID、`release.sh`）のビルドは今までどおりエージェント連携を含みます
 - iPad 版が使うライブラリ `NanopicKit` には、どちらの構成でも `NanopicAgent` を入れません
 
@@ -75,6 +76,22 @@ open NanopicPad.xcodeproj    # スキーム NanopicPad を iPad／シミュレ�
 | ファイル | PSD／PSB の読み込み、PSD 保存（フォルダー構造・合成モード・クリッピング・ロック・日本語名を保持）、PNG 書き出し、画像の読み込み |
 | ショートカット | ツールごと・ブラシごとに単キー（Shift／Option との組み合わせ可）を割り当て（設定 ⌘, ／ツールやブラシの右クリック） |
 | エージェント連携 | MCP サーバー（127.0.0.1 のみ、既定はオフ）。エージェントがレイヤー・ブラシ・塗りを操作し、線画の領域を探して下塗りできる |
+
+## ファイルの形
+
+絵は PSD で保存します。保存した PSD は、ほかのアプリでもそのまま開けます。スイッチフォルダー・タイムライン・リグ・書き出しの設定のように PSD に入らない情報があるときだけ、PSD の隣に同じ名前のサイドカー `作品.nanopic`（JSON）を書きます。
+
+```
+作品.psd       絵（レイヤー構成つき）
+作品.nanopic   PSD に入らない情報。必要なときだけ作る
+```
+
+- PSD を移動・名前変更するときは、`作品.nanopic` も同じ名前で一緒に動かしてください。
+- 以前の版が書いた `作品.nanopic.json` も読めます。次に保存すると `作品.nanopic` に書き、古いファイルはそのまま残します（両方あれば `作品.nanopic` を使います）。
+- App Store 用のビルド（App Sandbox）では、`作品.nanopic` を「関連ファイル」として読み書きします。古い `作品.nanopic.json` は Sandbox の中から読めないので、直接配布版で一度開いて保存し直すか、`作品.nanopic` に名前を変えてください。
+- iPad 版は、アプリの書類フォルダー（ファイル App の「このiPad内 › Nanopic」）の中ではサイドカーを読み書きできます。外の場所の PSD では、サイドカーを読めない・書けないことがあります。
+
+仕組みの詳細は [docs/animation.md](docs/animation.md) にあります。
 
 ## 描画品質の設計
 
