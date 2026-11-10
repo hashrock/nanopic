@@ -1,16 +1,27 @@
 #!/bin/bash
 # Mac App Store に出す .pkg を作る: build/appstore/Nanopic.app を配布用に署名し、dist/appstore/Nanopic-<版>.pkg に固める
 #
-#   PROFILE=~/Downloads/Nanopic_Mac_App_Store.provisionprofile ./scripts/package-appstore.sh
-#   ./scripts/package-appstore.sh --dry-run   # 証明書なしで流れだけ確かめる（ad-hoc 署名、署名なしの .pkg。提出はできない）
+#   ./scripts/package-appstore.sh             # クラウド署名（既定）。手元に配布用の証明書は要らない
+#   PROFILE=~/Downloads/Nanopic_Mac_App_Store.provisionprofile ./scripts/package-appstore.sh --local
+#                                             # 手元のキーチェーンの証明書で署名する
+#   ./scripts/package-appstore.sh --dry-run   # 署名なしで流れだけ確かめる（ad-hoc 署名、署名なしの .pkg。提出はできない）
 #
-# 要るもの（Apple Developer で作ってキーチェーンに入れておく。作り方は README の「Mac App Store」）:
+# クラウド署名（既定）:
+#   アプリを .xcarchive の形に包み、xcodebuild -exportArchive -allowProvisioningUpdates に渡す。
+#   Xcode が Apple のサーバーにある証明書（Cloud Managed Apple Distribution）でアプリを署名し、
+#   プロファイル（Mac Team Store Provisioning Profile: com.hashrock.nanopic）を作って埋め込み、.pkg にして署名する。
+#   要るもの: Xcode の Settings > Accounts にチーム（TEAM_ID）の Apple ID でサインインしていること
+#   （クラウド署名を使えるのは Account Holder / Admin か、「Access to Cloud Managed Distribution Certificate」を持つ人）。
+#   Apple と通信するのは、この署名とプロファイルの作成だけ。
+#
+# 手元の証明書で署名する（--local）:
+#   Apple Developer で作ってキーチェーンに入れておく（作り方は README の「手元の証明書で署名するとき」）:
 #   - 証明書 "Apple Distribution: ..."（アプリの署名。古い名前は "3rd Party Mac Developer Application: ..."）
 #   - 証明書 "3rd Party Mac Developer Installer: ..."（.pkg の署名。新しい名前は "Mac Installer Distribution"）
 #   - Mac App Store 用のプロビジョニングプロファイル（App ID com.hashrock.nanopic）→ PROFILE で渡す
-# 名前が違うときは APP_IDENTITY / PKG_IDENTITY で渡す。
+#   名前が違うときは APP_IDENTITY / PKG_IDENTITY で渡す。Apple とは通信しない（タイムスタンプも付けない）。
 #
-# このスクリプトは Apple と通信しない（タイムスタンプも付けない。App Store 用の署名には要らない）。
+# どの道でも、できた .pkg からアプリを取り出して scripts/check-appstore-app.sh でもう一度検査する。
 # できた .pkg のアップロード（Transporter か xcrun altool）はここではしない。
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -18,11 +29,17 @@ cd "$(dirname "$0")/.."
 TEAM_ID="${TEAM_ID:-5WLLZHK49R}"
 BUNDLE_ID=com.hashrock.nanopic
 APP=build/appstore/Nanopic.app
-DRY_RUN=0
-[ "${1:-}" = "--dry-run" ] && DRY_RUN=1
+MODE=cloud
+case "${1:-}" in
+"") ;;
+--cloud) MODE=cloud ;;
+--local) MODE=local ;;
+--dry-run) MODE=dry-run ;;
+*) echo "使い方: $0 [--cloud（既定）| --local | --dry-run]" >&2; exit 1 ;;
+esac
 
 find_identity() { security find-identity -v | sed -n "s/.*\"\\($1[^\"]*\\)\".*/\\1/p" | head -1; }
-if [ "$DRY_RUN" = 0 ]; then
+if [ "$MODE" = local ]; then
     APP_IDENTITY="${APP_IDENTITY:-$(find_identity 'Apple Distribution: ')}"
     [ -n "$APP_IDENTITY" ] || APP_IDENTITY=$(find_identity '3rd Party Mac Developer Application: ')
     PKG_IDENTITY="${PKG_IDENTITY:-$(find_identity '3rd Party Mac Developer Installer: ')}"
@@ -33,28 +50,100 @@ if [ "$DRY_RUN" = 0 ]; then
     if [ ${#MISSING[@]} -gt 0 ]; then
         echo "足りないもの:" >&2
         printf '  - %s\n' "${MISSING[@]}" >&2
-        echo "用意のしかたは README の「Mac App Store」。流れだけ確かめるなら --dry-run" >&2
+        echo "用意のしかたは README の「手元の証明書で署名するとき」。証明書なしで作るならオプションなし（クラウド署名）、流れだけ確かめるなら --dry-run" >&2
         exit 1
     fi
 fi
 
-./scripts/build-appstore.sh
+# クラウド署名に渡すアプリは、Sandbox の entitlement を付けて ad-hoc 署名しておく（Xcode がそれを引き継いで署名し直す）
+if [ "$MODE" = cloud ]; then SANDBOX=1 ./scripts/build-appstore.sh; else ./scripts/build-appstore.sh; fi
 
-# 配布用の entitlement: Sandbox のもの + どのアプリ・どのチームか（プロファイルと合っていること）
+pb() { /usr/libexec/PlistBuddy -c "Print :$1" "$APP/Contents/Info.plist"; }
+VERSION=$(pb CFBundleShortVersionString)
+BUILD_NUMBER=$(pb CFBundleVersion)
+mkdir -p dist/appstore
+
+# 配布用の entitlement: Sandbox のもの + どのアプリ・どのチームか（プロファイルと合っていること）。--local と --dry-run で使う
 ENT=$(mktemp -t nanopic-entitlements).plist
 cp scripts/appstore.entitlements "$ENT"
 /usr/libexec/PlistBuddy -c "Add :com.apple.application-identifier string $TEAM_ID.$BUNDLE_ID" \
                         -c "Add :com.apple.developer.team-identifier string $TEAM_ID" "$ENT"
 
-VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
-mkdir -p dist/appstore
-
-if [ "$DRY_RUN" = 1 ]; then
-    codesign --force --sign - --entitlements "$ENT" "$APP"
-    PKG="dist/appstore/Nanopic-$VERSION-unsigned.pkg"
+case "$MODE" in
+cloud)
+    # --- .xcarchive の形に包む（Xcode の Archive と同じ並び） ---
+    ARCHIVE=build/appstore/Nanopic.xcarchive
+    EXPORT=build/appstore/export
+    rm -rf "$ARCHIVE" "$EXPORT"
+    mkdir -p "$ARCHIVE/Products/Applications"
+    ditto "$APP" "$ARCHIVE/Products/Applications/Nanopic.app"
+    # dSYM があれば入れる（Organizer でクラッシュの場所を読むのに使う。なくても書き出せる）
+    DSYM=.build-appstore/apple/Products/Release/Nanopic.dSYM
+    if [ -d "$DSYM" ]; then
+        mkdir -p "$ARCHIVE/dSYMs"
+        ditto "$DSYM" "$ARCHIVE/dSYMs/Nanopic.app.dSYM"
+    fi
+    ARCHS=$(lipo -archs "$APP/Contents/MacOS/Nanopic")
+    cat > "$ARCHIVE/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>ApplicationProperties</key>
+    <dict>
+        <key>ApplicationPath</key><string>Applications/Nanopic.app</string>
+        <key>Architectures</key><array>$(for A in $ARCHS; do printf '<string>%s</string>' "$A"; done)</array>
+        <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
+        <key>CFBundleShortVersionString</key><string>$VERSION</string>
+        <key>CFBundleVersion</key><string>$BUILD_NUMBER</string>
+        <key>SigningIdentity</key><string>-</string>
+        <key>Team</key><string>$TEAM_ID</string>
+    </dict>
+    <key>ArchiveVersion</key><integer>2</integer>
+    <key>CreationDate</key><date>$(date -u +%Y-%m-%dT%H:%M:%SZ)</date>
+    <key>Name</key><string>Nanopic</string>
+    <key>SchemeName</key><string>Nanopic</string>
+</dict>
+</plist>
+PLIST
+    plutil -lint "$ARCHIVE/Info.plist" >/dev/null
+    OPTIONS=$(mktemp -t nanopic-export).plist
+    cat > "$OPTIONS" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key><string>app-store-connect</string>
+    <!-- 書き出すだけ（upload にするとアップロードまでしてしまう） -->
+    <key>destination</key><string>export</string>
+    <key>signingStyle</key><string>automatic</string>
+    <key>teamID</key><string>$TEAM_ID</string>
+    <!-- 版とビルド番号はアプリの Info.plist のまま（Xcode に書き換えさせない） -->
+    <key>manageAppVersionAndBuildNumber</key><false/>
+    <key>uploadSymbols</key><false/>
+</dict>
+</plist>
+PLIST
+    # --- クラウド署名（ここだけ Apple と通信する: 署名とプロファイルの作成） ---
+    LOG=build/appstore/export.log
+    echo "クラウド署名で書き出します（xcodebuild -exportArchive。ログは ${LOG}）"
+    if ! xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist "$OPTIONS" \
+            -exportPath "$EXPORT" -allowProvisioningUpdates > "$LOG" 2>&1; then
+        grep -E 'error|Error' "$LOG" | tail -20 >&2 || tail -20 "$LOG" >&2
+        echo "NG: 書き出しに失敗しました（${LOG}）。Xcode の Settings > Accounts にチーム $TEAM_ID でサインインしているか確かめてください" >&2
+        exit 1
+    fi
+    rm -f "$OPTIONS"
+    [ -f "$EXPORT/Nanopic.pkg" ] || { echo "NG: $EXPORT/Nanopic.pkg ができていません（${LOG}）" >&2; exit 1; }
+    PKG="dist/appstore/Nanopic-$VERSION.pkg"
     rm -f "$PKG"
-    productbuild --component "$APP" /Applications "$PKG"
-else
+    cp "$EXPORT/Nanopic.pkg" "$PKG"
+    # どの証明書・プロファイルで署名されたか
+    SUMMARY="$EXPORT/DistributionSummary.plist"
+    sp() { /usr/libexec/PlistBuddy -c "Print :Nanopic.pkg:0:$1" "$SUMMARY" 2>/dev/null || true; }
+    echo "署名: $(sp certificate:type)（$(sp certificate:dateExpires) まで） / プロファイル: $(sp profile:name)（$(sp profile:dateExpires) まで）"
+    ;;
+local)
     # プロファイルの App ID とチームが合っているか（合っていないと、アップロードしてから弾かれる）
     PROFILE_PLIST=$(mktemp -t nanopic-profile).plist
     security cms -D -i "$PROFILE" > "$PROFILE_PLIST"
@@ -71,20 +160,44 @@ else
     PKG="dist/appstore/Nanopic-$VERSION.pkg"
     rm -f "$PKG"
     productbuild --component "$APP" /Applications --sign "$PKG_IDENTITY" "$PKG"
-    pkgutil --check-signature "$PKG" | head -5
+    ;;
+dry-run)
+    codesign --force --sign - --entitlements "$ENT" "$APP"
+    PKG="dist/appstore/Nanopic-$VERSION-unsigned.pkg"
+    rm -f "$PKG"
+    productbuild --component "$APP" /Applications "$PKG"
+    ;;
+esac
+rm -f "$ENT"
+
+# --- できた .pkg を検査する: 署名、中のアプリ（取り出して、作った直後と同じ検査をもう一度） ---
+if [ "$MODE" != dry-run ]; then
+    PKG_SIGNER=$(pkgutil --check-signature "$PKG" | sed -n 's/^ *1\. //p' | head -1)
+    case "$PKG_SIGNER" in
+    "3rd Party Mac Developer Installer: "*|"Mac Installer Distribution: "*) echo "OK: .pkg の署名（${PKG_SIGNER}）" ;;
+    *) pkgutil --check-signature "$PKG" | head -8 >&2; echo "NG: .pkg が Installer の証明書で署名されていません" >&2; exit 1 ;;
+    esac
 fi
+EXPANDED=$(mktemp -d)
+pkgutil --expand-full "$PKG" "$EXPANDED/pkg"
+INNER=$(find "$EXPANDED/pkg" -maxdepth 3 -name Nanopic.app -type d | head -1)
+[ -n "$INNER" ] || { echo "NG: .pkg にアプリが入っていません" >&2; exit 1; }
+echo "--- .pkg の中のアプリを検査 ---"
+if [ "$MODE" = dry-run ]; then
+    ./scripts/check-appstore-app.sh "$INNER" --signed
+else
+    TEAM_ID="$TEAM_ID" ./scripts/check-appstore-app.sh "$INNER" --distribution
+fi
+ipb() { /usr/libexec/PlistBuddy -c "Print :$1" "$INNER/Contents/Info.plist"; }
+[ "$(ipb CFBundleShortVersionString) $(ipb CFBundleVersion)" = "$VERSION $BUILD_NUMBER" ] \
+    || { echo "NG: .pkg の中のアプリの版が変わっています（$(ipb CFBundleShortVersionString) / $(ipb CFBundleVersion)）" >&2; exit 1; }
+rm -rf "$EXPANDED"
 
-# 署名に入った entitlement を確かめる
-SIGNED=$(codesign -d --entitlements - --xml "$APP" 2>/dev/null)
-echo "$SIGNED" | grep -q 'com.apple.security.app-sandbox' || { echo "NG: 署名に app-sandbox がありません" >&2; exit 1; }
-if echo "$SIGNED" | grep -q 'com.apple.security.network'; then echo "NG: 署名に network.* が入っています" >&2; exit 1; fi
-pkgutil --payload-files "$PKG" | grep -q 'Nanopic.app/Contents/MacOS/Nanopic' || { echo "NG: .pkg にアプリが入っていません" >&2; exit 1; }
-
-echo "Built $PKG ($(du -h "$PKG" | cut -f1))"
-if [ "$DRY_RUN" = 1 ]; then
+echo "Built $PKG ($(du -h "$PKG" | cut -f1)、$VERSION / $BUILD_NUMBER)"
+if [ "$MODE" = dry-run ]; then
     echo "（--dry-run: ad-hoc 署名・署名なしの .pkg。App Store には出せません）"
 else
     echo "アップロードは Transporter.app にドラッグするか:"
     echo "  xcrun altool --upload-package $PKG --type macos --apple-id <App の Apple ID（数字）> --bundle-id $BUNDLE_ID \\\\"
-    echo "      --bundle-version $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist") --bundle-short-version-string $VERSION -u <Apple ID> -p @keychain:<項目名>"
+    echo "      --bundle-version $BUILD_NUMBER --bundle-short-version-string $VERSION -u <Apple ID> -p @keychain:<項目名>"
 fi

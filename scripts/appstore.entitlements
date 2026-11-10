@@ -4,7 +4,8 @@
      - files.user-selected.read-write: 開く・保存のパネルやドロップで選んだ書類の読み書き。
        PSD の隣のサイドカー（作品.nanopic）は、Info.plist の関連ファイルの宣言で読み書きする
      - files.bookmarks.app-scope: 「書き出す」（⌥⌘E）で前回と同じ場所へ上書きするため、保存パネルで選んだ書き出し先を覚える
-     配布用の署名では、scripts/package-appstore.sh が application-identifier と team-identifier を足す -->
+     配布用の署名では application-identifier と team-identifier が足される（クラウド署名では Xcode が、
+     手元の証明書での署名では scripts/package-appstore.sh が足す） -->
 <plist version="1.0">
 <dict>
     <key>com.apple.security.app-sandbox</key><true/>
