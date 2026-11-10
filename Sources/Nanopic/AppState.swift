@@ -1,5 +1,7 @@
 import AppKit
+#if !APPSTORE
 import NanopicAgent
+#endif
 import NanopicCore
 import Observation
 import UniformTypeIdentifiers
@@ -63,6 +65,8 @@ final class AppState {
     /// ショートカットの入力待ち（この間は単キーのショートカットを無効にする）
     var isRecordingShortcut = false
     @ObservationIgnored weak var canvasView: CanvasView?
+    // エージェント連携（MCP）は App Store 用ビルドに入れない（Sources/Nanopic/Agent もまとめて外す）
+    #if !APPSTORE
     /// エージェント連携の状態表示
     var mcpStatus = "停止中"
     /// 設定画面の再描画用（UserDefaults の値は Observation で追えないため）
@@ -73,6 +77,7 @@ final class AppState {
         s.onStatusChange = { [weak self] in self?.mcpStatus = $0 }
         return s
     }()
+    #endif
     @ObservationIgnored private var thumbCache: [UUID: (version: Int, image: NSImage)] = [:]
 
     init() {

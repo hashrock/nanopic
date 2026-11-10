@@ -214,7 +214,9 @@ struct NanopicApp: App {
             ContentView(state: state)
                 .onAppear {
                     delegate.state = state
+                    #if !APPSTORE
                     if state.mcpEnabled { state.applyMCPSetting() }
+                    #endif
                 }
         }
         .defaultSize(width: 1400, height: 900)
@@ -230,10 +232,12 @@ struct AppCommands: Commands {
     var editor: Editor { state.editor }
 
     var body: some Commands {
+        #if !APPSTORE
         CommandGroup(after: .appSettings) {
             Toggle("エージェント連携（MCP）", isOn: Binding(get: { _ = state.mcpSettingsVersion; return state.mcpEnabled },
                                                      set: { state.mcpEnabled = $0 }))
         }
+        #endif
         CommandGroup(replacing: .newItem) {
             Button("新規...") {
                 if state.confirmDiscardChanges() { state.showNewDocumentSheet = true }

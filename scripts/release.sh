@@ -8,6 +8,8 @@
 #   xcrun notarytool store-credentials nanovid --apple-id <Apple ID> --team-id 5WLLZHK49R --password <App 用パスワード>
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# こちらは直接配布（Developer ID）用。App Store 用のビルド（scripts/build-appstore.sh）とは混ぜない
+unset NANOPIC_APPSTORE
 
 IDENTITY="Developer ID Application: YU IWAI (5WLLZHK49R)"
 NOTARY_PROFILE="${NOTARY_PROFILE-nanovid}"

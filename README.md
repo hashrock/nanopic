@@ -22,6 +22,21 @@ open build/Nanopic.app
 
 - 必要なもの: macOS 14 以降、Xcode 16 以降（Swift 5.10+）
 
+### App Store 用のビルド
+
+```sh
+./scripts/build-appstore.sh   # エージェント連携（MCP）を外して build/appstore/Nanopic.app を生成
+NANOPIC_APPSTORE=1 swift test --scratch-path .build-appstore   # App Store 用の構成でテスト
+```
+
+App Store 用のビルドには、エージェント連携（MCP サーバー、設定とメニューの項目、エージェント向けのツール）を入れません。実行時に隠すのではなく、コンパイルの段階で外します。
+
+- `Package.swift` が環境変数 `NANOPIC_APPSTORE=1` を見て、アプリを `NanopicAgent` に依存させず、`Sources/Nanopic/Agent/`（MCP サーバー・設定画面・アプリ側のツール）をビルドから外し、`APPSTORE` を定義します。残りの呼び出し側は `#if !APPSTORE` で分けています
+- ふだんのビルドと中間ファイルが混ざらないよう、ビルド先は `.build-appstore/` に分けます
+- `build-appstore.sh` は、できたバイナリに MCP の文字列・シンボルと待ち受け（`NWListener`、Network.framework）が残っていないことを `strings`／`nm`／`otool` で確かめ、残っていれば失敗します
+- 直接配布（Developer ID、`release.sh`）のビルドは今までどおりエージェント連携を含みます
+- iPad 版が使うライブラリ `NanopicKit` には、どちらの構成でも `NanopicAgent` を入れません
+
 ### iPad 版
 
 ```sh
@@ -86,6 +101,7 @@ Sources/NanopicAgent/  エージェント（MCP）向けのツール（コアと
   Regions.swift / Gaps.swift  線画で囲まれた領域の分割と、線の隙間探し（下塗り用）
 Sources/NanopicUI/     Mac 版と iPad 版で共有する表示部品（Metal の表示、色の選択、スライダー）
 Sources/Nanopic/       macOS アプリ（SwiftUI パネル + AppKit/Metal キャンバス）
+  Agent/               エージェント連携（MCP サーバー、設定画面、アプリ側のツール）。App Store 用ビルドでは外す
 iPad/                  iPad アプリ（XcodeGen の project.yml、UIKit/Metal キャンバス + SwiftUI パネル）
 ```
 
@@ -117,6 +133,8 @@ iPad/                  iPad アプリ（XcodeGen の project.yml、UIKit/Metal �
 PSD や画像ファイルをウィンドウにドロップすると開きます（Option を押しながらドロップすると、画像を新規レイヤーとして追加）。ペンの消しゴム側をタブレットに近づけると、自動で消しゴムツールに切り替わります。トラックパッドでは 2 本指でスクロール、ピンチでズーム、回転ジェスチャーで表示を回転できます。
 
 ## エージェント連携（MCP）
+
+直接配布（Developer ID）版だけの機能です。App Store 用のビルドと iPad 版には入っていません。
 
 設定（⌘,）の「エージェント連携」で MCP サーバーを有効にすると、Claude Code などのエージェントが開いているキャンバスを操作できます。この Mac の中（`127.0.0.1`）からだけ接続でき、既定ではオフです。
 
