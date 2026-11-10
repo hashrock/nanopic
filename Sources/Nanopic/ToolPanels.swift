@@ -1,4 +1,5 @@
 import NanopicCore
+import NanopicUI
 import SwiftUI
 
 // MARK: - ツールバー（左端）
@@ -57,49 +58,6 @@ struct ToolBarView: View {
 }
 
 // MARK: - 共通部品
-
-struct LabeledSlider: View {
-    let label: String
-    @Binding var value: Float
-    var range: ClosedRange<Float>
-    var format: String = "%.0f"
-    var scale: Float = 1
-    var suffix: String = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            HStack {
-                Text(label).font(.caption)
-                Spacer()
-                Text(String(format: format, value * scale) + suffix)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            Slider(value: $value, in: range)
-                .controlSize(.small)
-        }
-    }
-}
-
-/// 対数スケールのサイズスライダー
-struct SizeSlider: View {
-    @Binding var size: Float
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            HStack {
-                Text("ブラシサイズ").font(.caption)
-                Spacer()
-                Text(size < 10 ? String(format: "%.1f px", size) : String(format: "%.0f px", size))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            Slider(value: Binding(get: { log(max(size, 0.5)) }, set: { size = (exp($0) * 10).rounded() / 10 }),
-                   in: log(0.5)...log(1000))
-                .controlSize(.small)
-        }
-    }
-}
 
 // MARK: - ツールプロパティ
 
@@ -200,6 +158,8 @@ struct BrushOptionsView: View {
                     LabeledSlider(label: "筆圧カーブ（硬↔軟）", value: Binding(get: { log2(brush.wrappedValue.pressureGamma) },
                                                                           set: { brush.wrappedValue.pressureGamma = pow(2, $0) }),
                                   range: -2...2, format: "%.2f")
+                    LabeledSlider(label: "筆圧のならし（入りの遅さ）", value: brush.pressureSmoothing, range: 0...1, scale: 100, suffix: "%")
+                    LabeledSlider(label: "抜きの長さ", value: brush.liftTaper, range: 0...1, scale: 100, suffix: "%")
                     LabeledSlider(label: "サイズ変化の滑らかさ", value: Binding(get: { 1 - (brush.wrappedValue.pressureSlope - 0.05) / 1.95 },
                                                                         set: { brush.wrappedValue.pressureSlope = 0.05 + (1 - $0) * 1.95 }),
                                   range: 0...1, scale: 100, suffix: "%")

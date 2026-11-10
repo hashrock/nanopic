@@ -1,5 +1,6 @@
 import AppKit
 import NanopicCore
+import NanopicUI
 import SwiftUI
 
 /// 登録した色。クリックで描画色、Option＋クリックでサブカラーにする

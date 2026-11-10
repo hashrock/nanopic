@@ -37,6 +37,10 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
     public var pressureGamma: Float = 1.0
     /// 筆圧変化の滑らかさ：サイズ変化の最大勾配（半径 px / 移動 px）
     public var pressureSlope: Float = 0.45
+    /// 筆圧のならし 0...1（大きいほど入りがゆっくりになり、筆圧の変化がなめらかになる。1 で時定数 40ms）
+    public var pressureSmoothing: Float = 0.25
+    /// 抜きの長さ 0...1（線の末尾を描くのを待つ時間。1 で 60ms、0 で抜きをつけず遅れもなし）
+    public var liftTaper: Float = 0.35
     /// 色混ぜ
     public var mixEnabled = false
     /// 絵の具量（ブラシ色の補給率）
@@ -66,7 +70,7 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, kind, size, sizePressure, minSizeRatio, opacity, opacityPressure, minOpacityRatio, flow, hardness
-        case spacing, tipID, angle, followDirection, roundness, smoothing, pressureGamma, pressureSlope
+        case spacing, tipID, angle, followDirection, roundness, smoothing, pressureGamma, pressureSlope, pressureSmoothing, liftTaper
         case mixEnabled, paintAmount, colorStretch, angleJitter, sizeJitter
         case blurAmount, warpPush, warpRadial, warpTwist
     }
@@ -95,6 +99,8 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
         smoothing = try v(.smoothing, d.smoothing)
         pressureGamma = try v(.pressureGamma, d.pressureGamma)
         pressureSlope = try v(.pressureSlope, d.pressureSlope)
+        pressureSmoothing = try v(.pressureSmoothing, d.pressureSmoothing)
+        liftTaper = try v(.liftTaper, d.liftTaper)
         mixEnabled = try v(.mixEnabled, d.mixEnabled)
         paintAmount = try v(.paintAmount, d.paintAmount)
         colorStretch = try v(.colorStretch, d.colorStretch)
@@ -113,6 +119,7 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
             && a.spacing == b.spacing && a.tipID == b.tipID && a.angle == b.angle
             && a.followDirection == b.followDirection && a.roundness == b.roundness && a.smoothing == b.smoothing
             && a.pressureGamma == b.pressureGamma && a.pressureSlope == b.pressureSlope
+            && a.pressureSmoothing == b.pressureSmoothing && a.liftTaper == b.liftTaper
             && a.mixEnabled == b.mixEnabled && a.paintAmount == b.paintAmount && a.colorStretch == b.colorStretch
             && a.angleJitter == b.angleJitter && a.sizeJitter == b.sizeJitter
             && a.blurAmount == b.blurAmount && a.warpPush == b.warpPush

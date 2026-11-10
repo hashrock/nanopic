@@ -1,19 +1,21 @@
+#if canImport(AppKit)
 import AppKit
+#endif
 import NanopicCore
 import SwiftUI
 
-struct HSV: Equatable {
-    var h: Double  // 0...1
-    var s: Double
-    var v: Double
+public struct HSV: Equatable {
+    public var h: Double  // 0...1
+    public var s: Double
+    public var v: Double
 
-    init(h: Double, s: Double, v: Double) {
+    public init(h: Double, s: Double, v: Double) {
         self.h = h
         self.s = s
         self.v = v
     }
 
-    init(rgb c: SIMD3<Float>, keepHue: Double) {
+    public init(rgb c: SIMD3<Float>, keepHue: Double) {
         let r = Double(c.x), g = Double(c.y), b = Double(c.z)
         let mx = max(r, g, b), mn = min(r, g, b)
         let d = mx - mn
@@ -31,7 +33,7 @@ struct HSV: Equatable {
         if h < 0 { h += 1 }
     }
 
-    var rgb: SIMD3<Float> {
+    public var rgb: SIMD3<Float> {
         let i = floor(h * 6)
         let f = h * 6 - i
         let p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s)
@@ -49,25 +51,32 @@ struct HSV: Equatable {
 }
 
 extension SIMD3 where Scalar == Float {
-    var swiftUIColor: Color { Color(.sRGB, red: Double(x), green: Double(y), blue: Double(z)) }
-    var hex: String {
+    public var swiftUIColor: Color { Color(.sRGB, red: Double(x), green: Double(y), blue: Double(z)) }
+    public var hex: String {
         String(format: "%02X%02X%02X", Int((x * 255).rounded()), Int((y * 255).rounded()), Int((z * 255).rounded()))
     }
 
-    init?(hex: String) {
+    public init?(hex: String) {
         let s = hex.trimmingCharacters(in: CharacterSet(charactersIn: "# "))
         guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
         self.init(Float((v >> 16) & 0xFF) / 255, Float((v >> 8) & 0xFF) / 255, Float(v & 0xFF) / 255)
     }
 }
 
-struct ColorPickerView: View {
+public struct ColorPickerView: View {
     @Bindable var editor: Editor
+    /// 色の四角の高さ（iPad では大きくする）
+    var squareHeight: CGFloat
     @State private var hsv = HSV(h: 0, s: 0, v: 0)
     @State private var hexText = ""
     @State private var lastSet: SIMD3<Float>?
 
-    var body: some View {
+    public init(editor: Editor, squareHeight: CGFloat = 150) {
+        self.editor = editor
+        self.squareHeight = squareHeight
+    }
+
+    public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
                 svSquare
@@ -83,7 +92,9 @@ struct ColorPickerView: View {
                             .frame(width: 80)
                             .onSubmit {
                                 if let c = SIMD3<Float>(hex: hexText) { setColor(c) }
+                                #if os(macOS)
                                 NSApp.keyWindow?.makeFirstResponder(nil)
+                                #endif
                             }
                     }
                     Text(String(format: "H %.0f° S %.0f%% V %.0f%%", hsv.h * 360, hsv.s * 100, hsv.v * 100))
@@ -140,7 +151,7 @@ struct ColorPickerView: View {
                 setHSV(n)
             })
         }
-        .frame(height: 150)
+        .frame(height: squareHeight)
     }
 
     private var hueBar: some View {
@@ -162,7 +173,7 @@ struct ColorPickerView: View {
                 setHSV(n)
             })
         }
-        .frame(width: 18, height: 150)
+        .frame(width: 18, height: squareHeight)
     }
 
     private var swatches: some View {

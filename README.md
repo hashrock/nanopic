@@ -21,6 +21,21 @@ open build/Nanopic.app
 ```
 
 - 必要なもの: macOS 14 以降、Xcode 16 以降（Swift 5.10+）
+
+### iPad 版
+
+```sh
+cd iPad && xcodegen          # project.yml から NanopicPad.xcodeproj を作り直す（brew install xcodegen）
+open NanopicPad.xcodeproj    # スキーム NanopicPad を iPad／シミュレーターで実行
+```
+
+- iPadOS 17 以降。描画エンジン（NanopicCore）と表示部品（NanopicUI）を Mac 版と共有しています
+- Apple Pencil で描く（筆圧つき、ホバーでブラシの大きさを表示、ダブルタップでブラシ⇄消しゴム）
+- 指 1 本で移動、2 本で移動・拡大・回転、2 本指タップで取り消し、3 本指タップでやり直し（ファイルメニューの「指で描く」で指 1 本でも描ける）
+- ブラシ・消しゴム・塗りつぶし・スポイト、ブラシ設定、レイヤー（フォルダー・合成モード・不透明度・クリッピング・ロック）、色とパレット
+- 投げなわ塗り・投げなわ消しゴム、選択範囲（投げなわ・矩形・楕円・自動選択）、移動・変形（反転つき）。Apple Pencil で操作する
+- 描いている線の先は予測して仮の線で見せる（硬めのブラシのみ）
+- PSD・画像を開く（ファイル App などからキャンバスへドロップしても開ける）、PSD で保存（ファイル App の「このiPad内 › Nanopic」）、PSD・PNG の書き出し。アプリを離れると、Nanopic フォルダーの書類は自動で保存します
 - テスト: `swift test`
 - 性能計測: `NANOPIC_PERF=1 swift test -c release -Xswiftc -enable-testing --filter PerfTests`
 
@@ -69,7 +84,9 @@ Sources/NanopicCore/   描画エンジン（UI 非依存、テスト可能）
 Sources/NanopicAgent/  エージェント（MCP）向けのツール（コアとは別モジュールにして並列にビルドする）
   AgentTools.swift     ツールの処理（説明と引数の形は AgentToolSchemas.swift の JSON）
   Regions.swift / Gaps.swift  線画で囲まれた領域の分割と、線の隙間探し（下塗り用）
+Sources/NanopicUI/     Mac 版と iPad 版で共有する表示部品（Metal の表示、色の選択、スライダー）
 Sources/Nanopic/       macOS アプリ（SwiftUI パネル + AppKit/Metal キャンバス）
+iPad/                  iPad アプリ（XcodeGen の project.yml、UIKit/Metal キャンバス + SwiftUI パネル）
 ```
 
 ## 主なショートカット

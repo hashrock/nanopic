@@ -1,11 +1,12 @@
 import AppKit
 import MetalKit
 import NanopicCore
+import NanopicUI
 import SwiftUI
 
 /// キャンバス。Metal で画像を表示し、上に補助表示（グリッド・選択範囲・ハンドル）を重ねる。
 /// マウス・ペンタブレットのイベントはすべてこのビューで受ける。
-final class CanvasView: NSView {
+final class CanvasView: NSView, CanvasRenderHost {
     let state: AppState
     var editor: Editor { state.editor }
     private let mtkView: MTKView
@@ -41,13 +42,6 @@ final class CanvasView: NSView {
         case deformerGroup(start: CGPoint, bases: [String: DeformerForm])
         case handleMarquee(start: CGPoint, initial: Set<DeformerHandle>)
         case publishFrame(handle: Int, start: IntRect, startPoint: CGPoint)
-    }
-
-    enum TransformHandle: Equatable {
-        case corner(Int)   // 0:左上 1:右上 2:右下 3:左下
-        case edge(Int)     // 0:上 1:右 2:下 3:左
-        case inside
-        case rotate
     }
 
     private var drag: Drag = .none
@@ -205,6 +199,9 @@ final class CanvasView: NSView {
     }
 
     // MARK: - 座標
+
+    var isPlaybackActive: Bool { state.isPlaying }
+    var displayScale: CGFloat { window?.backingScaleFactor ?? 2 }
 
     private func viewPoint(_ e: NSEvent) -> CGPoint {
         convert(e.locationInWindow, from: nil)
@@ -649,91 +646,16 @@ final class CanvasView: NSView {
     // MARK: - 変形ハンドル
 
     func handlePositions(_ f: FloatingTransform) -> [(TransformHandle, CGPoint)] {
-        let c = f.corners.map { $0.applying(canvasToView) }
-        var out: [(TransformHandle, CGPoint)] = []
-        for i in 0..<4 { out.append((.corner(i), c[i])) }
-        for i in 0..<4 {
-            let a = c[i], b = c[(i + 1) % 4]
-            out.append((.edge(i), CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)))
-        }
-        return out
+        f.handlePoints(canvasToView)
     }
 
     private func hitHandle(_ vp: CGPoint, _ f: FloatingTransform) -> TransformHandle {
-        for (h, p) in handlePositions(f) where hypot(p.x - vp.x, p.y - vp.y) < 9 {
-            return h
-        }
-        let poly = CGMutablePath()
-        poly.addLines(between: f.corners.map { $0.applying(canvasToView) })
-        poly.closeSubpath()
-        return poly.contains(vp) ? .inside : .rotate
+        f.hitHandle(vp, transform: canvasToView, radius: 9)
     }
 
     private func dragTransform(handle: TransformHandle, startCanvas: CGPoint, startParams: TransformParams, cp: CGPoint, shift: Bool) {
         guard let f = editor.floating else { return }
-        var p = startParams
-        let c0 = f.center
-        let center = CGPoint(x: c0.x + startParams.tx, y: c0.y + startParams.ty)
-        switch handle {
-        case .inside:
-            p.tx += Double(cp.x - startCanvas.x)
-            p.ty += Double(cp.y - startCanvas.y)
-        case .rotate:
-            let a0 = atan2(startCanvas.y - center.y, startCanvas.x - center.x)
-            let a1 = atan2(cp.y - center.y, cp.x - center.x)
-            var r = startParams.rotation + Double(a1 - a0)
-            if shift {
-                let step = Double.pi / 12
-                r = (r / step).rounded() * step
-            }
-            p.rotation = r
-        case .corner, .edge:
-            // 反対側を固定して拡大縮小
-            let w = Double(f.sourceRect.width), h = Double(f.sourceRect.height)
-            var sgn: (Double, Double)
-            var useX = true, useY = true
-            switch handle {
-            case .corner(0): sgn = (-1, -1)
-            case .corner(1): sgn = (1, -1)
-            case .corner(2): sgn = (1, 1)
-            case .corner(3): sgn = (-1, 1)
-            case .edge(0): sgn = (0, -1); useX = false
-            case .edge(1): sgn = (1, 0); useY = false
-            case .edge(2): sgn = (0, 1); useX = false
-            default: sgn = (-1, 0); useY = false
-            }
-            let rot = startParams.rotation
-            let cosR = cos(rot), sinR = sin(rot)
-            func toWorld(_ lx: Double, _ ly: Double) -> (Double, Double) {
-                (Double(center.x) + lx * cosR - ly * sinR, Double(center.y) + lx * sinR + ly * cosR)
-            }
-            // 固定点（反対側）の現在位置
-            let oppLocal = (-sgn.0 * w / 2 * startParams.sx, -sgn.1 * h / 2 * startParams.sy)
-            let anchor = toWorld(oppLocal.0, oppLocal.1)
-            let dx = Double(cp.x) - anchor.0, dy = Double(cp.y) - anchor.1
-            let lx = dx * cosR + dy * sinR
-            let ly = -dx * sinR + dy * cosR
-            var sx = useX ? lx / (sgn.0 * w) : startParams.sx
-            var sy = useY ? ly / (sgn.1 * h) : startParams.sy
-            if shift && useX && useY {
-                let s = max(abs(sx), abs(sy))
-                sx = s * (sx < 0 ? -1 : 1)
-                sy = s * (sy < 0 ? -1 : 1)
-            }
-            if abs(sx) < 0.001 { sx = 0.001 }
-            if abs(sy) < 0.001 { sy = 0.001 }
-            p.sx = sx
-            p.sy = sy
-            // 新しい中心 = 固定点 + R·(S·(sgn·size/2))
-            let half = (useX ? sgn.0 * w / 2 * sx : 0, useY ? sgn.1 * h / 2 * sy : 0)
-            let fixedLocalNew = (useX ? -half.0 : oppLocal.0, useY ? -half.1 : oppLocal.1)
-            // anchor = newCenter + R·fixedLocalNew
-            let nc = (anchor.0 - (fixedLocalNew.0 * cosR - fixedLocalNew.1 * sinR),
-                      anchor.1 - (fixedLocalNew.0 * sinR + fixedLocalNew.1 * cosR))
-            p.tx = nc.0 - Double(c0.x)
-            p.ty = nc.1 - Double(c0.y)
-        }
-        editor.updateTransform(p)
+        editor.updateTransform(f.draggedParams(handle: handle, startCanvas: startCanvas, startParams: startParams, current: cp, constrain: shift))
     }
 }
 
