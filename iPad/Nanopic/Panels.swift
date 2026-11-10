@@ -2,24 +2,104 @@ import NanopicCore
 import NanopicUI
 import SwiftUI
 
+// MARK: - パネルの枠
+
+/// 画面に出しっぱなしにできるパネル
+enum PanelKind: String, CaseIterable, Identifiable {
+    case brushes, brushSettings, layers, colors
+    var id: Self { self }
+
+    var width: CGFloat {
+        switch self {
+        case .brushes: return 270
+        case .brushSettings: return 330
+        case .layers: return 320
+        case .colors: return 290
+        }
+    }
+
+    /// 出しっぱなしのときの高さ（nil なら中身に合わせる）
+    var pinnedHeight: CGFloat? {
+        switch self {
+        case .brushes: return 400
+        case .brushSettings, .layers: return 520
+        case .colors: return nil
+        }
+    }
+
+    /// 出しっぱなしにしたときの最初の位置（ブラシは左、レイヤーと色は右に並べる）
+    var leading: Bool { self == .brushes || self == .brushSettings }
+    var defaultOffset: CGSize {
+        switch self {
+        case .brushes: return CGSize(width: 64, height: 0)
+        case .brushSettings: return CGSize(width: 64 + PanelKind.brushes.width + 10, height: 0)
+        case .colors: return .zero
+        case .layers: return CGSize(width: -(PanelKind.colors.width + 10), height: 0)
+        }
+    }
+}
+
+/// 見出しとピンのボタンが付いたパネルの枠。出しっぱなしのときは見出しをドラッグして動かせる
+struct PanelChrome<Content: View>: View {
+    let title: String
+    let pinned: Bool
+    var accessory: AnyView?
+    var onPin: () -> Void
+    var onDrag: (CGSize) -> Void = { _ in }
+    var onDragEnd: (CGSize) -> Void = { _ in }
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                if pinned {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text(title)
+                    .font(.headline)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if let accessory { accessory }
+                Button(action: onPin) {
+                    Image(systemName: pinned ? "pin.slash" : "pin")
+                        .frame(width: 30, height: 30)
+                }
+                .accessibilityLabel(pinned ? "出しっぱなしをやめる" : "出しっぱなしにする")
+            }
+            .padding(.leading, 14)
+            .padding(.trailing, 8)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+            // 画面全体を基準に測る（パネル自身を基準にすると、動くたびに基準がずれて震える）
+            .gesture(DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                .onChanged { onDrag($0.translation) }
+                .onEnded { onDragEnd($0.translation) },
+                including: pinned ? .all : .subviews)
+            Divider()
+            content
+        }
+    }
+}
+
 // MARK: - ブラシ
 
-struct BrushPanel: View {
+/// ブラシ（消しゴム）のプリセットを選ぶ一覧
+struct BrushPresetPanel: View {
     let state: PadState
     @Bindable var editor: Editor
+    /// 詳細設定を開く
+    var openSettings: () -> Void
 
     private var isEraser: Bool { editor.tool == .eraser }
     private var presets: [BrushSettings] { isEraser ? editor.erasers : editor.brushes }
     private var activeIndex: Int { isEraser ? editor.activeEraserIndex : editor.activeBrushIndex }
 
-    private var brush: Binding<BrushSettings> {
-        Binding(get: { editor.currentBrush }, set: { editor.currentBrush = $0 })
-    }
-
     var body: some View {
-        NavigationStack {
+        Group {
             List {
-                Section(isEraser ? "消しゴム" : "ブラシ") {
+                Section {
                     ForEach(Array(presets.enumerated()), id: \.element.id) { i, b in
                         Button {
                             if editor.tool != .brush && editor.tool != .eraser { editor.selectTool(.brush) }
@@ -44,6 +124,53 @@ struct BrushPanel: View {
                         }
                     }
                 }
+                Section {
+                    Button { duplicate(activeIndex) } label: { Label("選択中のプリセットを複製", systemImage: "plus.square.on.square") }
+                    Button { openSettings() } label: { Label("詳細設定…", systemImage: "slider.horizontal.3") }
+                }
+            }
+        }
+    }
+
+    private func duplicate(_ i: Int) {
+        var b = presets[i]
+        b.id = UUID()
+        b.name += " コピー"
+        if isEraser {
+            editor.erasers.insert(b, at: i + 1)
+            editor.activeEraserIndex = i + 1
+        } else {
+            editor.brushes.insert(b, at: i + 1)
+            editor.activeBrushIndex = i + 1
+        }
+    }
+
+    private func delete(_ i: Int) {
+        guard presets.count > 1 else { return }
+        if isEraser {
+            editor.erasers.remove(at: i)
+            editor.activeEraserIndex = min(editor.activeEraserIndex, editor.erasers.count - 1)
+        } else {
+            editor.brushes.remove(at: i)
+            editor.activeBrushIndex = min(editor.activeBrushIndex, editor.brushes.count - 1)
+        }
+    }
+}
+
+/// 選択中のブラシ（消しゴム）の詳細設定
+struct BrushSettingsPanel: View {
+    let state: PadState
+    @Bindable var editor: Editor
+
+    private var isEraser: Bool { editor.tool == .eraser }
+
+    private var brush: Binding<BrushSettings> {
+        Binding(get: { editor.currentBrush }, set: { editor.currentBrush = $0 })
+    }
+
+    var body: some View {
+        Group {
+            List {
                 Section("基本") {
                     SizeSlider(size: brush.size)
                     LabeledSlider(label: "不透明度", value: brush.opacity, range: 0...1, scale: 100, suffix: "%")
@@ -87,12 +214,9 @@ struct BrushPanel: View {
                 }
                 Section {
                     TextField("名前", text: brush.name)
-                    Button("このブラシを複製") { duplicate(activeIndex) }
                     Button("ブラシを初期状態に戻す", role: .destructive) { state.resetBrushPresets() }
                 }
             }
-            .navigationTitle(isEraser ? "消しゴム" : "ブラシ")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
@@ -113,30 +237,6 @@ struct BrushPanel: View {
             }
         }
         .padding(.vertical, 4)
-    }
-
-    private func duplicate(_ i: Int) {
-        var b = presets[i]
-        b.id = UUID()
-        b.name += " コピー"
-        if isEraser {
-            editor.erasers.insert(b, at: i + 1)
-            editor.activeEraserIndex = i + 1
-        } else {
-            editor.brushes.insert(b, at: i + 1)
-            editor.activeBrushIndex = i + 1
-        }
-    }
-
-    private func delete(_ i: Int) {
-        guard presets.count > 1 else { return }
-        if isEraser {
-            editor.erasers.remove(at: i)
-            editor.activeEraserIndex = min(editor.activeEraserIndex, editor.erasers.count - 1)
-        } else {
-            editor.brushes.remove(at: i)
-            editor.activeBrushIndex = min(editor.activeBrushIndex, editor.brushes.count - 1)
-        }
     }
 }
 
@@ -330,11 +430,17 @@ struct Checkerboard: View {
 
 struct ColorPanel: View {
     @Bindable var editor: Editor
+    /// 小さく表示する（出しっぱなしのとき）
+    var pinned = false
+    /// 色の選択部分を畳んでパレットだけにする
+    var collapsed = false
     private let columns = [GridItem(.adaptive(minimum: 30, maximum: 34), spacing: 6)]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ColorPickerView(editor: editor, squareHeight: 220)
+            if !collapsed {
+                ColorPickerView(editor: editor, squareHeight: pinned ? 180 : 220)
+            }
             HStack {
                 Text("パレット").font(.caption).foregroundStyle(.secondary)
                 Spacer()

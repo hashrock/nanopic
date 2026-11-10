@@ -9,6 +9,16 @@ struct PadContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var showBrushes = false
+    @State private var showBrushSettings = false
+    /// 画面に出しっぱなしにしているパネル（カンマ区切り）
+    @AppStorage("pad.pinnedPanels") private var pinnedRaw = ""
+    /// 出しっぱなしのパネルをドラッグで動かした量
+    @State private var panelOffsets: [PanelKind: CGSize] = [:]
+    @State private var panelDrag: (kind: PanelKind, translation: CGSize)?
+    @AppStorage("pad.colorPickerCollapsed") private var colorsCollapsed = false
+    /// ツールを切り替えたときに出す説明
+    @State private var toolHint: Tool?
+    @State private var toolHintToken: UUID?
     @State private var dropTargeted = false
     @State private var showLayers = false
     @State private var showColors = false
@@ -58,6 +68,18 @@ struct PadContentView: View {
                 }
             }
             .allowsHitTesting(false)
+            if let tool = toolHint {
+                VStack {
+                    toolHintView(tool)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+            }
+            ForEach(PanelKind.allCases.filter { isPinned($0) }) { kind in
+                pinnedPanel(kind)
+            }
             if editor.floating != nil {
                 VStack {
                     Spacer()
@@ -106,7 +128,10 @@ struct PadContentView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .background || phase == .inactive { state.autosave() }
         }
-        .onChange(of: state.showColorPanelRequest) { _, _ in showColors = true }
+        .onChange(of: state.showColorPanelRequest) { _, _ in
+            if !isPinned(.colors) { showColors = true }
+        }
+        .onChange(of: editor.tool) { _, tool in showToolHint(tool) }
         .onChange(of: editor.brushes) { _, _ in state.savePreferences() }
         .onChange(of: editor.erasers) { _, _ in state.savePreferences() }
         .onChange(of: editor.palette) { _, _ in state.savePreferences() }
@@ -210,27 +235,24 @@ struct PadContentView: View {
 
             Divider().frame(height: 24).padding(.horizontal, 4)
 
-            barButton("paintbrush.pointed", selected: showBrushes) { showBrushes.toggle() }
-                .popover(isPresented: $showBrushes) {
-                    BrushPanel(state: state, editor: editor)
-                        .frame(width: 340, height: 560)
-                }
-            barButton("square.3.layers.3d", selected: showLayers) { showLayers.toggle() }
-                .popover(isPresented: $showLayers) {
-                    LayerPanel(state: state, editor: editor)
-                        .frame(width: 340, height: 600)
-                }
-            Button { showColors.toggle() } label: {
+            barButton("square.grid.2x2", selected: showBrushes || isPinned(.brushes)) { toggle(.brushes, $showBrushes) }
+                .accessibilityLabel("ブラシの種類")
+                .popover(isPresented: $showBrushes) { popoverPanel(.brushes, $showBrushes) }
+            barButton("slider.horizontal.3", selected: showBrushSettings || isPinned(.brushSettings)) { toggle(.brushSettings, $showBrushSettings) }
+                .accessibilityLabel("ブラシの詳細設定")
+                .popover(isPresented: $showBrushSettings) { popoverPanel(.brushSettings, $showBrushSettings) }
+            barButton("square.3.layers.3d", selected: showLayers || isPinned(.layers)) { toggle(.layers, $showLayers) }
+                .accessibilityLabel("レイヤー")
+                .popover(isPresented: $showLayers) { popoverPanel(.layers, $showLayers) }
+            Button { toggle(.colors, $showColors) } label: {
                 Circle()
                     .fill(editor.mainColor.swiftUIColor)
                     .overlay(Circle().stroke(Color.primary.opacity(0.4), lineWidth: 1))
                     .frame(width: 30, height: 30)
                     .frame(width: 40, height: 40)
             }
-            .popover(isPresented: $showColors) {
-                ColorPanel(editor: editor)
-                    .frame(width: 320)
-            }
+            .accessibilityLabel("色")
+            .popover(isPresented: $showColors) { popoverPanel(.colors, $showColors) }
             Button("") { editor.swapColors() }
                 .keyboardShortcut("x", modifiers: [])
                 .frame(width: 0, height: 0)
@@ -239,6 +261,140 @@ struct PadContentView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
         .background(.bar)
+    }
+
+    // MARK: - ツールの説明
+
+    private static func hint(for tool: Tool) -> String {
+        switch tool {
+        case .brush: return "描く"
+        case .eraser: return "消す"
+        case .fill: return "タップした所と同じ色の範囲を塗る"
+        case .lassoFill: return "囲んだ範囲を描画色で塗る"
+        case .lassoErase: return "囲んだ範囲を消す"
+        case .selectRect: return "四角く選ぶ"
+        case .selectEllipse: return "丸く選ぶ"
+        case .lasso: return "囲んで選ぶ"
+        case .wand: return "タップした所と同じ色の範囲を選ぶ"
+        case .move: return "レイヤーや選択範囲を動かす"
+        case .transform: return "角で拡大・縮小、枠の外で回転"
+        case .eyedropper: return "タップした所の色を取る"
+        case .hand: return "表示を動かす"
+        case .zoom: return "表示を拡大・縮小する"
+        }
+    }
+
+    private func toolHintView(_ tool: Tool) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: tool.symbol)
+                .font(.system(size: 17))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(tool.displayName).font(.subheadline.weight(.semibold))
+                Text(Self.hint(for: tool)).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: Capsule())
+        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+    }
+
+    private func showToolHint(_ tool: Tool) {
+        let token = UUID()
+        toolHintToken = token
+        withAnimation(.easeOut(duration: 0.2)) { toolHint = tool }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            guard toolHintToken == token else { return }
+            withAnimation(.easeIn(duration: 0.25)) { toolHint = nil }
+        }
+    }
+
+    // MARK: - パネル（ポップオーバーと出しっぱなし）
+
+    private func isPinned(_ kind: PanelKind) -> Bool {
+        pinnedRaw.split(separator: ",").contains { $0 == kind.rawValue }
+    }
+
+    private func setPinned(_ kind: PanelKind, _ on: Bool) {
+        var set = pinnedRaw.split(separator: ",").map(String.init).filter { $0 != kind.rawValue }
+        if on { set.append(kind.rawValue) }
+        withAnimation(.easeOut(duration: 0.2)) { pinnedRaw = set.joined(separator: ",") }
+    }
+
+    /// ツールバーのボタン: 出しっぱなしならしまう、そうでなければポップオーバーを開け閉めする
+    private func toggle(_ kind: PanelKind, _ shown: Binding<Bool>) {
+        if isPinned(kind) { setPinned(kind, false) } else { shown.wrappedValue.toggle() }
+    }
+
+    private func title(_ kind: PanelKind) -> String {
+        switch kind {
+        case .brushes: return editor.tool == .eraser ? "消しゴム" : "ブラシ"
+        case .brushSettings: return editor.currentBrush.name
+        case .layers: return "レイヤー"
+        case .colors: return "色"
+        }
+    }
+
+    @ViewBuilder
+    private func panelContent(_ kind: PanelKind, pinned: Bool) -> some View {
+        switch kind {
+        case .brushes:
+            BrushPresetPanel(state: state, editor: editor) {
+                showBrushes = false
+                guard !isPinned(.brushSettings) else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { showBrushSettings = true }
+            }
+        case .brushSettings:
+            BrushSettingsPanel(state: state, editor: editor)
+        case .layers:
+            LayerPanel(state: state, editor: editor)
+        case .colors:
+            ColorPanel(editor: editor, pinned: pinned, collapsed: pinned && colorsCollapsed)
+        }
+    }
+
+    private func accessory(_ kind: PanelKind, pinned: Bool) -> AnyView? {
+        guard kind == .colors, pinned else { return nil }
+        return AnyView(Button {
+            withAnimation { colorsCollapsed.toggle() }
+        } label: {
+            Image(systemName: colorsCollapsed ? "chevron.down" : "chevron.up")
+                .frame(width: 30, height: 30)
+        }
+        .accessibilityLabel(colorsCollapsed ? "色の選択を開く" : "パレットだけにする"))
+    }
+
+    private func popoverPanel(_ kind: PanelKind, _ shown: Binding<Bool>) -> some View {
+        PanelChrome(title: title(kind), pinned: false, onPin: {
+            shown.wrappedValue = false
+            setPinned(kind, true)
+        }) {
+            panelContent(kind, pinned: false)
+        }
+        .frame(width: kind.width, height: kind == .colors ? nil : (kind == .brushes ? 480 : 580))
+    }
+
+    private func pinnedPanel(_ kind: PanelKind) -> some View {
+        let base = panelOffsets[kind] ?? kind.defaultOffset
+        let drag = panelDrag?.kind == kind ? panelDrag!.translation : .zero
+        return PanelChrome(title: title(kind), pinned: true, accessory: accessory(kind, pinned: true),
+                           onPin: { setPinned(kind, false) },
+                           onDrag: { panelDrag = (kind, $0) },
+                           onDragEnd: { t in
+                               panelOffsets[kind] = CGSize(width: base.width + t.width, height: base.height + t.height)
+                               panelDrag = nil
+                           }) {
+            panelContent(kind, pinned: true)
+        }
+        .frame(width: kind.width, height: kind.pinnedHeight)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.15), radius: 10, y: 3)
+        .offset(x: base.width + drag.width, y: base.height + drag.height)
+        .padding(.top, 8)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: kind.leading ? .topLeading : .topTrailing)
+        .transition(.opacity)
     }
 
     private func barButton(_ symbol: String, selected: Bool = false, disabled: Bool = false, action: @escaping () -> Void) -> some View {
