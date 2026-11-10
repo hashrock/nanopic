@@ -19,11 +19,23 @@ extension AppState {
         canvasView?.requestDisplay()
     }
 
-    /// 書き出す（⌥⌘E）。書き出し先がまだなければ聞く。2 回目からは同じ所に上書きする
+    /// 書き出す（⌥⌘E）。書き出し先がまだなければ聞く。2 回目からは同じ所に上書きする。
+    ///
+    /// App Sandbox の中では、書き出し先のパスの文字列だけでは書けない。保存パネルで選んでもらった場所の bookmark を
+    /// アプリの設定に持ち（ScopedBookmarks）、次からはそれで書く。bookmark がない場所（ほかの Mac や直接配布版で決めた
+    /// 書き出し先、形式を変えて拡張子が変わったとき）は、もう一度保存パネルで選んでもらう
     func publishNow() {
         if publishDraft != nil { closePublishSettings(commit: true) }
         var s = editor.publishSettings
         var url = editor.publishDestinationURL(s)
+        let sandboxed = ScopedBookmarks.isSandboxed
+        let bookmarks = ScopedBookmarks()
+        var access: ScopedBookmarks.Access?
+        defer { access?.stop() }
+        if sandboxed, let u = url, !publishGranted.contains(u.standardizedFileURL.path) {
+            access = bookmarks.access(u)
+            if access == nil { url = nil }
+        }
         if url == nil {
             guard let chosen = choosePublishDestination(s) else { return }
             s.destination = editor.publishDestinationString(for: chosen)
@@ -32,8 +44,13 @@ extension AppState {
         }
         guard let url else { return }
         do {
-            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try editor.publish(to: url, settings: s)
+            // Sandbox の中では、選んでもらったファイルにしか手を出せない（フォルダーは作れない。保存パネルで選んだ場所は必ずある）
+            if !sandboxed {
+                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            }
+            try editor.publish(to: access?.url ?? url, settings: s)
+            // ファイルができてから覚える（bookmark は実在するファイルにしか作れない）
+            if sandboxed, access == nil { try? bookmarks.save(url) }
             let size = s.resolvedOutputSize(canvas: editor.doc.bounds)
             flashStatus("書き出しました: \(url.lastPathComponent)（\(size.width) × \(size.height)）")
         } catch {
@@ -50,7 +67,10 @@ extension AppState {
             ?? editor.fileURL?.deletingPathExtension().lastPathComponent ?? "無題"
         panel.nameFieldStringValue = base + "." + s.format.fileExtension
         panel.directoryURL = current?.deletingLastPathComponent() ?? editor.fileURL?.deletingLastPathComponent()
-        return panel.runModal() == .OK ? panel.url : nil
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        // 保存パネルで選んだ場所は、アプリを終了するまで書ける
+        publishGranted.insert(url.standardizedFileURL.path)
+        return url
     }
 
     /// 選択範囲を書き出し範囲にする（設定を開いていればその中で）

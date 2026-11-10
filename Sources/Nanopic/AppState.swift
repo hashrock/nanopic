@@ -18,6 +18,8 @@ final class AppState {
     var adjustmentKind: AdjustmentKind?
     /// 書き出し設定を開いている間の設定（OK で作品に入れる）
     var publishDraft: PublishSettings?
+    /// この起動中に保存パネルで選んだ書き出し先（Sandbox の中でも、終了するまでは書ける）
+    @ObservationIgnored var publishGranted: Set<String> = []
     /// ステータスバーに少しの間だけ出す知らせ
     var statusMessage: String?
     @ObservationIgnored var statusToken: UUID?

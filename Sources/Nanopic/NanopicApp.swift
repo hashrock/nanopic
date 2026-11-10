@@ -235,7 +235,18 @@ final class WindowCloseGuard: NSObject, NSWindowDelegate {
 @main
 struct NanopicApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    @State private var state = AppState()
+    @State private var state: AppState
+
+    init() {
+        // Bundle ID を dev.hashrock.nanopic から com.hashrock.nanopic に変えた。設定を読む前に、古い ID の設定を引き継ぐ。
+        // ブラシ先端画像（Application Support/Nanopic/tips）は Bundle ID によらない場所なので、そのまま使える
+        if let id = Bundle.main.bundleIdentifier, id != Self.legacyBundleID {
+            LegacyDefaults.migrate(from: Self.legacyBundleID, to: id)
+        }
+        _state = State(initialValue: AppState())
+    }
+
+    static let legacyBundleID = "dev.hashrock.nanopic"
 
     var body: some Scene {
         Window("Nanopic", id: "main") {

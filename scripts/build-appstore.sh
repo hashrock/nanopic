@@ -4,9 +4,12 @@
 #   ./scripts/build-appstore.sh
 #   SANDBOX=1 ./scripts/build-appstore.sh   # App Sandbox を付けて ad-hoc 署名する（手元で Sandbox の中の動作を確かめる用）
 #
+# 配布用の署名と .pkg 化は scripts/package-appstore.sh（このスクリプトを呼んでから署名する）
+#
 # MCP はコンパイルの段階で外す（Package.swift の NANOPIC_APPSTORE）。実行時に隠しているのではないことを、
 # できたバイナリに MCP の文字列・シンボルが残っていないことで確かめる。
-# ここでは署名（配布用）・Sandbox・App Store Connect への送信はしない。
+# App Store に出すのに要る Info.plist の項目・プライバシーマニフェスト・アイコン・entitlement も確かめる。
+# ここでは配布用の署名・App Store Connect への送信はしない（Apple とは通信しない）。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -31,7 +34,52 @@ if otool -L "$BIN" | grep -q 'Network.framework'; then
 fi
 echo "OK: MCP の文字列・シンボル、待ち受けは入っていません（${BIN}）"
 
+# --- App Store に出すのに要るもの ---
+APP=build/appstore/Nanopic.app
+PLIST="$APP/Contents/Info.plist"
+fail() { echo "NG: $*" >&2; exit 1; }
+pb() { /usr/libexec/PlistBuddy -c "Print :$1" "$PLIST" 2>/dev/null; }
+
+# Xcode で作ったアプリに入る項目（どの Xcode・SDK で作ったか）。App Store Connect の検査が見るので入れておく
+SDK_VERSION=$(xcrun --sdk macosx --show-sdk-version)
+SDK_BUILD=$(xcrun --sdk macosx --show-sdk-build-version)
+XCODE_VERSION=$(xcodebuild -version | awk '/^Xcode/ { split($2, v, "."); printf "%02d%d%d", v[1], v[2] + 0, v[3] + 0 }')
+XCODE_BUILD=$(xcodebuild -version | awk '/^Build version/ { print $3 }')
+add() { /usr/libexec/PlistBuddy -c "Add :$1 string $2" "$PLIST"; }
+add BuildMachineOSBuild "$(sw_vers -buildVersion)"
+add DTCompiler com.apple.compilers.llvm.clang.1_0
+add DTPlatformName macosx
+add DTPlatformVersion "$SDK_VERSION"
+add DTPlatformBuild "$SDK_BUILD"
+add DTSDKName "macosx$SDK_VERSION"
+add DTSDKBuild "$SDK_BUILD"
+add DTXcode "$XCODE_VERSION"
+add DTXcodeBuild "$XCODE_BUILD"
+plutil -lint "$PLIST" >/dev/null || fail "Info.plist が壊れています"
+
+[ "$(pb CFBundleIdentifier)" = "com.hashrock.nanopic" ] || fail "CFBundleIdentifier が com.hashrock.nanopic ではありません"
+[ -n "$(pb LSApplicationCategoryType)" ] || fail "LSApplicationCategoryType がありません"
+[ "$(pb ITSAppUsesNonExemptEncryption)" = "false" ] || fail "ITSAppUsesNonExemptEncryption が false ではありません"
+[ -n "$(pb CFBundleShortVersionString)" ] && [ -n "$(pb CFBundleVersion)" ] || fail "版がありません"
+[ -n "$(pb LSMinimumSystemVersion)" ] || fail "LSMinimumSystemVersion がありません"
+plutil -lint "$APP/Contents/Resources/PrivacyInfo.xcprivacy" >/dev/null || fail "PrivacyInfo.xcprivacy がありません"
+# アイコンは icns に 512pt の @2x（1024px）まで入っていること
+ICONSET=$(mktemp -d)/AppIcon.iconset
+iconutil -c iconset "$APP/Contents/Resources/AppIcon.icns" -o "$ICONSET" || fail "AppIcon.icns を読めません"
+[ -f "$ICONSET/icon_512x512@2x.png" ] && [ -f "$ICONSET/icon_512x512.png" ] || fail "AppIcon.icns に 512pt（@1x・@2x）がありません"
+rm -rf "$(dirname "$ICONSET")"
+ARCHS=$(lipo -archs "$BIN")
+case "$ARCHS" in *arm64*x86_64*|*x86_64*arm64*) ;; *) fail "ユニバーサルではありません（${ARCHS}）" ;; esac
+# entitlement: Sandbox あり、通信なし、余計な例外なし
+ENT=scripts/appstore.entitlements
+plutil -lint "$ENT" >/dev/null || fail "entitlements が壊れています"
+[ "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' "$ENT")" = "true" ] || fail "app-sandbox がありません"
+if grep -qE 'com\.apple\.security\.(network|temporary-exception|cs\.)' "$ENT"; then fail "entitlements に通信か例外が入っています"; fi
+echo "OK: Info.plist・PrivacyInfo・アイコン・entitlements（$(pb CFBundleShortVersionString) / $(pb CFBundleVersion)、${ARCHS}）"
+
 if [ "${SANDBOX:-}" = "1" ]; then
     codesign --force --sign - --entitlements scripts/appstore.entitlements build/appstore/Nanopic.app
+    codesign -d --entitlements - --xml build/appstore/Nanopic.app 2>/dev/null | grep -q 'com.apple.security.app-sandbox' \
+        || fail "署名に app-sandbox が入っていません"
     echo "App Sandbox を付けて ad-hoc 署名しました（配布用の署名ではありません）"
 fi
