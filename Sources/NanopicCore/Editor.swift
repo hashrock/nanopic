@@ -142,9 +142,10 @@ public final class Editor {
 
     public static func makeNewDocument(width: Int, height: Int, gen: Int) -> DocumentState {
         var d = DocumentState(width: width, height: height)
-        var paper = LayerNode(name: "用紙") // l10n:stored
+        // 既定の名前は作ったときの表示言語で決めて、そのまま保存する（開く環境の言語では変えない）
+        var paper = LayerNode(name: L("用紙"))
         paper.tiles = TileMap.filled(width: width, height: height, rgba: (255, 255, 255, 255), gen: gen)
-        let l1 = LayerNode(name: "レイヤー 1") // l10n:stored
+        let l1 = LayerNode(name: L("レイヤー") + " 1")
         d.layers = [paper, l1]
         d.activeLayerID = l1.id
         return d
@@ -909,7 +910,7 @@ public final class Editor {
         return out
     }
 
-    /// 既定の名前は日本語のまま保存し、出すときに LName で訳す（Localized.swift）
+    /// 既定の名前（「レイヤー 3」）。prefix は作るときの表示言語の文言（L("レイヤー")）。名前はそのまま保存する
     func nextLayerName(prefix: String) -> String {
         var maxN = 0
         doc.forEachNode { n in
@@ -927,7 +928,7 @@ public final class Editor {
     public func addLayer(name: String? = nil) {
         commitTransform()
         checkpoint(L("新規レイヤー"))
-        let node = LayerNode(name: name ?? nextLayerName(prefix: "レイヤー")) // l10n:stored
+        let node = LayerNode(name: name ?? nextLayerName(prefix: L("レイヤー")))
         let (parent, index) = insertionPoint()
         doc.insert(node, parentPath: parent, index: index)
         doc.activeLayerID = node.id
@@ -938,7 +939,7 @@ public final class Editor {
     public func addFolder(name: String? = nil) {
         commitTransform()
         checkpoint(L("新規フォルダー"))
-        let node = LayerNode(name: name ?? nextLayerName(prefix: "フォルダー"), kind: .folder) // l10n:stored
+        let node = LayerNode(name: name ?? nextLayerName(prefix: L("フォルダー")), kind: .folder)
         let (parent, index) = insertionPoint()
         doc.insert(node, parentPath: parent, index: index)
         doc.activeLayerID = node.id
@@ -952,7 +953,7 @@ public final class Editor {
         let ids = targetLayerIDs
         guard let top = ids.last, let topPath = doc.indexPath(of: top) else { return }
         checkpoint(L("フォルダーを作成して挿入"))
-        var folder = LayerNode(name: nextLayerName(prefix: "フォルダー"), kind: .folder) // l10n:stored
+        var folder = LayerNode(name: nextLayerName(prefix: L("フォルダー")), kind: .folder)
         let folderID = folder.id
         doc.insert(folder, parentPath: Array(topPath.dropLast()), index: topPath.last! + 1)
         folder.children = ids.compactMap { doc.remove($0) }
@@ -999,7 +1000,7 @@ public final class Editor {
             return c
         }
         var copy = dup(node)
-        copy.name = node.name + " のコピー" // l10n:stored
+        copy.name = L("\(node.name) のコピー")
         doc.insert(copy, parentPath: Array(path.dropLast()), index: path.last! + 1)
         doc.activeLayerID = copy.id
         selectedLayerIDs = []

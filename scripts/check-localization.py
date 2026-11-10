@@ -13,7 +13,7 @@
   1. 画面に出すソース（下の SOURCES）にある日本語の文字列リテラルが、どれもカタログにあるか。
      訳さないもの・保存する名前は、その行に印を付けて外す:
        // l10n:skip    訳さない（開発用の表示など）
-       // l10n:stored  日本語のまま保存する名前（出すときに LName で訳す。Sources/NanopicCore/Localized.swift）
+       // l10n:stored  日本語のまま設定に保存する名前（複製したブラシの「コピー」。出すときに LName で訳す）
   2. LA("…")（エージェント連携の画面）は Agent の表に、それ以外は Localizable か Names の表にあるか。
      Agent の表は App Store 用のアプリに入れないので、取り違えると App Store 版で訳が出ない。
   3. Localizable・Names（App Store 用にも入る表）に MCP・エージェントの文言が混ざっていないか。

@@ -116,7 +116,7 @@ struct LayerPanel: View {
             // リグモード（実験的な機能）を切っていれば、デフォーマは出さない
             LayerRowModel(node: node, depth: depth, inSwitch: editor.isInSwitch(node.id), showsRig: state.rigEnabled,
                           timelineOpen: state.timelineOpen, hasTrack: editor.hasTrack(node.id),
-                          deformers: state.rigEnabled ? editor.deformers(on: node.id).map { LName($0.name) } : [],
+                          deformers: state.rigEnabled ? editor.deformers(on: node.id).map(\.name) : [],
                           rigLink: focus.map { $0.layers.contains(node.id) ? .target : $0.affectedLayers.contains(node.id) ? .affected : .none } ?? .none,
                           active: node.id == activeID,
                           selected: editor.selectedLayerIDs.contains(node.id), renaming: node.id == rename.id,
@@ -211,7 +211,7 @@ struct LayerRowModel: Equatable {
 
     init(node: LayerNode, depth: Int, inSwitch: Bool, showsRig: Bool, timelineOpen: Bool, hasTrack: Bool, deformers: [String], rigLink: LayerRigLink, active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
         id = node.id
-        name = LName(node.name)
+        name = node.name
         isFolder = node.isFolder
         isSwitch = node.isFolder && node.isSwitch
         self.inSwitch = inSwitch
@@ -551,7 +551,7 @@ struct LayerRowView: View, Equatable {
                     if !ds.isEmpty {
                         Divider()
                         ForEach(ds, id: \.id) { d in
-                            Button("「\(LName(d.name))」を外す") { editor.removeDeformer(d.id) }
+                            Button("「\(d.name)」を外す") { editor.removeDeformer(d.id) }
                         }
                     }
                 }
@@ -599,8 +599,8 @@ final class LayerRenameState {
         guard let id else { return }
         self.id = nil
         NSApp.keyWindow?.makeFirstResponder(nil)
-        // 訳して出した既定の名前をそのまま確定したときは、保存してある名前を変えない
-        if !text.isEmpty, let node = editor.doc.node(id), case let name = LNameEdited(text, original: node.name), node.name != name {
+        let name = text
+        if !name.isEmpty, let node = editor.doc.node(id), node.name != name {
             editor.setLayerProperty(id, label: L("名前の変更")) { $0.name = name }
         }
     }

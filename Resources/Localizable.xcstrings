@@ -31,6 +31,17 @@
         }
       }
     },
+    "%@ のコピー" : {
+      "comment" : "複製したレイヤーの名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ copy"
+          }
+        }
+      }
+    },
     "%@ のショートカット" : {
       "localizations" : {
         "en" : {
@@ -62,12 +73,74 @@
         }
       }
     },
+    "%@の%@" : {
+      "comment" : "おまかせで動かすで付けるデフォーマの名前。1 つめはレイヤー名、2 つめは動きの名前（呼吸など）。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@のワープ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Warp"
+          }
+        }
+      }
+    },
+    "%@の上下の向き" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Vertical Angle"
+          }
+        }
+      }
+    },
     "%@の動きを付ける" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add %@ Motion"
+          }
+        }
+      }
+    },
+    "%@の向き" : {
+      "comment" : "振り向くリグのデフォーマの名前。%@ はレイヤー名。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Turn"
+          }
+        }
+      }
+    },
+    "%@の左右の向き" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Horizontal Angle"
+          }
+        }
+      }
+    },
+    "%@の移動・回転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Move/Rotate"
           }
         }
       }
@@ -477,12 +550,42 @@
         }
       }
     },
+    "なびく" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flutter"
+          }
+        }
+      }
+    },
+    "ぴょこぴょこ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bounce"
+          }
+        }
+      }
+    },
     "ふつうのフォルダーに戻す" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Convert to Normal Folder"
+          }
+        }
+      }
+    },
+    "ふわふわ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Float"
           }
         }
       }
@@ -584,6 +687,27 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ease Out"
+          }
+        }
+      }
+    },
+    "ゆらゆら" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sway"
+          }
+        }
+      }
+    },
+    "アニメーション" : {
+      "comment" : "セルをまとめるスイッチフォルダーの既定の名前のもと（「アニメーション 1」）。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Animation"
           }
         }
       }
@@ -1399,6 +1523,17 @@
         }
       }
     },
+    "パラメータ%lld" : {
+      "comment" : "足したパラメータの既定の名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parameter %lld"
+          }
+        }
+      }
+    },
     "パラメータの名前" : {
       "localizations" : {
         "en" : {
@@ -1545,6 +1680,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Filter"
+          }
+        }
+      }
+    },
+    "フォルダー" : {
+      "comment" : "既定のフォルダー名のもと（「フォルダー 2」）。作ったときの言語で保存する。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder"
           }
         }
       }
@@ -1810,7 +1956,7 @@
       }
     },
     "レイヤー" : {
-      "comment" : "Mac のメニュー名と、iPad のレイヤーのパネルの題。",
+      "comment" : "Mac のメニュー名、iPad のレイヤーのパネルの題、既定のレイヤー名のもと（「レイヤー 3」）。",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2551,6 +2697,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select a name to record the shape for that parameter’s current value using the handles on the canvas. For move/rotate, drag the center point to move and the arm to rotate (hold Option while dragging the center to reposition the pivot). For warp, select a point to show handles that change how it bends (right-click to return to automatic)."
+          }
+        }
+      }
+    },
+    "呼吸" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Breathe"
           }
         }
       }
@@ -3542,6 +3698,17 @@
         }
       }
     },
+    "用紙" : {
+      "comment" : "新規キャンバスのいちばん下の白いレイヤーの名前。作ったときの言語で保存する。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paper"
+          }
+        }
+      }
+    },
     "画像からブラシ先端を読み込み" : {
       "localizations" : {
         "en" : {
@@ -3870,6 +4037,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pinch ↔ Bloat"
+          }
+        }
+      }
+    },
+    "背景" : {
+      "comment" : "レイヤーの無い PSD・画像を開いたときのレイヤーの名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Background"
           }
         }
       }

@@ -1,17 +1,6 @@
 {
   "sourceLanguage" : "ja",
   "strings" : {
-    "%@ のコピー" : {
-      "comment" : "複製したレイヤーの名前。",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ copy"
-          }
-        }
-      }
-    },
     "%@ コピー" : {
       "comment" : "複製したブラシの名前。",
       "localizations" : {
@@ -23,143 +12,12 @@
         }
       }
     },
-    "%@のなびく" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Flutter"
-          }
-        }
-      }
-    },
-    "%@のぴょこぴょこ" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Bounce"
-          }
-        }
-      }
-    },
-    "%@のふわふわ" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Float"
-          }
-        }
-      }
-    },
-    "%@のゆらゆら" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Sway"
-          }
-        }
-      }
-    },
-    "%@のワープ" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Warp"
-          }
-        }
-      }
-    },
-    "%@の上下の向き" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Vertical Angle"
-          }
-        }
-      }
-    },
-    "%@の向き" : {
-      "comment" : "振り向くリグのデフォーマの名前。%@ はレイヤー名。",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Turn"
-          }
-        }
-      }
-    },
-    "%@の呼吸" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Breathe"
-          }
-        }
-      }
-    },
-    "%@の左右の向き" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Horizontal Angle"
-          }
-        }
-      }
-    },
-    "%@の移動・回転" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Move/Rotate"
-          }
-        }
-      }
-    },
     "Gペン" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "G-Pen"
-          }
-        }
-      }
-    },
-    "なびく" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Flutter"
-          }
-        }
-      }
-    },
-    "ぴょこぴょこ" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bounce"
-          }
-        }
-      }
-    },
-    "ふわふわ" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Float"
           }
         }
       }
@@ -180,26 +38,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Liquify"
-          }
-        }
-      }
-    },
-    "ゆらゆら" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sway"
-          }
-        }
-      }
-    },
-    "アニメーション %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Animation %lld"
           }
         }
       }
@@ -234,46 +72,6 @@
         }
       }
     },
-    "パラメータ%lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Parameter %lld"
-          }
-        }
-      }
-    },
-    "フォルダー %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Folder %lld"
-          }
-        }
-      }
-    },
-    "レイヤー %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Layer %lld"
-          }
-        }
-      }
-    },
-    "上下の向き" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vertical Angle"
-          }
-        }
-      }
-    },
     "丸ペン" : {
       "comment" : "ブラシの名前。",
       "localizations" : {
@@ -292,26 +90,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Round"
-          }
-        }
-      }
-    },
-    "呼吸" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Breathe"
-          }
-        }
-      }
-    },
-    "左右の向き" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Horizontal Angle"
           }
         }
       }
@@ -366,17 +144,6 @@
         }
       }
     },
-    "用紙" : {
-      "comment" : "新規キャンバスのいちばん下の白いレイヤー。",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paper"
-          }
-        }
-      }
-    },
     "硬め" : {
       "comment" : "消しゴムの名前。",
       "localizations" : {
@@ -395,16 +162,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fine"
-          }
-        }
-      }
-    },
-    "背景" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Background"
           }
         }
       }

@@ -173,7 +173,7 @@ struct TimelineView: View {
         let hasTrack = editor.timeline.parameterTracks.contains { $0.parameter == p.id }
         return HStack(spacing: 4) {
             Image(systemName: "slider.horizontal.3").font(.caption).foregroundStyle(editing ? Color.accentColor : .secondary).frame(width: 16)
-            Text(LName(p.name)).font(.caption.weight(editing ? .semibold : .regular)).lineLimit(1)
+            Text(p.name).font(.caption.weight(editing ? .semibold : .regular)).lineLimit(1)
                 .foregroundStyle(hasTrack ? .primary : .secondary)
             Spacer(minLength: 0)
             Text(String(format: "%.2f", editor.parameterValue(p.id))).font(.system(size: 9).monospacedDigit()).foregroundStyle(.secondary)
@@ -381,7 +381,7 @@ struct TimelineView: View {
         return HStack(spacing: 4) {
             Image(systemName: node?.isSwitch == true ? "switch.2" : node?.isFolder == true ? "folder" : "photo")
                 .font(.caption).foregroundStyle(.secondary).frame(width: 16)
-            Text((node?.name).map(LName) ?? L("（削除されたレイヤー）")).font(.caption).lineLimit(1)
+            Text(node?.name ?? L("（削除されたレイヤー）")).font(.caption).lineLimit(1)
                 .foregroundStyle(node == nil ? .secondary : .primary)
             Spacer(minLength: 0)
         }
@@ -469,7 +469,7 @@ struct TimelineView: View {
                         .offset(x: CGFloat(s.start) * cell)
                     if !s.lead, w - cell >= 12, let child = s.key.child,
                        let name = node?.children.first(where: { $0.psdID == child })?.name {
-                        Text(LName(name)).font(.system(size: 9)).foregroundStyle(.secondary)
+                        Text(name).font(.system(size: 9)).foregroundStyle(.secondary)
                             .lineLimit(1).truncationMode(.tail)
                             .frame(width: w - cell - 2, height: rowHeight, alignment: .leading)
                             .offset(x: CGFloat(s.start + 1) * cell)
@@ -505,7 +505,7 @@ struct TimelineView: View {
                                 editor.goToFrame(f)
                                 editor.setKey(layer: track.layer, TimelineKey(frame: f, child: c.psdID))
                             } label: {
-                                if key?.child == c.psdID && key?.visible != false { Label(LName(c.name), systemImage: "checkmark") } else { Text(LName(c.name)) }
+                                if key?.child == c.psdID && key?.visible != false { Label(c.name, systemImage: "checkmark") } else { Text(c.name) }
                             }
                         }
                         Button("なし（空のコマ）") {

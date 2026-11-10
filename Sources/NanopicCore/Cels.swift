@@ -23,7 +23,7 @@ extension Editor {
         doc.assignPSDIDs()
         var swPath = switchPath(containing: id)
         if swPath == nil {
-            var folder = LayerNode(name: nextLayerName(prefix: "アニメーション"), kind: .folder) // l10n:stored
+            var folder = LayerNode(name: nextLayerName(prefix: L("アニメーション")), kind: .folder)
             folder.isSwitch = true
             let folderID = folder.id
             doc.insert(folder, parentPath: Array(activePath.dropLast()), index: activePath.last! + 1)

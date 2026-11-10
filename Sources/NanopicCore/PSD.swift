@@ -784,7 +784,7 @@ private struct PSDReader {
         doc.dpi = dpi
         var layers = buildTree(records)
         let layerDataBroken = pixelDataInconsistent
-        var flatName = "背景"
+        var flatName = L("背景")
         var mergedPlanes: [[UInt8]]?
         if !layers.isEmpty && layerDataBroken {
             // Layer channel data is malformed (some writers, notably ImageIO, emit bogus layer channels

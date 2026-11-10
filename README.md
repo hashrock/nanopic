@@ -140,7 +140,7 @@ Sources/NanopicCore/   描画エンジン（UI 非依存、テスト可能）
   StrokeEngine.swift   入力の平滑化、スプライン補間、筆圧の変化制限
   Editor.swift         ドキュメント・履歴・ツール操作
   Shortcuts.swift      ショートカットの割り当て
-  Localized.swift      表示言語（L() で訳を引く、LName() で保存してある名前を訳して出す）
+  Localized.swift      表示言語（L() で訳を引く、LName() で設定にあるブラシ名を訳して出す）
   Fill.swift / Selection.swift / Transform.swift / PSD.swift
 Sources/NanopicAgent/  エージェント（MCP）向けのツール（コアとは別モジュールにして並列にビルドする）
   AgentTools.swift     ツールの処理（説明と引数の形は AgentToolSchemas.swift の JSON）
@@ -161,7 +161,7 @@ Resources/             訳のカタログ（*.xcstrings）、アイコン、プ�
 | カタログ | 中身 | 入るアプリ |
 |---|---|---|
 | `Localizable.xcstrings` | 画面の文言（メニュー、ボタン、パネル、ダイアログ、エラー、取り消しの名前） | Mac（直接配布・App Store）、iPad |
-| `Names.xcstrings` | 保存する既定の名前（下の表） | Mac（直接配布・App Store）、iPad |
+| `Names.xcstrings` | 設定に入る既定の名前（ブラシ・ブラシ先端。下の表） | Mac（直接配布・App Store）、iPad |
 | `Agent.xcstrings` | エージェント連携の設定画面とメニュー | Mac の直接配布版だけ |
 
 - **アプリへの入れ方**: SwiftPM（`swift build`）は `.xcstrings` を変換しないので、`scripts/build-app.sh` が `scripts/compile-localization.sh`（Xcode の `xcstringstool`）で `en.lproj/*.strings` にして `.app` の `Contents/Resources` に入れ、Info.plist の `CFBundleLocalizations` で ja・en を申告します。`ja.lproj` には空の表を置きます（キーがそのまま日本語の文言なので）。iPad 版は同じカタログを Xcode がビルドのときに変換します
@@ -169,26 +169,25 @@ Resources/             訳のカタログ（*.xcstrings）、アイコン、プ�
 - `swift run` とテストでは `.lproj` が無いので、日本語がそのまま出ます。英語の表示は `./scripts/build-app.sh` のあと `build/Nanopic.app/Contents/MacOS/Nanopic -AppleLanguages "(en)"` で確かめられます
 - **エージェント（MCP）に返す文**（ツールの説明・結果・エラー）は訳しません。読むのがエージェントで、ツールの説明は表示言語で変わらないほうが扱いやすいためです
 
-### 保存するデータには訳した文字列を入れない
-
-書類（PSD）・サイドカー・設定に入る名前は、どの言語の画面で作っても同じ文字列（日本語）で保存し、画面に出すときに `LName()` で訳します。作ったときの言語で保存すると、英語で作った書類が日本語の画面でも英語のまま固まるためです。
+### 保存する名前
 
 | | 扱い | 例 |
 |---|---|---|
-| アプリが付ける既定の名前 | 日本語で保存し、出すときに `LName()` で訳す | `レイヤー 1`→Layer 1、`用紙`→Paper、`フォルダー 2`、`レイヤー 1 のコピー`、ブラシ（`Gペン`→G-Pen）、ブラシ先端、デフォーマ（`顔の呼吸`→顔 Breathe）、パラメータ（`パラメータ1`、`顔の左右の向き`） |
+| 書類（PSD）・サイドカーに入る既定の名前 | 作ったときの表示言語で決めて、そのまま保存する。開く環境の言語では変えない | 日本語で作れば `レイヤー 1`・`用紙`・`フォルダー 2`・`レイヤー 1 のコピー`・`顔の呼吸`、英語で作れば `Layer 1`・`Paper`・`Folder 2`・`Layer 1 copy`・`Face Breathe` |
+| アプリの設定に入る既定の名前（ブラシ・ブラシ先端） | 日本語で保存し、出すときに `LName()` で訳す | `Gペン`→G-Pen、`鉛筆`→Pencil |
 | ファイル名のもと | 作った時点の言語で決める | `無題`／Untitled |
-| ユーザーが付けた名前 | そのまま（`Names` の表に無いので `LName()` を素通りする） | `線画`、`Layer 1`（自分で打ったもの） |
+| ユーザーが付けた名前 | そのまま | `線画` |
 
-- 訳すのは `Names.xcstrings` にある名前と、その組み合わせ（`レイヤー %lld`、`%@ のコピー`、`%@の呼吸` など。`Localized.swift` の `NameLocalizer.patterns`）だけです
-- 名前の入力欄には訳した名前を出し、打ち替えたときだけその文字列を保存します（訳した既定の名前のまま確定しても、保存してある名前は変わりません）
-- 英語の画面で作った PSD をほかのアプリで開くと、既定のレイヤー名は日本語（`レイヤー 1`）で見えます
+- 書類の名前は PSD に入ってほかのアプリでも読まれるので、作った人の言語で確定させます。英語で作った書類を日本語の環境で開いても `Layer 1` のままで、日本語で作った書類（英語対応の前に作ったものも）を英語の環境で開いても `レイヤー 1` のまま出ます。表示のときに訳し直すことはしません
+- 既定の名前の番号は言語ごとに数えます（`Layer 1`・`Layer 2` のある書類に日本語の画面でレイヤーを足すと `レイヤー 1`）
+- ブラシの設定はその Mac・iPad の中だけのものなので、保存は日本語のまま、表示だけ訳します（`Names.xcstrings`）。名前の入力欄には訳した名前を出し、打ち替えたときだけその文字列を保存します
 - 取り消しの名前（「取り消し: 描画」）は保存しないので、付けた時点の言語です
 
 ### 文言を足すとき
 
 1. Swift 側に日本語で書く。`Text("…")`・`Button("…")` のリテラルはそのまま、`String` に入れてから渡すもの（三項演算子、`NSAlert`、`showError` など）は `L("…")` で包む
 2. `Resources/Localizable.xcstrings` にキー（日本語の文言。`\(n)` の埋め込みは Int が `%lld`、String が `%@`、`%` は `%%`）と英語の訳を足す
-3. `scripts/check-localization.py`（`swift test` からも走る）が、カタログに無い日本語の文言、訳の抜け、書式指定子の食い違い、App Store 用にも入る表への MCP の文言の混入を見つけます。訳さない行は `// l10n:skip`、日本語のまま保存する名前の行は `// l10n:stored` と書いて外します
+3. `scripts/check-localization.py`（`swift test` からも走る）が、カタログに無い日本語の文言、訳の抜け、書式指定子の食い違い、App Store 用にも入る表への MCP の文言の混入を見つけます。訳さない行は `// l10n:skip`、日本語のまま設定に保存する名前（複製したブラシの「コピー」）の行は `// l10n:stored` と書いて外します
 
 英語の文言は Mac / iPad の標準の言い回しに合わせています（メニューとボタンは Title Case、`…` は 1 文字、Undo／Redo、Save As… など）。
 

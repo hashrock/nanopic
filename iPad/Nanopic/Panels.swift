@@ -280,10 +280,8 @@ struct LayerPanel: View {
         .alert("レイヤー名", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("名前", text: $renameText)
             Button("OK") {
-                // 訳して出した既定の名前をそのまま確定したときは、保存してある名前を変えない
-                if let id = renaming, !renameText.isEmpty, let node = editor.doc.node(id),
-                   case let name = LNameEdited(renameText, original: node.name), name != node.name {
-                    editor.setLayerProperty(id, label: L("名前の変更")) { $0.name = name }
+                if let id = renaming, !renameText.isEmpty {
+                    editor.setLayerProperty(id, label: L("名前の変更")) { $0.name = renameText }
                 }
                 renaming = nil
             }
@@ -368,7 +366,7 @@ struct LayerPanel: View {
             }
             if node.clipping { Image(systemName: "arrow.turn.left.down").font(.caption).foregroundStyle(.secondary) }
             VStack(alignment: .leading, spacing: 1) {
-                Text(LName(node.name)).lineLimit(1)
+                Text(node.name).lineLimit(1)
                 if node.blendMode != .normal && node.blendMode != .passThrough || node.opacity < 1 {
                     Text("\(node.blendMode.displayName) \(Int((node.opacity * 100).rounded()))%")
                         .font(.caption2)
@@ -381,7 +379,7 @@ struct LayerPanel: View {
         .contentShape(Rectangle())
         .onTapGesture { editor.setActiveLayer(node.id) }
         .contextMenu {
-            Button { renameText = LName(node.name); renaming = node.id } label: { Label("名前の変更", systemImage: "pencil") }
+            Button { renameText = node.name; renaming = node.id } label: { Label("名前の変更", systemImage: "pencil") }
             Button { editor.setActiveLayer(node.id); editor.duplicateActiveLayer() } label: { Label("複製", systemImage: "plus.square.on.square") }
             Button { editor.setActiveLayer(node.id); editor.mergeDown() } label: { Label("下のレイヤーに結合", systemImage: "arrow.down.to.line") }
             Divider()

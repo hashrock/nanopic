@@ -59,7 +59,7 @@ extension Editor {
         doc.assignPSDIDs()
         guard let n = doc.node(id) else { return nil }
         let d = makeDeformer(n, bounds: Self.contentBounds(n) ?? doc.bounds, kind: kind,
-                             name: name ?? "\(n.name)の\(kind == .rotation ? "移動・回転" : "ワープ")", cols: cols, rows: rows) // l10n:stored
+                             name: name ?? (kind == .rotation ? L("\(n.name)の移動・回転") : L("\(n.name)のワープ")), cols: cols, rows: rows)
         commitTransform()
         checkpoint(L("デフォーマを付ける"))
         doc.rig.deformers.append(d)

@@ -9,7 +9,7 @@ import Foundation
 public enum Localization {
     /// 訳を引く先
     public static var bundle: Bundle = .main
-    /// 保存する名前（既定のレイヤー名など）の訳の表
+    /// 設定に入る既定の名前（ブラシ・ブラシ先端）の訳の表
     public static let nameTable = "Names"
 }
 
@@ -23,11 +23,13 @@ public func LFormat(_ key: String, table: String? = nil, _ args: CVarArg...) -> 
     String(format: Localization.bundle.localizedString(forKey: key, value: key, table: table), arguments: args)
 }
 
-/// 保存してある名前を、出すときに訳す。
+/// アプリの設定に入っている既定の名前（ブラシ・ブラシ先端）を、出すときに訳す。
 ///
-/// 書類・サイドカー・設定に入る既定の名前（「レイヤー 1」「用紙」「Gペン」「腕の呼吸」など）は、どの言語で作っても
-/// 日本語で保存する。作ったときの言語で保存すると、英語で作った書類が日本語の画面でも英語のまま固まるため。
-/// ユーザーが自分で付けた名前は表に無いので、そのまま返る。
+/// 設定はその Mac・iPad の中だけのものなので、日本語のまま保存し、画面の言語に合わせて出す
+/// （「Gペン」→ G-Pen）。ユーザーが自分で付けた名前は表に無いので、そのまま返る。
+///
+/// 書類（PSD）・サイドカーに入る既定の名前（レイヤー・フォルダー・用紙・デフォーマ・パラメータ）にはこれを使わない。
+/// そちらは作ったときの表示言語で決めて（`L("用紙")`）そのまま保存し、開く環境の言語では変えない。
 public func LName(_ name: String) -> String {
     NameLocalizer.shared.localized(name)
 }
@@ -44,14 +46,8 @@ final class NameLocalizer: @unchecked Sendable {
         return v == missing ? nil : v
     }
 
-    /// 名前の一部を埋めて作る既定の名前。上から順に試す（「%@の左右の向き」は「%@の向き」より先）
-    static let patterns = [
-        "レイヤー %lld", "フォルダー %lld", "アニメーション %lld", "パラメータ%lld",
-        "%@ のコピー", "%@ コピー",
-        "%@の呼吸", "%@のゆらゆら", "%@のふわふわ", "%@のぴょこぴょこ", "%@のなびく",
-        "%@の移動・回転", "%@のワープ",
-        "%@の左右の向き", "%@の上下の向き", "%@の向き",
-    ]
+    /// 名前の一部を埋めて作る既定の名前（複製したブラシ）
+    static let patterns = ["%@ コピー"]
 
     private let lookup: (String) -> String?
     private let compiled: [(key: String, regex: NSRegularExpression, isNumber: Bool)]
