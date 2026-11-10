@@ -1,10 +1,23 @@
 #!/bin/bash
 # リリースビルドして build/Nanopic.app を作る
+#
+#   ./scripts/build-app.sh                      # ふだんのビルド（Developer ID 版。エージェント連携あり）
+#   NANOPIC_APPSTORE=1 ./scripts/build-app.sh   # App Store 用（エージェント連携なし）→ build/appstore/Nanopic.app
+#
+# App Store 用は scripts/build-appstore.sh から呼ぶ（MCP が入っていないことも確かめる）
 set -euo pipefail
 cd "$(dirname "$0")/.."
-swift build -c release
-BIN="$(swift build -c release --show-bin-path)/Nanopic"
-APP=build/Nanopic.app
+if [ "${NANOPIC_APPSTORE:-}" = "1" ]; then
+    # ふだんのビルドと中間ファイルが混ざらないよう、ビルド先を分ける
+    BUILD=(swift build -c release --scratch-path .build-appstore)
+    APP=build/appstore/Nanopic.app
+else
+    unset NANOPIC_APPSTORE
+    BUILD=(swift build -c release)
+    APP=build/Nanopic.app
+fi
+"${BUILD[@]}"
+BIN="$("${BUILD[@]}" --show-bin-path)/Nanopic"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Nanopic"

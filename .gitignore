@@ -5,3 +5,5 @@ build/
 .swiftpm/
 dist/
 xcuserdata/
+.build-appstore/
+.build-ipad/

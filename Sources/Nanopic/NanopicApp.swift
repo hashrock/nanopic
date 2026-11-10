@@ -3,7 +3,24 @@ import NanopicCore
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    var state: AppState?
+    var state: AppState? {
+        didSet {
+            // 書類を渡されて起動したときは、画面ができる前に application(_:open:) が来る。画面ができてから開く
+            guard let state, let url = pendingURL else { return }
+            pendingURL = nil
+            DispatchQueue.main.async { state.open(url: url) }
+        }
+    }
+    private var pendingURL: URL?
+    /// メインウィンドウを開く（SwiftUI の openWindow。メニューを組み立てるときに AppCommands が入れる）
+    var openMainWindow: (() -> Void)? {
+        didSet {
+            guard wantsMainWindow, let openMainWindow else { return }
+            wantsMainWindow = false
+            DispatchQueue.main.async(execute: openMainWindow)
+        }
+    }
+    private var wantsMainWindow = false
     private var keyMonitor: Any?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -30,7 +47,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        if let url = urls.first, let state, state.confirmDiscardChanges() { state.open(url: url) }
+        guard let url = urls.first else { return }
+        guard let state else {
+            // 書類を渡されて起動した。開くイベントを SwiftUI に渡していないので、ウィンドウは自分で開く
+            pendingURL = url
+            if let openMainWindow {
+                DispatchQueue.main.async(execute: openMainWindow)
+            } else {
+                wantsMainWindow = true
+            }
+            return
+        }
+        if state.confirmDiscardChanges() { state.open(url: url) }
     }
 
     /// 単キーのショートカット（テキスト入力中は無視）
@@ -214,11 +242,17 @@ struct NanopicApp: App {
             ContentView(state: state)
                 .onAppear {
                     delegate.state = state
+                    #if !APPSTORE
                     if state.mcpEnabled { state.applyMCPSetting() }
+                    #endif
                 }
         }
         .defaultSize(width: 1400, height: 900)
-        .commands { AppCommands(state: state) }
+        // 書類を開くイベント（Finder や open コマンドから渡された PSD）は AppDelegate で受ける。
+        // SwiftUI に任せると、ウィンドウを閉じて作り直そうとして、起動時はウィンドウが出ず（出し直してもキャンバスが描かれない）、
+        // 起動中はウィンドウが閉じてアプリごと終了する
+        .handlesExternalEvents(matching: [])
+        .commands { AppCommands(state: state, delegate: delegate) }
         Settings {
             SettingsView(state: state)
         }
@@ -227,13 +261,19 @@ struct NanopicApp: App {
 
 struct AppCommands: Commands {
     let state: AppState
+    let delegate: AppDelegate
+    @Environment(\.openWindow) private var openWindow
     var editor: Editor { state.editor }
 
     var body: some Commands {
+        // ウィンドウがまだないとき（書類を渡されて起動したとき）に AppDelegate から開けるようにする
+        let _ = { delegate.openMainWindow = { openWindow(id: "main") } }()
+        #if !APPSTORE
         CommandGroup(after: .appSettings) {
             Toggle("エージェント連携（MCP）", isOn: Binding(get: { _ = state.mcpSettingsVersion; return state.mcpEnabled },
                                                      set: { state.mcpEnabled = $0 }))
         }
+        #endif
         CommandGroup(replacing: .newItem) {
             Button("新規...") {
                 if state.confirmDiscardChanges() { state.showNewDocumentSheet = true }
