@@ -15,6 +15,22 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
     private var renderer: MetalRenderer?
     private let cursor = BrushCursorView()
     private let perf = PadPerfMonitor()
+    private let overlay = SelectionOverlayView()
+    private let prediction = CAShapeLayer()
+    /// 投げなわの途中の点（キャンバス座標）
+    private(set) var lassoPoints: [CGPoint] = []
+    /// 矩形・楕円選択の途中の形（キャンバス座標）
+    private(set) var shapePreview: (rect: CGRect, ellipse: Bool)?
+
+    private enum Drag {
+        case selectShape(start: CGPoint, ellipse: Bool, op: SelectionOp)
+        case lasso(op: SelectionOp)
+        case lassoFill(erase: Bool)
+        case move(startCanvas: CGPoint, startParams: TransformParams)
+        case transform(handle: TransformHandle, startCanvas: CGPoint, startParams: TransformParams)
+    }
+
+    private var drag: Drag?
     private let perfLabel = UILabel()
 
     // 表示変換: view = T(offset) · R(rotation) · S(zoom) · canvas
@@ -37,6 +53,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
     private enum Action {
         case stroke
         case eyedropper
+        case drag
     }
 
     /// 描いている（またはスポイトしている）タッチ
@@ -70,6 +87,13 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
         renderer?.canvas = self
         mtkView.delegate = renderer
         addSubview(mtkView)
+
+        overlay.canvas = self
+        addSubview(overlay)
+        prediction.fillColor = nil
+        prediction.lineCap = .round
+        prediction.lineJoin = .round
+        layer.insertSublayer(prediction, above: mtkView.layer)
 
         cursor.isUserInteractionEnabled = false
         cursor.isHidden = true
@@ -127,6 +151,8 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
     override func layoutSubviews() {
         super.layoutSubviews()
         mtkView.frame = bounds
+        overlay.frame = bounds
+        prediction.frame = bounds
         layoutPerfLabel()
         if !didInitialFit && bounds.width > 10 {
             didInitialFit = true
@@ -170,6 +196,8 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
 
     func requestDisplay() {
         mtkView.setNeedsDisplay()
+        // 描いている間は全面を描き直さない（重くなるので）
+        if action != .stroke { overlay.refresh() }
     }
 
     // MARK: - 表示変換
@@ -214,6 +242,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
         state.zoom = Double(zoom)
         state.rotationDegrees = Double(rotation * 180 / .pi)
         requestDisplay()
+        overlay.refresh()
     }
 
     // MARK: - タッチ（描く）
@@ -275,8 +304,11 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
         case .stroke:
             feedStroke(event?.coalescedTouches(for: t) ?? [t])
             updateCursor(at: t.location(in: self), visible: t.type == .pencil)
+            updatePrediction(event?.predictedTouches(for: t) ?? [])
         case .eyedropper:
             pick(t.location(in: self))
+        case .drag:
+            for c in event?.coalescedTouches(for: t) ?? [t] { updateDrag(c.preciseLocation(in: self)) }
         case nil:
             break
         }
@@ -302,7 +334,9 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         if let p = pendingFinger, touches.contains(p.touch) { pendingFinger = nil }
         guard let t = activeTouch, touches.contains(t) else { return }
-        if fingerStroke {
+        if action == .drag {
+            cancelDrag()
+        } else if fingerStroke {
             // 指のストロークがジェスチャーに変わった: なかったことにする
             cancelFingerStroke()
         } else {
@@ -343,14 +377,46 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
                 updateCursor(at: vp, visible: t.type == .pencil)
                 return true
             } else {
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
-                state.show(lockedMessage)
+                refuse(lockedMessage)
             }
         case .fill:
             if editor.canPaintOnActiveLayer {
                 editor.fill(atX: Int(floor(cp.x)), y: Int(floor(cp.y)))
             } else {
                 state.show(lockedMessage)
+            }
+        case .lassoFill, .lassoErase:
+            editor.commitTransform()
+            guard editor.canPaintOnActiveLayer else {
+                refuse(lockedMessage)
+                return false
+            }
+            lassoPoints = [cp]
+            startDrag(.lassoFill(erase: editor.tool == .lassoErase), t)
+        case .lasso:
+            editor.commitTransform()
+            lassoPoints = [cp]
+            startDrag(.lasso(op: state.selectionOp), t)
+        case .selectRect, .selectEllipse:
+            editor.commitTransform()
+            startDrag(.selectShape(start: cp, ellipse: editor.tool == .selectEllipse, op: state.selectionOp), t)
+        case .wand:
+            editor.wandSelect(atX: Int(floor(cp.x)), y: Int(floor(cp.y)), op: state.selectionOp)
+            overlay.refresh()
+        case .move:
+            if editor.floating != nil || editor.beginTransform(), let f = editor.floating {
+                editor.recordTransformStep()
+                startDrag(.move(startCanvas: cp, startParams: f.params), t)
+            } else {
+                refuse("動かせるものがありません")
+            }
+        case .transform:
+            if editor.floating != nil || editor.beginTransform(), let f = editor.floating {
+                editor.recordTransformStep()
+                let handle = f.hitHandle(vp, transform: canvasToView, radius: 24)
+                startDrag(.transform(handle: handle, startCanvas: cp, startParams: f.params), t)
+            } else {
+                refuse("変形できるものがありません")
             }
         case .eyedropper:
             activeTouch = t
@@ -371,6 +437,8 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
     }
 
     private func end() {
+        if action == .drag { finishDrag() }
+        clearPrediction()
         if action == .stroke {
             let t0 = CACurrentMediaTime()
             editor.endStroke()
@@ -384,6 +452,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
 
     private func cancelFingerStroke() {
         perf.cancel()
+        clearPrediction()
         if action == .stroke {
             editor.endStroke()
             editor.undo()
@@ -391,6 +460,122 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
         activeTouch = nil
         action = nil
         fingerStroke = false
+    }
+
+    private func refuse(_ message: String) {
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+        state.show(message)
+    }
+
+    // MARK: - 予測の仮表示
+
+    /// 実際に描き終わるまでの線の先を、仮の線で見せる（次のイベントで置き換わる）
+    private func updatePrediction(_ touches: [UITouch]) {
+        guard let p = editor.strokePreview(predicted: touches.map(input)) else {
+            clearPrediction()
+            return
+        }
+        let path = CGMutablePath()
+        path.addLines(between: p.points.map { $0.applying(canvasToView) })
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        prediction.path = path
+        prediction.lineWidth = CGFloat(p.radius * 2) * zoom
+        prediction.strokeColor = UIColor(red: CGFloat(p.color.x), green: CGFloat(p.color.y), blue: CGFloat(p.color.z), alpha: CGFloat(p.alpha)).cgColor
+        CATransaction.commit()
+    }
+
+    private func clearPrediction() {
+        guard prediction.path != nil else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        prediction.path = nil
+        CATransaction.commit()
+    }
+
+    // MARK: - 選択・移動・変形
+
+    private func startDrag(_ d: Drag, _ t: UITouch) {
+        drag = d
+        activeTouch = t
+        action = .drag
+        overlay.refresh()
+    }
+
+    private func updateDrag(_ vp: CGPoint) {
+        let cp = vp.applying(viewToCanvas)
+        switch drag {
+        case let .selectShape(start, ellipse, _):
+            shapePreview = (CGRect(x: min(start.x, cp.x), y: min(start.y, cp.y), width: abs(cp.x - start.x), height: abs(cp.y - start.y)), ellipse)
+        case .lasso, .lassoFill:
+            if let last = lassoPoints.last, hypot(last.x - cp.x, last.y - cp.y) * zoom > 1.5 {
+                lassoPoints.append(cp)
+            }
+        case let .move(startCanvas, startParams):
+            // 移動は整数ピクセル単位（再サンプリングでぼけないように）
+            var p = startParams
+            p.tx = (startParams.tx + Double(cp.x - startCanvas.x)).rounded()
+            p.ty = (startParams.ty + Double(cp.y - startCanvas.y)).rounded()
+            editor.updateTransform(p)
+        case let .transform(handle, startCanvas, startParams):
+            if let f = editor.floating {
+                editor.updateTransform(f.draggedParams(handle: handle, startCanvas: startCanvas, startParams: startParams, current: cp, constrain: false))
+            }
+        case nil:
+            break
+        }
+        overlay.refresh()
+        requestDisplay()
+    }
+
+    private func closedLasso() -> CGPath? {
+        guard lassoPoints.count > 2 else { return nil }
+        let path = CGMutablePath()
+        path.addLines(between: lassoPoints)
+        path.closeSubpath()
+        return path
+    }
+
+    private func finishDrag() {
+        switch drag {
+        case let .selectShape(_, ellipse, op):
+            if var r = shapePreview?.rect, r.width * zoom > 2 || r.height * zoom > 2 {
+                if !ellipse {
+                    // 矩形選択はピクセル境界に揃える
+                    r = CGRect(x: r.minX.rounded(), y: r.minY.rounded(),
+                               width: r.maxX.rounded() - r.minX.rounded(), height: r.maxY.rounded() - r.minY.rounded())
+                }
+                editor.select(path: ellipse ? CGPath(ellipseIn: r, transform: nil) : CGPath(rect: r, transform: nil), op: op)
+            } else if op == .replace {
+                editor.deselect()
+            }
+        case let .lasso(op):
+            if let path = closedLasso() {
+                editor.select(path: path, op: op)
+            } else if op == .replace {
+                editor.deselect()
+            }
+        case let .lassoFill(erase):
+            if let path = closedLasso() { editor.lassoFill(path: path, erase: erase) }
+        default:
+            break
+        }
+        clearDrag()
+    }
+
+    /// 途中で別の操作に変わった: 投げなわなどは確定しない
+    private func cancelDrag() {
+        clearDrag()
+        activeTouch = nil
+        action = nil
+    }
+
+    private func clearDrag() {
+        drag = nil
+        lassoPoints = []
+        shapePreview = nil
+        overlay.refresh()
+        requestDisplay()
     }
 
     private func pick(_ vp: CGPoint) {

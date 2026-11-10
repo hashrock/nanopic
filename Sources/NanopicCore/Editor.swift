@@ -2,6 +2,14 @@ import CoreGraphics
 import Foundation
 import Observation
 
+/// ペンの先に仮表示する線（キャンバス座標）
+public struct StrokePreview: Sendable {
+    public var points: [CGPoint]
+    public var radius: Double
+    public var alpha: Double
+    public var color: SIMD3<Float>
+}
+
 public enum Tool: String, CaseIterable, Codable, Sendable {
     case brush, eraser, fill, lassoFill, lassoErase, selectRect, selectEllipse, lasso, wand, move, transform, eyedropper, hand, zoom
 
@@ -438,6 +446,13 @@ public final class Editor {
 
     public func continueStroke(_ input: StrokeInput) {
         engine?.add(input)
+    }
+
+    /// ペンの先に仮表示する線。色をそのまま載せても見た目が合うブラシのときだけ返す
+    public func strokePreview(predicted: [StrokeInput]) -> StrokePreview? {
+        guard let e = engine, let b = strokeBrush, b.kind == .brush, mixBuffer == nil, strokeMode == .normal,
+              b.hardness >= 0.5, let p = e.previewPoints(predicted: predicted), p.points.count >= 2 else { return nil }
+        return StrokePreview(points: p.points.map { CGPoint(x: $0.0, y: $0.1) }, radius: p.radius, alpha: p.alpha, color: mainColor)
     }
 
     public func endStroke() {

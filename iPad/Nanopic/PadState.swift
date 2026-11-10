@@ -21,6 +21,8 @@ final class PadState {
             canvas?.updateGestureConfiguration()
         }
     }
+    /// 選択範囲を作るときの、今の選択範囲との組み合わせ方
+    var selectionOp: SelectionOp = .replace
     /// 性能を計測して画面に出す
     var perfEnabled = UserDefaults.standard.bool(forKey: "pad.perfEnabled") {
         didSet {

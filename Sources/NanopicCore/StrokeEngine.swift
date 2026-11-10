@@ -345,6 +345,31 @@ public final class StrokeEngine {
         Point(x: 2 * b.x - a.x, y: 2 * b.y - a.y, p: b.p, t: b.t)
     }
 
+    // MARK: 予測の仮表示
+
+    /// まだキャンバスに描いていない線の先（最後のダブ → 遅らせている点 → 予測点）。状態は変えない
+    func previewPoints(predicted: [StrokeInput]) -> (points: [(Double, Double)], radius: Double, alpha: Double)? {
+        guard let start = lastDabPos, let raw = lastRaw else { return nil }
+        var out = [start]
+        if let last = pts.last { out.append((last.x, last.y)) }
+        out += held.map { ($0.x, $0.y) }
+        // 手ブレ補正の状態はコピーして続きを計算する（本物のフィルタは進めない）
+        var filter = fpos
+        var previous = raw.time
+        for s in predicted {
+            var dt = s.time - previous
+            if dt <= 0.0005 { dt = 1.0 / 240 }
+            previous = s.time
+            if brush.smoothing > 0.001 {
+                let v = filter.filter(x: s.x, y: s.y, dt: min(dt, 0.1))
+                out.append((v.x, v.y))
+            } else {
+                out.append((s.x, s.y))
+            }
+        }
+        return (out, currentRadius(), currentAlpha())
+    }
+
     // MARK: スプライン
 
     private func drawSegment(_ p0: Point, _ p1: Point, _ p2: Point, _ p3: Point) {

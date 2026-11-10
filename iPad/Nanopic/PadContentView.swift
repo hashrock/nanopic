@@ -58,6 +58,12 @@ struct PadContentView: View {
                 }
             }
             .allowsHitTesting(false)
+            if editor.floating != nil {
+                VStack {
+                    Spacer()
+                    transformBar.padding(.bottom, 70)
+                }
+            }
             if dropTargeted {
                 Rectangle()
                     .strokeBorder(Color.accentColor, lineWidth: 4)
@@ -195,6 +201,11 @@ struct PadContentView: View {
             toolButton(.brush, "b")
             toolButton(.eraser, "e")
             toolButton(.fill, "g")
+            toolButton(.lassoFill, "l")
+            toolButton(.lassoErase, "k")
+            selectionMenu
+            toolButton(.move, "v")
+            toolButton(.transform, "t")
             toolButton(.eyedropper, "i")
 
             Divider().frame(height: 24).padding(.horizontal, 4)
@@ -238,6 +249,64 @@ struct PadContentView: View {
                 .background(selected ? Color.accentColor.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 8))
         }
         .disabled(disabled)
+    }
+
+    private static let selectionTools: [Tool] = [.lasso, .selectRect, .selectEllipse, .wand]
+
+    private var selectionMenu: some View {
+        let active = Self.selectionTools.contains(editor.tool)
+        return Menu {
+            ForEach(Self.selectionTools, id: \.self) { tool in
+                Button { editor.selectTool(tool) } label: { Label(tool.displayName, systemImage: tool.symbol) }
+            }
+            Divider()
+            Picker("組み合わせ", selection: Binding(get: { state.selectionOp }, set: { state.selectionOp = $0 })) {
+                Text("新しく選ぶ").tag(SelectionOp.replace)
+                Text("追加").tag(SelectionOp.add)
+                Text("削除").tag(SelectionOp.subtract)
+                Text("共通部分").tag(SelectionOp.intersect)
+            }
+            Divider()
+            Button("すべて選択") { editor.selectAll() }
+            Button("選択を解除") { editor.deselect() }
+                .disabled(editor.doc.selection == nil)
+            Button("選択範囲を反転") { editor.invertSelection() }
+                .disabled(editor.doc.selection == nil)
+            Button("選択範囲の中を消す", role: .destructive) { editor.clearSelectionContent() }
+                .disabled(editor.doc.selection == nil)
+        } label: {
+            Image(systemName: active ? editor.tool.symbol : Tool.lasso.symbol)
+                .font(.system(size: 18))
+                .frame(width: 40, height: 40)
+                .foregroundStyle(active ? Color.white : Color.primary)
+                .background(active ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 8))
+        }
+        .accessibilityLabel("選択範囲")
+    }
+
+    /// 移動・変形の途中に出す、確定・取り消しのバー
+    private var transformBar: some View {
+        HStack(spacing: 18) {
+            Button { flipFloating(x: true) } label: { Image(systemName: "arrow.left.and.right.righttriangle.left.righttriangle.right") }
+                .accessibilityLabel("左右反転")
+            Button { flipFloating(x: false) } label: { Image(systemName: "arrow.up.and.down.righttriangle.up.righttriangle.down") }
+                .accessibilityLabel("上下反転")
+            Divider().frame(height: 22)
+            Button("キャンセル") { editor.cancelTransform() }
+            Button("確定") { editor.commitTransform() }
+                .fontWeight(.semibold)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+        .background(.regularMaterial, in: Capsule())
+    }
+
+    private func flipFloating(x: Bool) {
+        guard let f = editor.floating else { return }
+        editor.recordTransformStep()
+        var p = f.params
+        if x { p.sx = -p.sx } else { p.sy = -p.sy }
+        editor.updateTransform(p)
     }
 
     private func toolButton(_ tool: Tool, _ key: KeyEquivalent) -> some View {
