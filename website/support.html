@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafafa">
+  <title>サポート — nanopic</title>
+  <meta name="description" content="nanopic への問い合わせ先と、よくある質問。">
+  <link rel="icon" href="./assets/nanopic.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="https://repos.hashrock.info/switcher/v1.js"></script>
+</head>
+<body>
+  <header class="header wrap">
+    <a class="brand" href="./" aria-label="nanopic ホーム"><img src="./assets/nanopic.svg" width="36" height="36" alt=""><span>nanopic</span></a>
+    <div class="header-links">
+      <a class="github" href="#en" lang="en">English <span aria-hidden="true">↓</span></a>
+      <!-- hashrock の他のサービスへのメニュー（index.html と同じ置き方） -->
+      <hashrock-switcher theme="light"></hashrock-switcher>
+    </div>
+  </header>
+  <main class="policy wrap">
+
+    <article id="ja" lang="ja">
+      <h1>サポート</h1>
+
+      <p class="lead">質問や不具合の報告は <a class="link" href="https://github.com/hashrock/nanopic/issues">GitHub の Issues</a> で受け付けています。</p>
+
+      <h2>問い合わせるとき</h2>
+      <p>次のことを書いてもらえると、早く調べられます。</p>
+      <dl>
+        <dt>アプリの版と、入手したところ</dt>
+        <dd>Mac ではメニューの「Nanopic ＞ Nanopic について」に版が出ています。Mac App Store 版・このサイトからダウンロードした版・iPad 版のどれかも書いてください。</dd>
+        <dt>macOS・iPadOS の版</dt>
+        <dd>Mac は「アップル メニュー ＞ この Mac について」、iPad は「設定 ＞ 一般 ＞ 情報」に出ています。</dd>
+        <dt>起きたことと、その手順</dt>
+        <dd>何をしたら、何が起きたか。画面の写真があるとなおよいです。</dd>
+      </dl>
+
+      <h2>動作環境</h2>
+      <p>Mac 版は macOS 14 以降。iPad 版は iPadOS 17 以降（描くには Apple Pencil を使います。指で描く設定もあります）。表示言語は日本語と英語です。</p>
+
+      <h2>よくある質問</h2>
+      <dl>
+        <dt>絵はどんな形で保存されますか？</dt>
+        <dd>PSD で保存します。保存した PSD は、ほかのアプリでもそのまま開けます。スイッチフォルダー・タイムライン・リグ・書き出しの設定のように PSD に入らない情報があるときだけ、PSD の隣に同じ名前の「作品.nanopic」（サイドカー）を作ります。</dd>
+        <dt>PSD を移動したら、タイムラインやリグが消えました。</dt>
+        <dd>その情報は隣の「作品.nanopic」に入っています。PSD を移動・名前変更するときは、「作品.nanopic」も同じ名前で一緒に動かしてください。「作品.nanopic」のほうを開こうとしたときは、PSD のほうを開いてください。</dd>
+        <dt>Mac App Store 版で、以前の版で作ったタイムラインやリグが読み込まれません。</dt>
+        <dd>以前の版は、サイドカーを「作品.nanopic.json」という名前で書いていました。Mac App Store 版は macOS のサンドボックスの中で動くので、開いた PSD の隣にあるファイルのうち、名前が同じで拡張子が「.nanopic」のものしか読み書きできません。Finder で「作品.nanopic.json」の名前を「作品.nanopic」に変えてから、PSD を開き直してください。このサイトからダウンロードした版で開いて保存し直しても、「作品.nanopic」ができます（古いファイルはそのまま残ります）。</dd>
+        <dt>Mac App Store 版で、「書き出す」（⌥⌘E）のたびに保存先を聞かれます。</dt>
+        <dd>サンドボックスの中では、あなたが保存パネルで選んだ場所にしか書けません。一度選んだ書き出し先は覚えて、次からはそこへ上書きします。ほかの Mac やダウンロード版で決めた書き出し先、形式を変えて拡張子が変わったとき、書き出したファイルを動かしたときは、もう一度選んでください。</dd>
+        <dt>iPad で、書類はどこにありますか？</dt>
+        <dd>ファイル App の「このiPad内 › Nanopic」です。iCloud Drive を使っていれば「iCloud Drive › Nanopic」にも置けます。アプリを離れると、この 2 つのフォルダーの書類は自動で保存します。</dd>
+        <dt>iPad で、ほかの場所の PSD を開くと印が出て、タイムラインなどが使えません。</dt>
+        <dd>iPad 版は、Nanopic のフォルダー（上の 2 つ）の中でだけサイドカーを読み書きします。外の場所の PSD は素の PSD として開き、サイドカーの情報は読まず、保存しても書きません。ツールバーの印を押して「Nanopic のフォルダーに複製して開く」を選ぶと、全部の機能が使えます。「作品.nanopic」があるときは、ファイル App で PSD と一緒に Nanopic のフォルダーへ移してください。</dd>
+        <dt>エージェント連携（MCP）が見当たりません。</dt>
+        <dd>エージェント連携は、このサイトからダウンロードする Mac 版だけの機能です。Mac App Store 版と iPad 版には入っていません。</dd>
+      </dl>
+
+      <h2>プライバシー</h2>
+      <p>nanopic はあなたの情報を集めず、インターネットにも接続しません。詳しくは<a class="link" href="./privacy.html">プライバシーポリシー</a>をご覧ください。</p>
+    </article>
+
+    <article id="en" lang="en">
+      <h1>Support</h1>
+
+      <p class="lead">For questions and bug reports, please use <a class="link" href="https://github.com/hashrock/nanopic/issues">GitHub Issues</a>.</p>
+
+      <h2>When you contact us</h2>
+      <p>Including the following helps us look into it quickly.</p>
+      <dl>
+        <dt>App version, and where you got it</dt>
+        <dd>On a Mac, the version is shown in Nanopic › About Nanopic. Please also say whether it is the Mac App Store version, the version downloaded from this site, or the iPad version.</dd>
+        <dt>macOS or iPadOS version</dt>
+        <dd>On a Mac, see Apple menu › About This Mac. On an iPad, see Settings › General › About.</dd>
+        <dt>What happened, and how</dt>
+        <dd>What you did and what happened. A screenshot helps too.</dd>
+      </dl>
+
+      <h2>Requirements</h2>
+      <p>The Mac version requires macOS 14 or later. The iPad version requires iPadOS 17 or later (you draw with Apple Pencil; there is also an option to draw with a finger). The app is available in Japanese and English.</p>
+
+      <h2>FAQ</h2>
+      <dl>
+        <dt>What format is my artwork saved in?</dt>
+        <dd>PSD. Saved files open in other apps as they are. Only when a document has information that does not fit in a PSD (switch folders, the timeline, rigs, export settings), the app creates a sidecar file with the same name next to the PSD, such as “Artwork.nanopic”.</dd>
+        <dt>I moved a PSD and its timeline or rig disappeared.</dt>
+        <dd>That information is in the “Artwork.nanopic” file next to the PSD. When you move or rename a PSD, move or rename “Artwork.nanopic” along with it, keeping the same name. If you tried to open the “.nanopic” file itself, open the PSD instead.</dd>
+        <dt>The Mac App Store version does not load a timeline or rig made with an earlier version.</dt>
+        <dd>Earlier versions wrote the sidecar as “Artwork.nanopic.json”. The Mac App Store version runs inside the macOS sandbox, so next to the PSD you open it can only read and write a file with the same name and the “.nanopic” extension. In the Finder, rename “Artwork.nanopic.json” to “Artwork.nanopic”, then open the PSD again. Opening and saving the document with the version downloaded from this site also creates “Artwork.nanopic” (the old file is left as it is).</dd>
+        <dt>The Mac App Store version asks where to save every time I choose Export (⌥⌘E).</dt>
+        <dd>Inside the sandbox, the app can only write to a location you pick in the save panel. It remembers a location once you pick it and overwrites the file there from then on. You need to pick again for a location that was set on another Mac or in the downloaded version, when you change the format and the extension changes, or when you move the exported file.</dd>
+        <dt>Where are my documents on iPad?</dt>
+        <dd>In “On My iPad › Nanopic” in the Files app. If you use iCloud Drive, you can also keep them in “iCloud Drive › Nanopic”. Documents in these two folders are saved automatically when you leave the app.</dd>
+        <dt>On iPad, a PSD from another location shows a badge and the timeline is not available.</dt>
+        <dd>The iPad version reads and writes sidecar files only inside the Nanopic folders (the two above). A PSD elsewhere opens as a plain PSD: sidecar information is not read, and is not written when you save. Tap the badge in the toolbar and choose “Duplicate to the Nanopic Folder and Open” to use everything. If there is an “Artwork.nanopic” file, move it together with the PSD into the Nanopic folder in the Files app.</dd>
+        <dt>I can’t find agent integration (MCP).</dt>
+        <dd>Agent integration is only in the Mac version downloaded from this site. The Mac App Store version and the iPad version do not include it.</dd>
+      </dl>
+
+      <h2>Privacy</h2>
+      <p>nanopic does not collect your information and does not connect to the internet. See the <a class="link" href="./privacy.html#en">Privacy Policy</a> for details.</p>
+    </article>
+
+  </main>
+  <footer class="footer wrap"><a href="./">nanopic</a><span class="footer-links"><a href="./support.html">サポート</a><a href="./privacy.html">プライバシーポリシー</a><a href="https://github.com/hashrock">Made by hashrock <span aria-hidden="true">↗</span></a></span></footer>
+</body>
+</html>
