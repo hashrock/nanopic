@@ -15,7 +15,7 @@ struct ShortcutRecorder: View {
             Button {
                 recording ? stop() : start()
             } label: {
-                Text(recording ? "キーを押してください…" : (state.shortcutLabel(target) ?? "なし"))
+                Text(recording ? L("キーを押してください…") : (state.shortcutLabel(target) ?? L("なし")))
                     .font(.callout.monospaced())
                     .foregroundStyle(recording ? Color.accentColor : (state.shortcutLabel(target) == nil ? .secondary : .primary))
                     .frame(minWidth: 120)
@@ -49,11 +49,11 @@ struct ShortcutRecorder: View {
                 stop()
             default:
                 guard let chord = KeyChord(event: e) else {
-                    message = "⌘・⌃ との組み合わせや、文字のないキーは使えません"
+                    message = L("⌘・⌃ との組み合わせや、文字のないキーは使えません")
                     return nil
                 }
                 if ShortcutMap.reserved.contains(chord) {
-                    message = "\(chord.displayName) はほかの機能で使っています"
+                    message = L("\(chord.displayName) はほかの機能で使っています")
                     return nil
                 }
                 state.setShortcut(chord, for: target)
@@ -105,10 +105,10 @@ struct ShortcutSettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("ブラシ") {
-                ForEach(editor.brushes) { b in row(b.name, symbol: Tool.brush.symbol, target: .preset(b.id)) }
+                ForEach(editor.brushes) { b in row(LName(b.name), symbol: Tool.brush.symbol, target: .preset(b.id)) }
             }
             Section("消しゴム") {
-                ForEach(editor.erasers) { b in row(b.name, symbol: Tool.eraser.symbol, target: .preset(b.id)) }
+                ForEach(editor.erasers) { b in row(LName(b.name), symbol: Tool.eraser.symbol, target: .preset(b.id)) }
             }
             Section {
                 Button("初期設定に戻す") { state.resetShortcuts() }
@@ -151,7 +151,7 @@ struct SettingsView: View {
                 .tabItem { Label("ショートカット", systemImage: "keyboard") }
             #if !APPSTORE
             AgentSettingsView(state: state)
-                .tabItem { Label("エージェント連携", systemImage: "sparkles") }
+                .tabItem { Label(LA("エージェント連携"), systemImage: "sparkles") }
             #endif
             ExperimentalSettingsView(state: state)
                 .tabItem { Label("実験的な機能", systemImage: "flask") }

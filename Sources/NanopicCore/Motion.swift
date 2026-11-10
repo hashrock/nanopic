@@ -16,11 +16,11 @@ public enum MotionPreset: String, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .breathe: return "呼吸"
-        case .sway: return "ゆらゆら"
-        case .float: return "ふわふわ"
-        case .bounce: return "ぴょこぴょこ"
-        case .flutter: return "なびく"
+        case .breathe: return L("呼吸")
+        case .sway: return L("ゆらゆら")
+        case .float: return L("ふわふわ")
+        case .bounce: return L("ぴょこぴょこ")
+        case .flutter: return L("なびく")
         }
     }
 
@@ -88,8 +88,8 @@ extension Editor {
         doc.assignPSDIDs()
         guard let n = doc.node(id), let bounds = Self.contentBounds(n) else { return nil }
         commitTransform()
-        checkpoint("\(preset.displayName)の動きを付ける")
-        var d = makeDeformer(n, bounds: bounds, kind: preset.deformerKind, name: "\(n.name)の\(preset.displayName)", cols: 2, rows: 2)
+        checkpoint(L("\(preset.displayName)の動きを付ける"))
+        var d = makeDeformer(n, bounds: bounds, kind: preset.deformerKind, name: L("\(n.name)の\(preset.displayName)"), cols: 2, rows: 2)
         d.pivot = preset.pivot(d.rect)
         let values = preset.cycle.map(\.value)
         var p = makeParameter(name: d.name, min: values.min()!, max: values.max()!, defaultValue: 0)

@@ -80,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return e
         }
         if flags == [.command, .option] && e.keyCode == 5 { // ⌘⌥G: クリッピング
-            if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "クリッピング") { $0.clipping.toggle() } }
+            if let id = editor.activeLayerID { editor.setLayerProperty(id, label: L("クリッピング")) { $0.clipping.toggle() } }
             return nil
         }
         // ⌥⌘T: リグモードの入り切り（設定で入れた直後はメニューのショートカットがまだ効かないことがあるので、ここでも受ける）
@@ -281,7 +281,7 @@ struct AppCommands: Commands {
         let _ = { delegate.openMainWindow = { openWindow(id: "main") } }()
         #if !APPSTORE
         CommandGroup(after: .appSettings) {
-            Toggle("エージェント連携（MCP）", isOn: Binding(get: { _ = state.mcpSettingsVersion; return state.mcpEnabled },
+            Toggle(LA("エージェント連携（MCP）"), isOn: Binding(get: { _ = state.mcpSettingsVersion; return state.mcpEnabled },
                                                      set: { state.mcpEnabled = $0 }))
         }
         #endif
@@ -306,17 +306,17 @@ struct AppCommands: Commands {
                 .keyboardShortcut("e", modifiers: [.command, .shift, .option])
             Menu("動画を書き出し") {
                 ForEach(MovieFormat.allCases, id: \.self) { f in
-                    Button(f.displayName + "...") { state.exportMovie(f) }
+                    Button(L("\(f.displayName)...")) { state.exportMovie(f) }
                 }
             }
             .disabled(editor.timeline.isEmpty)
             Button("画像をレイヤーとして読み込み...") { state.importImageAsLayer() }
         }
         CommandGroup(replacing: .undoRedo) {
-            Button(editor.undoLabel.map { "取り消し: \($0)" } ?? "取り消し") { editor.undo() }
+            Button(editor.undoLabel.map { L("取り消し: \($0)") } ?? L("取り消し")) { editor.undo() }
                 .keyboardShortcut("z")
                 .disabled(!editor.canUndo && editor.floating == nil)
-            Button(editor.redoLabel.map { "やり直し: \($0)" } ?? "やり直し") { editor.redo() }
+            Button(editor.redoLabel.map { L("やり直し: \($0)") } ?? L("やり直し")) { editor.redo() }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
                 .disabled(!editor.canRedo)
             Button("やり直し") { editor.redo() }
@@ -378,14 +378,14 @@ struct AppCommands: Commands {
                 .disabled(editor.activeLayerID == nil)
             Divider()
             Button("下のレイヤーでクリッピング") {
-                if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "クリッピング") { $0.clipping.toggle() } }
+                if let id = editor.activeLayerID { editor.setLayerProperty(id, label: L("クリッピング")) { $0.clipping.toggle() } }
             }
             .keyboardShortcut("g", modifiers: [.command, .option])
             Button("透明ピクセルをロック") {
-                if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "透明ピクセルをロック") { $0.lockAlpha.toggle() } }
+                if let id = editor.activeLayerID { editor.setLayerProperty(id, label: L("透明ピクセルをロック")) { $0.lockAlpha.toggle() } }
             }
             Button("参照レイヤーに設定") {
-                if let id = editor.activeLayerID { editor.setLayerProperty(id, label: "参照レイヤー") { $0.isReference.toggle() } }
+                if let id = editor.activeLayerID { editor.setLayerProperty(id, label: L("参照レイヤー")) { $0.isReference.toggle() } }
             }
             Divider()
             Button("レイヤーを上へ") { editor.moveActiveLayer(up: true) }
@@ -413,7 +413,7 @@ struct AppCommands: Commands {
             Toggle("タイムラインを表示", isOn: Binding(get: { state.showsTimelineInDraw }, set: { state.showsTimelineInDraw = $0 }))
                 .keyboardShortcut("l", modifiers: [.command, .option])
             Divider()
-            Button(editor.grid.visible ? "グリッドを隠す" : "グリッドを表示") {
+            Button(editor.grid.visible ? L("グリッドを隠す") : L("グリッドを表示")) {
                 editor.grid.visible.toggle()
                 state.savePreferences()
                 state.canvasView?.requestDisplay()

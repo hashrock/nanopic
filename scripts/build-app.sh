@@ -12,10 +12,13 @@ if [ "${NANOPIC_APPSTORE:-}" = "1" ]; then
     # Intel の Mac でも動くよう、App Store 用はユニバーサルにする（直接配布版はこれまでどおり、ビルドした Mac の向きだけ）
     BUILD=(swift build -c release --scratch-path .build-appstore --arch arm64 --arch x86_64)
     APP=build/appstore/Nanopic.app
+    # エージェント連携の画面の訳（Agent）は入れない
+    TABLES=(Localizable Names)
 else
     unset NANOPIC_APPSTORE
     BUILD=(swift build -c release)
     APP=build/Nanopic.app
+    TABLES=(Localizable Names Agent)
 fi
 "${BUILD[@]}"
 BIN="$("${BUILD[@]}" --show-bin-path)/Nanopic"
@@ -24,6 +27,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Nanopic"
 swift scripts/make-icon.swift Resources/AppIcon.svg "$APP/Contents/Resources/AppIcon.icns"
 cp Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
+# 表示言語（日本語・英語）。訳を .lproj にして入れる
+./scripts/compile-localization.sh "$APP/Contents/Resources" "${TABLES[@]}"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -37,6 +42,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>CFBundleDevelopmentRegion</key><string>ja</string>
+    <!-- 表示言語。Resources の ja.lproj・en.lproj と合わせる（App Store の「言語」に出る） -->
+    <key>CFBundleLocalizations</key><array><string>ja</string><string>en</string></array>
     <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
     <key>CFBundleShortVersionString</key><string>0.10.0</string>
     <key>CFBundleVersion</key><string>10</string>

@@ -1,0 +1,4 @@
+/* 元の言語（日本語）。このフォルダーがあることで、アプリのバンドルに ja.lproj が入り、
+   App Store の対応言語に日本語が出る。画面の文言は Resources/Localizable.xcstrings のキーがそのまま日本語なので、
+   Xcode は ja.lproj を作らない（en.lproj だけになる）。 */
+"CFBundleDisplayName" = "Nanopic";

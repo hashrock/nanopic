@@ -39,7 +39,7 @@ extension AppState {
         if url == nil {
             guard let chosen = choosePublishDestination(s) else { return }
             s.destination = editor.publishDestinationString(for: chosen)
-            editor.setPublishSettings(s, label: "書き出し先")
+            editor.setPublishSettings(s, label: L("書き出し先"))
             url = chosen
         }
         guard let url else { return }
@@ -52,9 +52,9 @@ extension AppState {
             // ファイルができてから覚える（bookmark は実在するファイルにしか作れない）
             if sandboxed, access == nil { try? bookmarks.save(url) }
             let size = s.resolvedOutputSize(canvas: editor.doc.bounds)
-            flashStatus("書き出しました: \(url.lastPathComponent)（\(size.width) × \(size.height)）")
+            flashStatus(L("書き出しました: \(url.lastPathComponent)（\(size.width) × \(size.height)）"))
         } catch {
-            showError("書き出しに失敗しました: \(error.localizedDescription)")
+            showError(L("書き出しに失敗しました: \(error.localizedDescription)"))
         }
     }
 
@@ -64,7 +64,7 @@ extension AppState {
         panel.allowedContentTypes = [s.format.utType]
         let current = editor.publishDestinationURL(s)
         let base = current?.deletingPathExtension().lastPathComponent
-            ?? editor.fileURL?.deletingPathExtension().lastPathComponent ?? "無題"
+            ?? editor.fileURL?.deletingPathExtension().lastPathComponent ?? L("無題")
         panel.nameFieldStringValue = base + "." + s.format.fileExtension
         panel.directoryURL = current?.deletingLastPathComponent() ?? editor.fileURL?.deletingLastPathComponent()
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
@@ -216,14 +216,16 @@ struct PublishPanel: View {
                         ForEach(PublishBackground.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
                     .labelsHidden()
-                    .frame(width: 140)
+                    .fixedSize()
+                    .frame(minWidth: 140, alignment: .leading)
                     .disabled(!d.format.supportsAlpha)
                 }
                 GridRow {
                     label("書き出し先")
                     HStack(spacing: 6) {
-                        Text(state.editor.publishDestinationURL(d)?.lastPathComponent ?? "（初回に選びます）")
+                        Text(state.editor.publishDestinationURL(d)?.lastPathComponent ?? L("（初回に選びます）"))
                             .font(.callout).lineLimit(1).truncationMode(.middle)
+                            .frame(maxWidth: 170, alignment: .leading)
                             .foregroundStyle(d.destination == nil ? .secondary : .primary)
                             .help(state.editor.publishDestinationURL(d)?.path ?? "")
                         Spacer(minLength: 4)
@@ -247,7 +249,8 @@ struct PublishPanel: View {
             }
         }
         .padding(14)
-        .frame(width: 320)
+        .frame(minWidth: 320)
+        .fixedSize(horizontal: true, vertical: false)
         .floatingPanelBackground()
         .shadow(radius: 8)
     }
@@ -257,16 +260,19 @@ struct PublishPanel: View {
         String(format: "%.0f%%", Double(o.width) / Double(max(r.width, 1)) * 100)
     }
 
-    private func label(_ text: String) -> some View {
+    private func label(_ text: LocalizedStringKey) -> some View {
+        // 幅は日本語の文言に合わせた最小の幅。英語のように長い文言では、切らずに広げる
         Text(text).font(.callout).foregroundStyle(.secondary)
-            .frame(width: labelWidth, alignment: .trailing)
+            .lineLimit(1).fixedSize()
+            .frame(minWidth: labelWidth, alignment: .trailing)
     }
 
     /// 小さいラベルつきの数値の欄（ラベルの幅をそろえる）
-    private func number(_ label: String, _ value: Int, _ set: @escaping (Int) -> Void) -> some View {
+    private func number(_ label: LocalizedStringKey, _ value: Int, _ set: @escaping (Int) -> Void) -> some View {
         HStack(spacing: 4) {
             Text(label).font(.caption).foregroundStyle(.secondary)
-                .frame(width: 22, alignment: .trailing)
+                .lineLimit(1).fixedSize()
+                .frame(minWidth: 22, alignment: .trailing)
             TextField("", value: Binding(get: { value }, set: { set($0) }), format: .number.grouping(.never))
                 .textFieldStyle(.roundedBorder)
                 .font(.callout.monospacedDigit())

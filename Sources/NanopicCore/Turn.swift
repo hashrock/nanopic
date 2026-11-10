@@ -37,7 +37,7 @@ extension Editor {
         let parts = n.isFolder ? n.children.filter { $0.visible && Self.contentBounds($0) != nil } : [n]
         guard !parts.isEmpty else { return nil }
         commitTransform()
-        checkpoint("立体的に振り向かせる")
+        checkpoint(L("立体的に振り向かせる"))
 
         let rect = RigRect(bounds)
         let center = RigPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
@@ -47,7 +47,7 @@ extension Editor {
         for (i, part) in parts.enumerated() {
             let depth = Self.turnDepth(rank: i, count: parts.count)
             // 全部のパーツで同じ範囲の格子を使い、同じ立体の上に並べる（格子を細かくしすぎると、なめらかさが減って向こう側が折り返す）
-            let d = makeDeformer(part, bounds: bounds, kind: .warp, name: "\(part.name)の向き", cols: 6, rows: 6)
+            let d = makeDeformer(part, bounds: bounds, kind: .warp, name: L("\(part.name)の向き"), cols: 6, rows: 6)
             doc.rig.deformers.append(d)
             func form(yaw a: Double, pitch b: Double) -> DeformerForm {
                 DeformerForm(offsets: (0..<d.pointCount).map {
@@ -61,12 +61,12 @@ extension Editor {
             }
         }
         func addParameter(_ name: String, _ forms: [Double: [String: DeformerForm]]) -> String {
-            var p = makeParameter(name: "\(n.name)の\(name)", min: -1, max: 1, defaultValue: 0)
+            var p = makeParameter(name: name, min: -1, max: 1, defaultValue: 0)
             p.keys = forms.keys.sorted().map { RigParameterKey(value: $0, forms: forms[$0]!) }
             doc.rig.parameters.append(p)
             return p.id
         }
-        let yaw = addParameter("左右の向き", yawForms), pitch = addParameter("上下の向き", pitchForms)
+        let yaw = addParameter(L("\(n.name)の左右の向き"), yawForms), pitch = addParameter(L("\(n.name)の上下の向き"), pitchForms)
 
         // 少し上 → 右 → 少し下 → 左 と、ぐるっと見回す
         addLoopTrack(yaw, cycle: [(0, 0, .easeInOut), (0.25, 1, .easeInOut), (0.5, 0, .easeInOut), (0.75, -1, .easeInOut)], period: 4)

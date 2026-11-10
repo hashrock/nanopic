@@ -70,7 +70,7 @@ final class AppState {
     // エージェント連携（MCP）は App Store 用ビルドに入れない（Sources/Nanopic/Agent もまとめて外す）
     #if !APPSTORE
     /// エージェント連携の状態表示
-    var mcpStatus = "停止中"
+    var mcpStatus = LA("停止中")
     /// 設定画面の再描画用（UserDefaults の値は Observation で追えないため）
     var mcpSettingsVersion = 0
     @ObservationIgnored private(set) lazy var agent = makeAgentToolbox()
@@ -190,11 +190,11 @@ final class AppState {
     func importBrushTip() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.png, .jpeg, .tiff, .bmp, .gif]
-        panel.message = "ブラシ先端にする画像を選択（透明部分があればアルファ、なければ黒い部分が濃く塗られます）"
+        panel.message = L("ブラシ先端にする画像を選択（透明部分があればアルファ、なければ黒い部分が濃く塗られます）")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let name = url.deletingPathExtension().lastPathComponent
         guard let tip = BrushTip(id: "user:" + name, name: name, url: url) else {
-            showError("画像を読み込めませんでした")
+            showError(L("画像を読み込めませんでした"))
             return
         }
         try? FileManager.default.createDirectory(at: tipsDirectory, withIntermediateDirectories: true)
@@ -213,10 +213,10 @@ final class AppState {
     func confirmDiscardChanges() -> Bool {
         guard editor.isDirty else { return true }
         let alert = NSAlert()
-        alert.messageText = "変更が保存されていません"
-        alert.informativeText = "現在のドキュメントの変更を破棄しますか？"
-        alert.addButton(withTitle: "破棄")
-        alert.addButton(withTitle: "キャンセル")
+        alert.messageText = L("変更が保存されていません")
+        alert.informativeText = L("現在のドキュメントの変更を破棄しますか？")
+        alert.addButton(withTitle: L("破棄"))
+        alert.addButton(withTitle: L("キャンセル"))
         return alert.runModal() == .alertFirstButtonReturn
     }
 
@@ -251,7 +251,7 @@ final class AppState {
                 if let img = ImageUtil.loadImage(url: url) {
                     editor.addImageLayer(name: url.deletingPathExtension().lastPathComponent, image: img)
                 } else {
-                    showError("画像を読み込めませんでした")
+                    showError(L("画像を読み込めませんでした"))
                 }
                 return
             }
@@ -266,7 +266,7 @@ final class AppState {
         if url.pathExtension.lowercased() == Sidecar.pathExtension {
             let psd = url.deletingPathExtension().appendingPathExtension("psd")
             guard FileManager.default.isReadableFile(atPath: psd.path) else {
-                showError("「\(url.lastPathComponent)」は「\(psd.lastPathComponent)」に付く情報のファイルです。「\(psd.lastPathComponent)」のほうを開いてください")
+                showError(L("「\(url.lastPathComponent)」は「\(psd.lastPathComponent)」に付く情報のファイルです。「\(psd.lastPathComponent)」のほうを開いてください"))
                 return
             }
             return open(url: psd)
@@ -274,7 +274,7 @@ final class AppState {
         do {
             try load(url: url)
         } catch {
-            showError("ファイルを開けませんでした: \(error)")
+            showError(L("ファイルを開けませんでした: \(String(describing: error))"))
         }
     }
 
@@ -291,7 +291,7 @@ final class AppState {
         } else {
             guard let img = ImageUtil.loadImage(url: url),
                   let doc = Editor.document(from: img, name: url.deletingPathExtension().lastPathComponent) else {
-                throw NSError(domain: "Nanopic", code: 1, userInfo: [NSLocalizedDescriptionKey: "画像を読み込めませんでした"])
+                throw NSError(domain: "Nanopic", code: 1, userInfo: [NSLocalizedDescriptionKey: L("画像を読み込めませんでした")])
             }
             editor.load(doc, url: nil)
         }
@@ -311,7 +311,7 @@ final class AppState {
     func saveAs() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "psd")!]
-        panel.nameFieldStringValue = editor.fileURL?.deletingPathExtension().lastPathComponent ?? "無題"
+        panel.nameFieldStringValue = editor.fileURL?.deletingPathExtension().lastPathComponent ?? L("無題")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         write(to: url)
     }
@@ -320,7 +320,7 @@ final class AppState {
         do {
             try writePSD(to: url)
         } catch {
-            showError("保存に失敗しました: \(error)")
+            showError(L("保存に失敗しました: \(String(describing: error))"))
         }
     }
 
@@ -339,13 +339,13 @@ final class AppState {
         editor.commitTransform()
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue = editor.fileURL?.deletingPathExtension().lastPathComponent ?? "無題"
+        panel.nameFieldStringValue = editor.fileURL?.deletingPathExtension().lastPathComponent ?? L("無題")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         guard let img = editor.flattenedImage(), let data = ImageUtil.pngData(img) else { return }
         do {
             try data.write(to: url)
         } catch {
-            showError("書き出しに失敗しました: \(error)")
+            showError(L("書き出しに失敗しました: \(String(describing: error))"))
         }
     }
 

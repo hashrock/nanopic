@@ -21,6 +21,7 @@ open build/Nanopic.app
 ```
 
 - 必要なもの: macOS 14 以降、Xcode 16 以降（Swift 5.10+）
+- 表示言語: 日本語・英語（システムの言語に従います。[表示言語](#表示言語)）
 
 ### App Store 用のビルド
 
@@ -35,7 +36,8 @@ App Store 用のビルドには、エージェント連携（MCP サーバー、
 - ふだんのビルドと中間ファイルが混ざらないよう、ビルド先は `.build-appstore/` に分けます
 - `build-appstore.sh` は、できたバイナリに MCP の文字列・シンボルと待ち受け（`NWListener`、Network.framework）が残っていないことを `strings`／`nm`／`otool` で確かめ、残っていれば失敗します
 - `SANDBOX=1 ./scripts/build-appstore.sh` とすると、App Sandbox の entitlement（`scripts/appstore.entitlements`）を付けて ad-hoc 署名します。Sandbox の中での動作（サイドカーの読み書きなど）を手元で確かめるためのもので、配布用の署名ではありません
-- App Store に出すのに要るもの（Info.plist の `LSApplicationCategoryType`・`ITSAppUsesNonExemptEncryption`、プライバシーマニフェスト `Resources/PrivacyInfo.xcprivacy`、1024px まで入ったアイコン、ユニバーサルバイナリ、通信や例外のない entitlement）も確かめます
+- 訳の表にも MCP の文言が入っていないことを確かめます（エージェント連携の画面の訳は `Resources/Agent.xcstrings` に分けてあり、App Store 用のアプリには表ごと入れません）
+- App Store に出すのに要るもの（表示言語の申告 `CFBundleLocalizations` と `ja.lproj`・`en.lproj`、Info.plist の `LSApplicationCategoryType`・`ITSAppUsesNonExemptEncryption`、プライバシーマニフェスト `Resources/PrivacyInfo.xcprivacy`、1024px まで入ったアイコン、ユニバーサルバイナリ、通信や例外のない entitlement）も確かめます
 - 直接配布（Developer ID、`release.sh`）のビルドは今までどおりエージェント連携を含みます
 - iPad 版が使うライブラリ `NanopicKit` には、どちらの構成でも `NanopicAgent` を入れません
 
@@ -70,6 +72,7 @@ open NanopicPad.xcodeproj    # スキーム NanopicPad を iPad／シミュレ�
 - シミュレーターでは `xcrun simctl launch booted com.hashrock.nanopic -open <PSD のパス>` で書類を開けます（検証用。実機のビルドには入りません）
 - iCloud container は `iCloud.com.hashrock.nanopic`（`iPad/Nanopic/Nanopic.entitlements`、Info.plist の `NSUbiquitousContainers`）。Apple Developer で container を登録し、App ID `com.hashrock.nanopic` に iCloud（CloudKit ではなく iCloud Documents）を付けると、実機のビルドとファイル App の「iCloud Drive › Nanopic」が使えます
 - Archive（署名なしで通ることの確認）: `cd iPad && xcodebuild archive -project NanopicPad.xcodeproj -scheme NanopicPad -destination 'generic/platform=iOS' -archivePath ../.build-ipad/NanopicPad.xcarchive CODE_SIGNING_ALLOWED=NO`
+- 表示言語は Mac 版と同じ日本語・英語。訳のカタログ（`Resources/Localizable.xcstrings`・`Names.xcstrings`）を Xcode がビルドのときに変換して入れます。Xcode は元の言語（日本語）の表を作らないので、`iPad/Nanopic/ja.lproj/InfoPlist.strings` を置いて、バンドルに `ja.lproj` と `en.lproj` の両方が入るようにしています（App Store の対応言語は `.lproj` から決まります）
 - iPadOS 17 以降。描画エンジン（NanopicCore）と表示部品（NanopicUI）を Mac 版と共有しています
 - Apple Pencil で描く（筆圧つき、ホバーでブラシの大きさを表示、ダブルタップでブラシ⇄消しゴム）
 - 指 1 本で移動、2 本で移動・拡大・回転、2 本指タップで取り消し、3 本指タップでやり直し（ファイルメニューの「指で描く」で指 1 本でも描ける）
@@ -77,7 +80,7 @@ open NanopicPad.xcodeproj    # スキーム NanopicPad を iPad／シミュレ�
 - 投げなわ塗り・投げなわ消しゴム、選択範囲（投げなわ・矩形・楕円・自動選択）、移動・変形（反転つき）。Apple Pencil で操作する
 - 描いている線の先は予測して仮の線で見せる（硬めのブラシのみ）
 - PSD・画像を開く（ファイル App などからキャンバスへドロップしても開ける）、PSD で保存（ファイル App の「このiPad内 › Nanopic」）、PSD・PNG の書き出し。アプリを離れると、Nanopic フォルダーの書類は自動で保存します
-- テスト: `swift test`
+- テスト: `swift test`（訳の抜けの検査 `scripts/check-localization.py` も走ります）
 - 性能計測: `NANOPIC_PERF=1 swift test -c release -Xswiftc -enable-testing --filter PerfTests`
 
 ## 機能
@@ -137,6 +140,7 @@ Sources/NanopicCore/   描画エンジン（UI 非依存、テスト可能）
   StrokeEngine.swift   入力の平滑化、スプライン補間、筆圧の変化制限
   Editor.swift         ドキュメント・履歴・ツール操作
   Shortcuts.swift      ショートカットの割り当て
+  Localized.swift      表示言語（L() で訳を引く、LName() で設定にあるブラシ名を訳して出す）
   Fill.swift / Selection.swift / Transform.swift / PSD.swift
 Sources/NanopicAgent/  エージェント（MCP）向けのツール（コアとは別モジュールにして並列にビルドする）
   AgentTools.swift     ツールの処理（説明と引数の形は AgentToolSchemas.swift の JSON）
@@ -145,7 +149,47 @@ Sources/NanopicUI/     Mac 版と iPad 版で共有する表示部品（Metal �
 Sources/Nanopic/       macOS アプリ（SwiftUI パネル + AppKit/Metal キャンバス）
   Agent/               エージェント連携（MCP サーバー、設定画面、アプリ側のツール）。App Store 用ビルドでは外す
 iPad/                  iPad アプリ（XcodeGen の project.yml、UIKit/Metal キャンバス + SwiftUI パネル）
+Resources/             訳のカタログ（*.xcstrings）、アイコン、プライバシーマニフェスト
 ```
+
+## 表示言語
+
+日本語と英語で表示します。システムの言語に従います（アプリごとの言語は、システム設定の「言語と地域」で変えられます）。
+
+元の言語は日本語で、日本語の文言がそのままキーです。英語の訳は `Resources/` のカタログにあります。
+
+| カタログ | 中身 | 入るアプリ |
+|---|---|---|
+| `Localizable.xcstrings` | 画面の文言（メニュー、ボタン、パネル、ダイアログ、エラー、取り消しの名前） | Mac（直接配布・App Store）、iPad |
+| `Names.xcstrings` | 設定に入る既定の名前（ブラシ・ブラシ先端。下の表） | Mac（直接配布・App Store）、iPad |
+| `Agent.xcstrings` | エージェント連携の設定画面とメニュー | Mac の直接配布版だけ |
+
+- **アプリへの入れ方**: SwiftPM（`swift build`）は `.xcstrings` を変換しないので、`scripts/build-app.sh` が `scripts/compile-localization.sh`（Xcode の `xcstringstool`）で `en.lproj/*.strings` にして `.app` の `Contents/Resources` に入れ、Info.plist の `CFBundleLocalizations` で ja・en を申告します。`ja.lproj` には空の表を置きます（キーがそのまま日本語の文言なので）。iPad 版は同じカタログを Xcode がビルドのときに変換します
+- **訳の引き方**: SwiftPM のリソース（`Bundle.module`）は使わず、どのモジュールもアプリ本体（`Bundle.main`）を引きます。SwiftUI の `Text("保存")` のようなリテラルはそのままアプリ本体を引くので、共有部品（NanopicUI）も iPad 版も同じ表で済みます。`.app` の直下にリソースのバンドルを置かずに済み、署名もそのままです。SwiftUI を通らない側（`NSAlert`、エラー、enum の表示名、取り消しの名前、`String` を受け取る部品）は `L("…")`（`%.1f` のような書式つきは `LFormat`）で引きます（`Sources/NanopicCore/Localized.swift`）。エージェント連携の画面は `LA("…")` で `Agent` の表を引きます
+- `swift run` とテストでは `.lproj` が無いので、日本語がそのまま出ます。英語の表示は `./scripts/build-app.sh` のあと `build/Nanopic.app/Contents/MacOS/Nanopic -AppleLanguages "(en)"` で確かめられます
+- **エージェント（MCP）に返す文**（ツールの説明・結果・エラー）は訳しません。読むのがエージェントで、ツールの説明は表示言語で変わらないほうが扱いやすいためです
+
+### 保存する名前
+
+| | 扱い | 例 |
+|---|---|---|
+| 書類（PSD）・サイドカーに入る既定の名前 | 作ったときの表示言語で決めて、そのまま保存する。開く環境の言語では変えない | 日本語で作れば `レイヤー 1`・`用紙`・`フォルダー 2`・`レイヤー 1 のコピー`・`顔の呼吸`、英語で作れば `Layer 1`・`Paper`・`Folder 2`・`Layer 1 copy`・`Face Breathe` |
+| アプリの設定に入る既定の名前（ブラシ・ブラシ先端） | 日本語で保存し、出すときに `LName()` で訳す | `Gペン`→G-Pen、`鉛筆`→Pencil |
+| ファイル名のもと | 作った時点の言語で決める | `無題`／Untitled |
+| ユーザーが付けた名前 | そのまま | `線画` |
+
+- 書類の名前は PSD に入ってほかのアプリでも読まれるので、作った人の言語で確定させます。英語で作った書類を日本語の環境で開いても `Layer 1` のままで、日本語で作った書類（英語対応の前に作ったものも）を英語の環境で開いても `レイヤー 1` のまま出ます。表示のときに訳し直すことはしません
+- 既定の名前の番号は言語ごとに数えます（`Layer 1`・`Layer 2` のある書類に日本語の画面でレイヤーを足すと `レイヤー 1`）
+- ブラシの設定はその Mac・iPad の中だけのものなので、保存は日本語のまま、表示だけ訳します（`Names.xcstrings`）。名前の入力欄には訳した名前を出し、打ち替えたときだけその文字列を保存します
+- 取り消しの名前（「取り消し: 描画」）は保存しないので、付けた時点の言語です
+
+### 文言を足すとき
+
+1. Swift 側に日本語で書く。`Text("…")`・`Button("…")` のリテラルはそのまま、`String` に入れてから渡すもの（三項演算子、`NSAlert`、`showError` など）は `L("…")` で包む
+2. `Resources/Localizable.xcstrings` にキー（日本語の文言。`\(n)` の埋め込みは Int が `%lld`、String が `%@`、`%` は `%%`）と英語の訳を足す
+3. `scripts/check-localization.py`（`swift test` からも走る）が、カタログに無い日本語の文言、訳の抜け、書式指定子の食い違い、App Store 用にも入る表への MCP の文言の混入を見つけます。訳さない行は `// l10n:skip`、日本語のまま設定に保存する名前（複製したブラシの「コピー」）の行は `// l10n:stored` と書いて外します
+
+英語の文言は Mac / iPad の標準の言い回しに合わせています（メニューとボタンは Title Case、`…` は 1 文字、Undo／Redo、Save As… など）。
 
 ## 主なショートカット
 

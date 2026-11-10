@@ -66,7 +66,7 @@ struct PanelChrome<Content: View>: View {
                     Image(systemName: pinned ? "pin.slash" : "pin")
                         .frame(width: 30, height: 30)
                 }
-                .accessibilityLabel(pinned ? "出しっぱなしをやめる" : "出しっぱなしにする")
+                .accessibilityLabel(pinned ? L("出しっぱなしをやめる") : L("出しっぱなしにする"))
             }
             .padding(.leading, 14)
             .padding(.trailing, 8)
@@ -111,7 +111,7 @@ struct BrushPresetPanel: View {
                                         .renderingMode(.template)
                                         .frame(width: 24, height: 24)
                                 }
-                                Text(b.name).foregroundStyle(Color.primary)
+                                Text(LName(b.name)).foregroundStyle(Color.primary)
                                 Spacer()
                                 Text(String(format: "%.0f", b.size)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                                 if i == activeIndex { Image(systemName: "checkmark").foregroundStyle(Color.accentColor) }
@@ -135,7 +135,7 @@ struct BrushPresetPanel: View {
     private func duplicate(_ i: Int) {
         var b = presets[i]
         b.id = UUID()
-        b.name += " コピー"
+        b.name += " コピー" // l10n:stored
         if isEraser {
             editor.erasers.insert(b, at: i + 1)
             editor.activeEraserIndex = i + 1
@@ -213,7 +213,7 @@ struct BrushSettingsPanel: View {
                     }
                 }
                 Section {
-                    TextField("名前", text: brush.name)
+                    TextField("名前", text: brush.name.localizedName)
                     Button("ブラシを初期状態に戻す", role: .destructive) { state.resetBrushPresets() }
                 }
             }
@@ -281,7 +281,7 @@ struct LayerPanel: View {
             TextField("名前", text: $renameText)
             Button("OK") {
                 if let id = renaming, !renameText.isEmpty {
-                    editor.setLayerProperty(id, label: "名前の変更") { $0.name = renameText }
+                    editor.setLayerProperty(id, label: L("名前の変更")) { $0.name = renameText }
                 }
                 renaming = nil
             }
@@ -297,7 +297,7 @@ struct LayerPanel: View {
                         Section {
                             ForEach(group, id: \.self) { m in
                                 Button {
-                                    editor.setLayerProperty(layer.id, label: "合成モード") { $0.blendMode = m }
+                                    editor.setLayerProperty(layer.id, label: L("合成モード")) { $0.blendMode = m }
                                 } label: {
                                     if m == layer.blendMode { Label(m.displayName, systemImage: "checkmark") } else { Text(m.displayName) }
                                 }
@@ -314,14 +314,14 @@ struct LayerPanel: View {
                 Text(String(format: "%.0f%%", layer.opacity * 100)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
             }
             Slider(value: Binding(get: { Double(layer.opacity) }, set: { v in
-                editor.setLayerProperty(layer.id, label: "不透明度", coalesce: true) { $0.opacity = Float((v * 100).rounded() / 100) }
+                editor.setLayerProperty(layer.id, label: L("不透明度"), coalesce: true) { $0.opacity = Float((v * 100).rounded() / 100) }
             }), in: 0...1)
             HStack(spacing: 8) {
-                flag("クリッピング", "paperclip", layer.clipping) { $0.clipping.toggle() }
+                flag(L("クリッピング"), "paperclip", layer.clipping) { $0.clipping.toggle() }
                 if !layer.isFolder {
-                    flag("透明ロック", "checkerboard.rectangle", layer.lockAlpha, label: "透明ピクセルをロック") { $0.lockAlpha.toggle() }
+                    flag(L("透明ロック"), "checkerboard.rectangle", layer.lockAlpha, label: L("透明ピクセルをロック")) { $0.lockAlpha.toggle() }
                 }
-                flag("ロック", "lock", layer.locked, label: "レイヤーをロック") { $0.locked.toggle() }
+                flag(L("ロック"), "lock", layer.locked, label: L("レイヤーをロック")) { $0.locked.toggle() }
             }
         }
     }

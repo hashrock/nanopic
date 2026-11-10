@@ -12,34 +12,34 @@ public enum BlendMode: String, CaseIterable, Codable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .passThrough: return "通過"
-        case .normal: return "通常"
-        case .darken: return "比較(暗)"
-        case .multiply: return "乗算"
-        case .colorBurn: return "焼き込みカラー"
-        case .linearBurn: return "焼き込み(リニア)"
-        case .subtract: return "減算"
-        case .darkerColor: return "カラー比較(暗)"
-        case .lighten: return "比較(明)"
-        case .screen: return "スクリーン"
-        case .colorDodge: return "覆い焼きカラー"
-        case .linearDodge: return "加算"
-        case .lighterColor: return "カラー比較(明)"
-        case .overlay: return "オーバーレイ"
-        case .softLight: return "ソフトライト"
-        case .hardLight: return "ハードライト"
-        case .vividLight: return "ビビッドライト"
-        case .linearLight: return "リニアライト"
-        case .pinLight: return "ピンライト"
-        case .hardMix: return "ハードミックス"
-        case .difference: return "差の絶対値"
-        case .exclusion: return "除外"
-        case .divide: return "除算"
-        case .hue: return "色相"
-        case .saturation: return "彩度"
-        case .color: return "カラー"
-        case .luminosity: return "輝度"
-        case .dissolve: return "ディザ合成"
+        case .passThrough: return L("通過")
+        case .normal: return L("通常")
+        case .darken: return L("比較(暗)")
+        case .multiply: return L("乗算")
+        case .colorBurn: return L("焼き込みカラー")
+        case .linearBurn: return L("焼き込み(リニア)")
+        case .subtract: return L("減算")
+        case .darkerColor: return L("カラー比較(暗)")
+        case .lighten: return L("比較(明)")
+        case .screen: return L("スクリーン")
+        case .colorDodge: return L("覆い焼きカラー")
+        case .linearDodge: return L("加算")
+        case .lighterColor: return L("カラー比較(明)")
+        case .overlay: return L("オーバーレイ")
+        case .softLight: return L("ソフトライト")
+        case .hardLight: return L("ハードライト")
+        case .vividLight: return L("ビビッドライト")
+        case .linearLight: return L("リニアライト")
+        case .pinLight: return L("ピンライト")
+        case .hardMix: return L("ハードミックス")
+        case .difference: return L("差の絶対値")
+        case .exclusion: return L("除外")
+        case .divide: return L("除算")
+        case .hue: return L("色相")
+        case .saturation: return L("彩度")
+        case .color: return L("カラー")
+        case .luminosity: return L("輝度")
+        case .dissolve: return L("ディザ合成")
         }
     }
 

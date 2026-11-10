@@ -11,7 +11,7 @@ extension AppState {
         f.frame = NSRect(x: 0, y: 0, width: 220, height: 24)
         alert.accessoryView = f
         alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "キャンセル")
+        alert.addButton(withTitle: L("キャンセル"))
         alert.window.initialFirstResponder = f
         return alert.runModal() == .alertFirstButtonReturn ? f.stringValue : nil
     }
@@ -19,8 +19,8 @@ extension AppState {
     /// パラメータの範囲と既定値を入れてもらう
     func promptRange(min: Double, max: Double, defaultValue: Double) -> (min: Double, max: Double, defaultValue: Double)? {
         let alert = NSAlert()
-        alert.messageText = "範囲と既定値"
-        alert.informativeText = "最小・最大・既定値（既定値が基本ポーズ）"
+        alert.messageText = L("範囲と既定値")
+        alert.informativeText = L("最小・最大・既定値（既定値が基本ポーズ）")
         let fields = [min, max, defaultValue].enumerated().map { i, v -> NSTextField in
             let f = NSTextField(string: String(v))
             f.frame = NSRect(x: 0, y: CGFloat(2 - i) * 30, width: 120, height: 24)
@@ -30,7 +30,7 @@ extension AppState {
         fields.forEach(box.addSubview)
         alert.accessoryView = box
         alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "キャンセル")
+        alert.addButton(withTitle: L("キャンセル"))
         guard alert.runModal() == .alertFirstButtonReturn,
               let a = Double(fields[0].stringValue), let b = Double(fields[1].stringValue), let d = Double(fields[2].stringValue), a < b
         else { return nil }
@@ -129,7 +129,7 @@ struct TimelineView: View {
     private func header(_ t: Timeline) -> some View {
         HStack(spacing: 10) {
             Button { state.togglePlayback() } label: { Image(systemName: state.isPlaying ? "stop.fill" : "play.fill") }
-                .help(state.isPlaying ? "停止" : "再生")
+                .help(state.isPlaying ? L("停止") : L("再生"))
             Button { editor.goToFrame(0) } label: { Image(systemName: "backward.end.fill") }
                 .help("最初のコマへ")
             Text("\(editor.currentFrame + 1) / \(t.frameCount)")
@@ -381,7 +381,7 @@ struct TimelineView: View {
         return HStack(spacing: 4) {
             Image(systemName: node?.isSwitch == true ? "switch.2" : node?.isFolder == true ? "folder" : "photo")
                 .font(.caption).foregroundStyle(.secondary).frame(width: 16)
-            Text(node?.name ?? "（削除されたレイヤー）").font(.caption).lineLimit(1)
+            Text(node?.name ?? L("（削除されたレイヤー）")).font(.caption).lineLimit(1)
                 .foregroundStyle(node == nil ? .secondary : .primary)
             Spacer(minLength: 0)
         }
@@ -574,9 +574,9 @@ struct ParameterSlider: View {
                         .frame(width: 10, height: 10)
                         .offset(x: x(k.value, w) - 5, y: 0)
                         .onTapGesture { editor.setParameterValue(parameter.id, k.value) }
-                        .help(String(format: "%.2f に形を記録済み（クリックで移動、右クリックで消す）", k.value))
+                        .help(LFormat("%.2f に形を記録済み（クリックで移動、右クリックで消す）", k.value))
                         .contextMenu {
-                            Button(String(format: "%.2f の形を消す", k.value)) {
+                            Button(LFormat("%.2f の形を消す", k.value)) {
                                 editor.removeParameterKey(parameter: parameter.id, value: k.value)
                             }
                         }

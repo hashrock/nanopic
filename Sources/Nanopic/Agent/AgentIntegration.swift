@@ -33,7 +33,7 @@ extension AppState {
             mcp.start(port: mcpPort)
         } else {
             mcp.stop()
-            mcpStatus = "停止中"
+            mcpStatus = LA("停止中")
         }
     }
 

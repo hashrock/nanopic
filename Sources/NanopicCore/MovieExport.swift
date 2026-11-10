@@ -19,11 +19,11 @@ public enum MovieFormat: String, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .mp4: return "MP4（H.264）"
-        case .prores: return "MOV（ProRes 4444、透過）"
-        case .apng: return "APNG（透過）"
-        case .gif: return "GIF（SNS・チャット向け）"
-        case .pngSequence: return "PNG の連番（透過）"
+        case .mp4: return L("MP4（H.264）")
+        case .prores: return L("MOV（ProRes 4444、透過）")
+        case .apng: return L("APNG（透過）")
+        case .gif: return L("GIF（SNS・チャット向け）")
+        case .pngSequence: return L("PNG の連番（透過）")
         }
     }
 

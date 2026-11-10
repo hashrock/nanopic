@@ -7,8 +7,8 @@ enum AdjustmentKind: String, Identifiable {
 
     var title: String {
         switch self {
-        case .hueSaturation: return "色相・彩度・明度"
-        case .brightnessContrast: return "明るさ・コントラスト"
+        case .hueSaturation: return L("色相・彩度・明度")
+        case .brightnessContrast: return L("明るさ・コントラスト")
         }
     }
 }
@@ -77,7 +77,7 @@ struct AdjustmentPanel: View {
         state.editor.previewAdjustment(preview ? value : ColorAdjustment())
     }
 
-    private func slider(_ label: String, _ v: Binding<Float>, _ range: ClosedRange<Float>, suffix: String = "") -> some View {
+    private func slider(_ label: LocalizedStringKey, _ v: Binding<Float>, _ range: ClosedRange<Float>, suffix: String = "") -> some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack {
                 Text(label).font(.caption)

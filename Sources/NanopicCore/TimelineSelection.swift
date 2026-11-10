@@ -45,7 +45,7 @@ extension Editor {
     public func deleteKeys(_ refs: Set<TimelineKeyRef>) {
         let refs = existingKeys(refs)
         guard !refs.isEmpty else { return }
-        checkpoint("キーを削除")
+        checkpoint(L("キーを削除"))
         for r in refs {
             switch r {
             case let .layer(l, f):
@@ -69,7 +69,7 @@ extension Editor {
         guard let minFrame = refs.map(\.frame).min() else { return refs }
         let d = max(offset, -minFrame)
         guard d != 0 else { return refs }
-        checkpoint("キーを動かす")
+        checkpoint(L("キーを動かす"))
         var layerMoved: [UInt32: [TimelineKey]] = [:]
         var paramMoved: [String: [ParameterKeyframe]] = [:]
         // 先に全部取り出してから置く（動かすキーどうしで消し合わないように）
@@ -130,7 +130,7 @@ extension Editor {
     @discardableResult
     public func pasteKeys(_ clip: TimelineClipboard, at frame: Int) -> Set<TimelineKeyRef> {
         guard !clip.isEmpty else { return [] }
-        checkpoint("キーを貼り付け")
+        checkpoint(L("キーを貼り付け"))
         var out = Set<TimelineKeyRef>()
         var last = 0
         for (l, k0) in clip.layerKeys where doc.node(psdID: l) != nil {

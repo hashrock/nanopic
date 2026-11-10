@@ -39,7 +39,7 @@ struct RigPanel: View {
                 Text("パラメータ").font(.headline)
                 Spacer()
                 Button {
-                    let id = editor.addParameter(name: "パラメータ\(editor.rig.parameters.count + 1)")
+                    let id = editor.addParameter(name: L("パラメータ\(editor.rig.parameters.count + 1)"))
                     state.editingParameter = id
                 } label: { Image(systemName: "plus") }
                 .buttonStyle(.borderless)
@@ -78,7 +78,7 @@ struct RigPanel: View {
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                 Menu {
                     Button("名前を変える...") {
-                        if let name = state.promptText("パラメータの名前", value: p.name), !name.isEmpty {
+                        if let name = state.promptText(L("パラメータの名前"), value: p.name), !name.isEmpty {
                             editor.updateParameter(p.id) { $0.name = name }
                         }
                     }
@@ -157,8 +157,8 @@ struct RigPanel: View {
             ForEach(ds, id: \.0.id) { d, layerName in deformerRow(d, layerName) }
             if !ds.isEmpty {
                 Text(state.editingParameter == nil
-                     ? "パラメータの名前を選ぶと、キャンバスにハンドルが出ます。"
-                     : "デフォーマをクリックすると、そのハンドルだけを出します。")
+                     ? L("パラメータの名前を選ぶと、キャンバスにハンドルが出ます。")
+                     : L("デフォーマをクリックすると、そのハンドルだけを出します。"))
                     .font(.caption2).foregroundStyle(.secondary)
             }
         }
@@ -184,11 +184,11 @@ struct RigPanel: View {
                 Spacer()
                 Menu {
                     Button("名前を変える...") {
-                        if let name = state.promptText("デフォーマの名前", value: d.name), !name.isEmpty {
-                            editor.updateDeformer(d.id, label: "デフォーマの名前") { $0.name = name }
+                        if let name = state.promptText(L("デフォーマの名前"), value: d.name), !name.isEmpty {
+                            editor.updateDeformer(d.id, label: L("デフォーマの名前")) { $0.name = name }
                         }
                     }
-                    Button(d.kind == .rotation ? "中心を描かれている所に合わせる" : "範囲を描かれている所に合わせる") {
+                    Button(d.kind == .rotation ? L("中心を描かれている所に合わせる") : L("範囲を描かれている所に合わせる")) {
                         editor.fitDeformerToContent(d.id)
                     }
                     Divider()

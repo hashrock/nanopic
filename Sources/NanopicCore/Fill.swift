@@ -7,9 +7,9 @@ public enum FillReference: String, CaseIterable, Codable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .currentLayer: return "編集レイヤーのみ参照"
-        case .allLayers: return "他レイヤーを参照"
-        case .referenceLayers: return "参照レイヤーを参照"
+        case .currentLayer: return L("編集レイヤーのみ参照")
+        case .allLayers: return L("他レイヤーを参照")
+        case .referenceLayers: return L("参照レイヤーを参照")
         }
     }
 }

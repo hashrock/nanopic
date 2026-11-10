@@ -37,7 +37,7 @@ extension Editor {
         parameterValues[id] = v
         showsDeformation = true
         if timelineOpen, let ti = doc.timeline.parameterTracks.firstIndex(where: { $0.parameter == id }) {
-            checkpoint("キーを打つ", coalesceKey: "param-key-\(id)-\(currentFrame)")
+            checkpoint(L("キーを打つ"), coalesceKey: "param-key-\(id)-\(currentFrame)")
             doc.timeline.parameterTracks[ti].set(frame: currentFrame, value: v)
             revision += 1
         }
@@ -59,9 +59,9 @@ extension Editor {
         doc.assignPSDIDs()
         guard let n = doc.node(id) else { return nil }
         let d = makeDeformer(n, bounds: Self.contentBounds(n) ?? doc.bounds, kind: kind,
-                             name: name ?? "\(n.name)の\(kind == .rotation ? "移動・回転" : "ワープ")", cols: cols, rows: rows)
+                             name: name ?? (kind == .rotation ? L("\(n.name)の移動・回転") : L("\(n.name)のワープ")), cols: cols, rows: rows)
         commitTransform()
-        checkpoint("デフォーマを付ける")
+        checkpoint(L("デフォーマを付ける"))
         doc.rig.deformers.append(d)
         revision += 1
         markAllDirty()
@@ -78,7 +78,7 @@ extension Editor {
         return d
     }
 
-    public func updateDeformer(_ id: String, label: String = "デフォーマの設定", _ body: (inout Deformer) -> Void) {
+    public func updateDeformer(_ id: String, label: String = L("デフォーマの設定"), _ body: (inout Deformer) -> Void) {
         guard let i = doc.rig.deformers.firstIndex(where: { $0.id == id }) else { return }
         checkpoint(label, coalesceKey: "deformer-\(id)-\(label)")
         body(&doc.rig.deformers[i])
@@ -94,7 +94,7 @@ extension Editor {
         new.cols = max(1, min(cols, 16))
         new.rows = max(1, min(rows, 16))
         guard new.cols != old.cols || new.rows != old.rows else { return }
-        checkpoint("格子のマス数")
+        checkpoint(L("格子のマス数"))
         doc.rig.deformers[di] = new
         for p in doc.rig.parameters.indices {
             for k in doc.rig.parameters[p].keys.indices {
@@ -117,7 +117,7 @@ extension Editor {
     /// デフォーマの範囲と中心を、付けているレイヤーの描かれている所に合わせ直す
     public func fitDeformerToContent(_ id: String) {
         guard let d = doc.rig.deformer(id), let n = doc.node(psdID: d.layer), let b = Self.contentBounds(n) else { return }
-        updateDeformer(id, label: "範囲を合わせる") { d in
+        updateDeformer(id, label: L("範囲を合わせる")) { d in
             d.rect = RigRect(b)
             if d.kind == .rotation { d.pivot = RigPoint(Double(b.x) + Double(b.width) / 2, Double(b.y) + Double(b.height) / 2) }
         }
@@ -125,7 +125,7 @@ extension Editor {
 
     public func removeDeformer(_ id: String) {
         guard doc.rig.deformer(id) != nil else { return }
-        checkpoint("デフォーマを外す")
+        checkpoint(L("デフォーマを外す"))
         doc.rig.deformers.removeAll { $0.id == id }
         for p in doc.rig.parameters.indices {
             for k in doc.rig.parameters[p].keys.indices { doc.rig.parameters[p].keys[k].forms[id] = nil }
@@ -145,7 +145,7 @@ extension Editor {
     @discardableResult
     public func addParameter(name: String, min: Double = -1, max: Double = 1, defaultValue: Double = 0) -> String {
         let p = makeParameter(name: name, min: min, max: max, defaultValue: defaultValue)
-        checkpoint("パラメータを足す")
+        checkpoint(L("パラメータを足す"))
         doc.rig.parameters.append(p)
         revision += 1
         return p.id
@@ -161,7 +161,7 @@ extension Editor {
 
     public func updateParameter(_ id: String, _ body: (inout RigParameter) -> Void) {
         guard let i = doc.rig.parameters.firstIndex(where: { $0.id == id }) else { return }
-        checkpoint("パラメータの設定", coalesceKey: "param-\(id)")
+        checkpoint(L("パラメータの設定"), coalesceKey: "param-\(id)")
         body(&doc.rig.parameters[i])
         doc.rig.parameters[i].keys.sort { $0.value < $1.value }
         revision += 1
@@ -170,7 +170,7 @@ extension Editor {
 
     public func removeParameter(_ id: String) {
         guard doc.rig.parameter(id) != nil else { return }
-        checkpoint("パラメータを消す")
+        checkpoint(L("パラメータを消す"))
         doc.rig.parameters.removeAll { $0.id == id }
         doc.timeline.parameterTracks.removeAll { $0.parameter == id }
         parameterValues[id] = nil
@@ -182,7 +182,7 @@ extension Editor {
     public func setForm(parameter: String, value: Double, deformer: String, _ form: DeformerForm) {
         guard let pi = doc.rig.parameters.firstIndex(where: { $0.id == parameter }), doc.rig.deformer(deformer) != nil else { return }
         let v = doc.rig.parameters[pi].clamp(value)
-        checkpoint("形を記録", coalesceKey: "form-\(parameter)-\(v)-\(deformer)")
+        checkpoint(L("形を記録"), coalesceKey: "form-\(parameter)-\(v)-\(deformer)")
         if let ki = doc.rig.parameters[pi].keys.firstIndex(where: { abs($0.value - v) < 1e-9 }) {
             doc.rig.parameters[pi].keys[ki].forms[deformer] = form
         } else {
@@ -196,7 +196,7 @@ extension Editor {
 
     public func removeParameterKey(parameter: String, value: Double) {
         guard let pi = doc.rig.parameters.firstIndex(where: { $0.id == parameter }) else { return }
-        checkpoint("キーを消す")
+        checkpoint(L("キーを消す"))
         doc.rig.parameters[pi].keys.removeAll { abs($0.value - value) < 1e-9 }
         revision += 1
         markAllDirty()
@@ -207,7 +207,7 @@ extension Editor {
     /// パラメータのトラックを足す（今の値を 0 コマ目のキーにする）
     public func addParameterTrack(_ id: String) {
         guard doc.rig.parameter(id) != nil, !doc.timeline.parameterTracks.contains(where: { $0.parameter == id }) else { return }
-        checkpoint("トラックを追加")
+        checkpoint(L("トラックを追加"))
         doc.timeline.parameterTracks.append(ParameterTrack(parameter: id, keys: [ParameterKeyframe(frame: 0, value: parameterValue(id))]))
         revision += 1
     }
@@ -217,7 +217,7 @@ extension Editor {
         if !doc.timeline.parameterTracks.contains(where: { $0.parameter == id }) {
             doc.timeline.parameterTracks.append(ParameterTrack(parameter: id))
         }
-        checkpoint("キーを打つ")
+        checkpoint(L("キーを打つ"))
         let ti = doc.timeline.parameterTracks.firstIndex { $0.parameter == id }!
         doc.timeline.parameterTracks[ti].set(frame: max(0, frame), value: p.clamp(value))
         revision += 1
@@ -229,7 +229,7 @@ extension Editor {
         guard let ti = doc.timeline.parameterTracks.firstIndex(where: { $0.parameter == id }),
               let ki = doc.timeline.parameterTracks[ti].keys.firstIndex(where: { $0.frame == frame }),
               doc.timeline.parameterTracks[ti].keys[ki].easing != easing else { return }
-        checkpoint("キーの動き方")
+        checkpoint(L("キーの動き方"))
         doc.timeline.parameterTracks[ti].keys[ki].easing = easing
         revision += 1
         applyFrame()
@@ -238,7 +238,7 @@ extension Editor {
     public func deleteParameterKey(_ id: String, frame: Int) {
         guard let ti = doc.timeline.parameterTracks.firstIndex(where: { $0.parameter == id }),
               doc.timeline.parameterTracks[ti].keys.contains(where: { $0.frame == frame }) else { return }
-        checkpoint("キーを削除")
+        checkpoint(L("キーを削除"))
         doc.timeline.parameterTracks[ti].keys.removeAll { $0.frame == frame }
         if doc.timeline.parameterTracks[ti].keys.isEmpty { doc.timeline.parameterTracks.remove(at: ti) }
         revision += 1
@@ -248,7 +248,7 @@ extension Editor {
     public func moveParameterKey(_ id: String, from: Int, to: Int) {
         guard from != to, let ti = doc.timeline.parameterTracks.firstIndex(where: { $0.parameter == id }),
               let key = doc.timeline.parameterTracks[ti].keys.first(where: { $0.frame == from }) else { return }
-        checkpoint("キーを動かす")
+        checkpoint(L("キーを動かす"))
         doc.timeline.parameterTracks[ti].keys.removeAll { $0.frame == from }
         doc.timeline.parameterTracks[ti].set(frame: max(0, to), value: key.value, easing: key.easing)
         revision += 1
@@ -257,7 +257,7 @@ extension Editor {
 
     public func removeParameterTrack(_ id: String) {
         guard doc.timeline.parameterTracks.contains(where: { $0.parameter == id }) else { return }
-        checkpoint("トラックを削除")
+        checkpoint(L("トラックを削除"))
         doc.timeline.parameterTracks.removeAll { $0.parameter == id }
         revision += 1
     }

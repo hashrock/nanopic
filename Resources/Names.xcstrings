@@ -1,0 +1,202 @@
+{
+  "sourceLanguage" : "ja",
+  "strings" : {
+    "%@ コピー" : {
+      "comment" : "複製したブラシの名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ copy"
+          }
+        }
+      }
+    },
+    "Gペン" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "G-Pen"
+          }
+        }
+      }
+    },
+    "ぼかし" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blur"
+          }
+        }
+      }
+    },
+    "ゆがみ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liquify"
+          }
+        }
+      }
+    },
+    "エアブラシ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Airbrush"
+          }
+        }
+      }
+    },
+    "スプレー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spray"
+          }
+        }
+      }
+    },
+    "チョーク" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chalk"
+          }
+        }
+      }
+    },
+    "丸ペン" : {
+      "comment" : "ブラシの名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mapping Pen"
+          }
+        }
+      }
+    },
+    "円" : {
+      "comment" : "ブラシ先端の名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Round"
+          }
+        }
+      }
+    },
+    "平筆" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flat"
+          }
+        }
+      }
+    },
+    "指先ぼかし" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smudge"
+          }
+        }
+      }
+    },
+    "毛筆" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bristle"
+          }
+        }
+      }
+    },
+    "水彩" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watercolor"
+          }
+        }
+      }
+    },
+    "油彩" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oil Paint"
+          }
+        }
+      }
+    },
+    "硬め" : {
+      "comment" : "消しゴムの名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hard"
+          }
+        }
+      }
+    },
+    "細かい" : {
+      "comment" : "消しゴムの名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fine"
+          }
+        }
+      }
+    },
+    "色混ぜ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blender"
+          }
+        }
+      }
+    },
+    "軟らかめ" : {
+      "comment" : "消しゴムの名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soft"
+          }
+        }
+      }
+    },
+    "鉛筆" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pencil"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
