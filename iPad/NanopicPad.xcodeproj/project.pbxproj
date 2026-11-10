@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		049AAE27D37E6F0E0B869CC8 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 439C64016502E1131AC98803 /* InfoPlist.strings */; };
 		0842667FB243067E98C51991 /* SelectionOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9919269C73D52126694B5803 /* SelectionOverlayView.swift */; };
 		1AF9B843C9E13356032B9535 /* PadState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281191610BBAA45D970DB8C7 /* PadState.swift */; };
 		201222756EE8C390035ECB77 /* PadCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E090EB7BBDBA0C46666CA1 /* PadCanvasView.swift */; };
@@ -28,14 +29,15 @@
 		281191610BBAA45D970DB8C7 /* PadState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadState.swift; sourceTree = "<group>"; };
 		54E9183CA8042B0B6243B155 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		60C98CA0639E7EC731B25E7D /* Nanopic.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Nanopic.entitlements; sourceTree = "<group>"; };
+		69A023FA1606BC0D67EA1706 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		7267E97985E62365F8C3A6B8 /* NanopicPadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NanopicPadApp.swift; sourceTree = "<group>"; };
 		7EA38FFBE5E505105B08818D /* PadContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadContentView.swift; sourceTree = "<group>"; };
 		92FD9CA7EE38E07C9297BD88 /* Names.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Names.xcstrings; sourceTree = "<group>"; };
 		9919269C73D52126694B5803 /* SelectionOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlayView.swift; sourceTree = "<group>"; };
 		BA6622FD89C50750201202F9 /* Panels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Panels.swift; sourceTree = "<group>"; };
+		BAD152E1A6B631A6A1BB9CB1 /* nanopic */ = {isa = PBXFileReference; lastKnownFileType = folder; name = nanopic; path = ..; sourceTree = SOURCE_ROOT; };
 		EBF02326C7AA7BFB1D94C0FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EF421BFAD8DD3AD97518C4A8 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		BAD152E1A6B631A6A1BB9CB1 /* nanopic */ = {isa = PBXFileReference; lastKnownFileType = folder; name = nanopic; path = ..; sourceTree = SOURCE_ROOT; };
 		F67266164A277D3345424DC3 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -101,6 +103,7 @@
 				BA6622FD89C50750201202F9 /* Panels.swift */,
 				054ACB290392C69D1E7A0DD9 /* PerfMonitor.swift */,
 				9919269C73D52126694B5803 /* SelectionOverlayView.swift */,
+				439C64016502E1131AC98803 /* InfoPlist.strings */,
 			);
 			path = Nanopic;
 			sourceTree = "<group>";
@@ -171,6 +174,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9CA20415D964A8B24349A6C0 /* Assets.xcassets in Resources */,
+				049AAE27D37E6F0E0B869CC8 /* InfoPlist.strings in Resources */,
 				2A656BF5D2CE4007E52665B1 /* Localizable.xcstrings in Resources */,
 				7D77BDC65CEABE880D3ABD83 /* Names.xcstrings in Resources */,
 				2454A1C254A7FE37EC4A6E91 /* PrivacyInfo.xcprivacy in Resources */,
@@ -195,6 +199,17 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		439C64016502E1131AC98803 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				69A023FA1606BC0D67EA1706 /* ja */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		1AF91099CEE6C3538D5A24EB /* Debug */ = {
