@@ -66,6 +66,10 @@ cd iPad && xcodegen          # project.yml から NanopicPad.xcodeproj を作り
 open NanopicPad.xcodeproj    # スキーム NanopicPad を iPad／シミュレーターで実行
 ```
 
+- `xcodegen` は、リポジトリのフォルダー名が `nanopic` のところで実行します（パッケージの参照にフォルダー名が入るため。worktree で作り直すと `project.pbxproj` に余計な差分が出ます）
+- シミュレーターでは `xcrun simctl launch booted com.hashrock.nanopic -open <PSD のパス>` で書類を開けます（検証用。実機のビルドには入りません）
+- iCloud container は `iCloud.com.hashrock.nanopic`（`iPad/Nanopic/Nanopic.entitlements`、Info.plist の `NSUbiquitousContainers`）。Apple Developer で container を登録し、App ID `com.hashrock.nanopic` に iCloud（CloudKit ではなく iCloud Documents）を付けると、実機のビルドとファイル App の「iCloud Drive › Nanopic」が使えます
+- Archive（署名なしで通ることの確認）: `cd iPad && xcodebuild archive -project NanopicPad.xcodeproj -scheme NanopicPad -destination 'generic/platform=iOS' -archivePath ../.build-ipad/NanopicPad.xcarchive CODE_SIGNING_ALLOWED=NO`
 - iPadOS 17 以降。描画エンジン（NanopicCore）と表示部品（NanopicUI）を Mac 版と共有しています
 - Apple Pencil で描く（筆圧つき、ホバーでブラシの大きさを表示、ダブルタップでブラシ⇄消しゴム）
 - 指 1 本で移動、2 本で移動・拡大・回転、2 本指タップで取り消し、3 本指タップでやり直し（ファイルメニューの「指で描く」で指 1 本でも描ける）
@@ -110,7 +114,7 @@ open NanopicPad.xcodeproj    # スキーム NanopicPad を iPad／シミュレ�
 - PSD を移動・名前変更するときは、`作品.nanopic` も同じ名前で一緒に動かしてください。
 - 以前の版が書いた `作品.nanopic.json` も読めます。次に保存すると `作品.nanopic` に書き、古いファイルはそのまま残します（両方あれば `作品.nanopic` を使います）。
 - App Store 用のビルド（App Sandbox）では、`作品.nanopic` を「関連ファイル」として読み書きします。古い `作品.nanopic.json` は Sandbox の中から読めないので、直接配布版で一度開いて保存し直すか、`作品.nanopic` に名前を変えてください。
-- iPad 版は、アプリの書類フォルダー（ファイル App の「このiPad内 › Nanopic」）の中ではサイドカーを読み書きできます。外の場所の PSD では、サイドカーを読めない・書けないことがあります。
+- iPad 版は、アプリのフォルダー（ファイル App の「このiPad内 › Nanopic」と「iCloud Drive › Nanopic」）の中でだけサイドカーを読み書きします。外の場所の PSD は素の PSD として開き（サイドカーの情報は読まず、保存しても書きません）、ツールバーに印を出します。印を押すと説明と「Nanopic のフォルダーに複製して開く」が出ます。サイドカーごと移すときは、ファイル App で PSD と `作品.nanopic` を一緒に Nanopic のフォルダーへ移します。
 
 仕組みの詳細は [docs/animation.md](docs/animation.md) にあります。
 

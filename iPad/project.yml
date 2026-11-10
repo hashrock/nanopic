@@ -27,6 +27,9 @@ targets:
     platform: iOS
     sources:
       - path: Nanopic
+      # プライバシーマニフェストは Mac 版と同じもの（UserDefaults だけ。収集なし）
+      - path: ../Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - package: Nanopic
         product: NanopicKit
@@ -37,6 +40,7 @@ targets:
         CODE_SIGN_STYLE: Automatic
         PRODUCT_NAME: Nanopic
         TARGETED_DEVICE_FAMILY: "2"
+        CODE_SIGN_ENTITLEMENTS: Nanopic/Nanopic.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Nanopic
@@ -50,6 +54,21 @@ targets:
     info:
       path: Nanopic/Info.plist
       properties:
+        # 版は上の MARKETING_VERSION / CURRENT_PROJECT_VERSION から入れる
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # 暗号は使っていない（App Store Connect の輸出コンプライアンスの質問を省く）
+        ITSAppUsesNonExemptEncryption: false
+        LSApplicationCategoryType: public.app-category.graphics-design
+        # 書類フォルダーをファイル App の「このiPad内 › Nanopic」に出す（LSSupportsOpeningDocumentsInPlace と両方要る。
+        # INFOPLIST_KEY_UIFileSharingEnabled だけでは、できた Info.plist に入らなかった）
+        UIFileSharingEnabled: true
+        # iCloud container をファイル App の「iCloud Drive › Nanopic」に出す（Mac の Finder にも出る）
+        NSUbiquitousContainers:
+          iCloud.com.hashrock.nanopic:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: Nanopic
+            NSUbiquitousContainerSupportedFolderLevels: Any
         CFBundleDocumentTypes:
           - CFBundleTypeName: Photoshop Document
             LSHandlerRank: Alternate
@@ -57,3 +76,10 @@ targets:
           - CFBundleTypeName: Image
             LSHandlerRank: Alternate
             LSItemContentTypes: [public.png, public.jpeg, public.heic, public.tiff]
+    # iCloud container（iCloud.com.hashrock.nanopic）。Apple Developer で container を登録し、App ID に iCloud を付けてから使う
+    entitlements:
+      path: Nanopic/Nanopic.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.hashrock.nanopic]
+        com.apple.developer.ubiquity-container-identifiers: [iCloud.com.hashrock.nanopic]
+        com.apple.developer.icloud-services: [CloudDocuments]

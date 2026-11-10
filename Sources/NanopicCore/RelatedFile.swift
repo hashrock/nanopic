@@ -7,7 +7,7 @@ import Foundation
 ///   （None や Viewer だと読めるだけで、書けない）、
 /// - 毎回 NSFileCoordinator と、primaryPresentedItemURL に書類を持つ NSFilePresenter を通す
 /// ときだけ読み書きできる（一度通したあとでも、直接の読み書きは拒否される）。
-/// Sandbox の外でも同じコードで動く。iPadOS にはこの仕組みがないので、直接読み書きする。
+/// Sandbox の外でも同じコードで動く。iPadOS にはこの仕組みがないので、アプリ自身のフォルダーの中でだけ使う（AppFolders）。
 public enum RelatedFile {
     /// 読む。ファイルがなければ nil
     public static func read(_ url: URL, primary: URL) throws -> Data? {
@@ -67,26 +67,13 @@ public enum RelatedFile {
     /// write が nil なら読み込み
     private static func coordinate<T>(_ url: URL, primary: URL, write: NSFileCoordinator.WritingOptions?,
                                       _ body: (URL) throws -> T) throws -> T {
-        let coordinator = NSFileCoordinator(filePresenter: presenter(primary: primary, related: url))
-        var coordinationError: NSError?
-        var result: Result<T, Error>?
-        if let write {
-            coordinator.coordinate(writingItemAt: url, options: write, error: &coordinationError) { u in
-                result = Result { try body(u) }
-            }
-        } else {
-            coordinator.coordinate(readingItemAt: url, options: [], error: &coordinationError) { u in
-                result = Result { try body(u) }
-            }
-        }
-        if let coordinationError { throw coordinationError }
-        guard let result else { throw CocoaError(.fileReadUnknown) }
-        return try result.get()
+        try CoordinatedFile.coordinate(url, write: write, presenter: presenter(primary: primary, related: url), body)
     }
     #else
     private static func coordinate<T>(_ url: URL, primary: URL, write: NSFileCoordinator.WritingOptions?,
                                       _ body: (URL) throws -> T) throws -> T {
-        try body(url)
+        // iPadOS: アプリ自身のフォルダー（書類フォルダー・iCloud container）の中でだけ使う。iCloud の同期とぶつからないよう調停は通す
+        try CoordinatedFile.coordinate(url, write: write, body)
     }
     #endif
 }
