@@ -37,6 +37,11 @@ final class PadState {
     var showColorPanelRequest = 0
     /// 開いているファイル名（タイトル表示用）
     var documentName = "無題"
+    /// アプリのフォルダー（書類フォルダー・iCloud container）の外にある書類を開いている。
+    /// このときはサイドカー（作品.nanopic）を読まず・書かず、素の PSD として扱う
+    private(set) var isOutsideDocument = false
+    /// iCloud container の書類フォルダー（ファイル App の「iCloud Drive › Nanopic」）。iCloud を使っていなければ nil
+    private(set) var iCloudDocuments: URL?
     @ObservationIgnored weak var canvas: PadCanvasView?
     /// 外の場所（ファイル App で選んだ場所）のファイルを開いている間のアクセス権
     @ObservationIgnored private var accessedURL: URL?
@@ -44,6 +49,13 @@ final class PadState {
 
     init() {
         loadPreferences()
+        locateICloudContainer()
+        #if targetEnvironment(simulator)
+        // 検証用（シミュレーターだけ）: `xcrun simctl launch booted com.hashrock.nanopic -open <パス>` で書類を開く
+        if let path = UserDefaults.standard.string(forKey: "open") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [self] in open(url: URL(fileURLWithPath: path)) }
+        }
+        #endif
     }
 
     // MARK: - 知らせ
@@ -112,10 +124,33 @@ final class PadState {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
+    /// iCloud container を探す（時間がかかることがあるので裏で）。書類フォルダーを作っておくと、ファイル App の iCloud Drive に出る
+    private func locateICloudContainer() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let container = FileManager.default.url(forUbiquityContainerIdentifier: nil) else { return }
+            let docs = container.appendingPathComponent("Documents", isDirectory: true)
+            try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.iCloudDocuments = docs
+                // 探している間に開いた書類が iCloud container の中だったら、扱いを直す
+                if self.isOutsideDocument, let u = self.editor.fileURL, self.appFolders.contains(u), !self.editor.isDirty {
+                    self.open(url: u)
+                }
+            }
+        }
+    }
+
+    /// サイドカーを読み書きできる場所: アプリの書類フォルダーと iCloud container
+    var appFolders: AppFolders {
+        AppFolders(roots: [Self.documentsDirectory] + (iCloudDocuments.map { [$0] } ?? []))
+    }
+
     static let openableTypes: [UTType] = [.psd, .png, .jpeg, .heic, .tiff, .bmp, .gif, .webP]
 
     func newDocument(width: Int, height: Int) {
         releaseAccess()
+        isOutsideDocument = false
         editor.newDocument(width: width, height: height)
         thumbCache.removeAll()
         documentName = "無題"
@@ -135,11 +170,13 @@ final class PadState {
         do {
             let ext = url.pathExtension.lowercased()
             if ext == "psd" || ext == "psb" {
-                let data = try Data(contentsOf: url)
-                let doc = try PSD.read(data)
-                // サイドカー（作品.nanopic。タイムライン・リグ）は、アプリの書類フォルダーの中など、隣を読める場所にあるときだけ読める
-                let sidecar = (try? Sidecar.read(for: url)) ?? nil
+                // iCloud Drive やほかのアプリのフォルダーの書類もあるので、調停（NSFileCoordinator）を通して読む
+                let doc = try PSD.read(try CoordinatedFile.read(url))
+                // サイドカー（作品.nanopic）はアプリのフォルダーの中でだけ読む。外の書類は素の PSD として開く
+                let inside = appFolders.contains(url)
+                let sidecar = inside ? ((try? Sidecar.read(for: url)) ?? nil) : nil
                 editor.load(doc, url: url, sidecar: sidecar ?? Sidecar())
+                isOutsideDocument = !inside
                 // 上書き保存できるよう、閉じるまでアクセス権を持っておく
                 if scoped { accessedURL = url }
             } else {
@@ -149,6 +186,7 @@ final class PadState {
                     throw NSError(domain: "Nanopic", code: 1, userInfo: [NSLocalizedDescriptionKey: "画像を読み込めませんでした"])
                 }
                 editor.load(doc, url: nil)
+                isOutsideDocument = false
             }
             thumbCache.removeAll()
             documentName = url.deletingPathExtension().lastPathComponent
@@ -246,15 +284,29 @@ final class PadState {
         }
     }
 
-    /// アプリを離れるとき、アプリの書類フォルダーの書類だけ自動で保存する（外の場所のファイルは勝手に上書きしない）
+    /// アプリを離れるとき、アプリのフォルダーの書類だけ自動で保存する（外の場所のファイルは勝手に上書きしない）
     func autosave() {
         guard editor.isDirty, !editor.isStroking else { return }
-        if let u = editor.fileURL, !isInDocuments(u) { return }
+        if let u = editor.fileURL, !appFolders.contains(u) { return }
         save(quiet: true)
     }
 
-    private func isInDocuments(_ url: URL) -> Bool {
-        url.standardizedFileURL.path.hasPrefix(Self.documentsDirectory.standardizedFileURL.path)
+    /// 外の場所の書類を、アプリの書類フォルダーに複製して、そちらを開いた状態にする（いまの絵を新しい PSD として書く）。
+    /// 元の書類には触らない。元の隣にサイドカーがあっても、それは読めないので付いてこない
+    @discardableResult
+    func duplicateIntoAppFolder() -> Bool {
+        do {
+            let url = uniqueURL(name: documentName)
+            try writePSD(to: url)
+            releaseAccess()
+            isOutsideDocument = false
+            documentName = url.deletingPathExtension().lastPathComponent
+            show("「このiPad内 › Nanopic」に「\(url.lastPathComponent)」を作りました")
+            return true
+        } catch {
+            show("複製に失敗しました: \(error.localizedDescription)")
+            return false
+        }
     }
 
     private func uniqueURL(name: String) -> URL {
@@ -270,9 +322,9 @@ final class PadState {
 
     private func writePSD(to url: URL) throws {
         let data = try psdData()
-        try data.write(to: url, options: .atomic)
-        // サイドカー（作品.nanopic）は隣に書ける場合だけ（外の場所では書けないことがある）
-        try? editor.sidecar.write(for: url)
+        try CoordinatedFile.write(data, to: url)
+        // サイドカー（作品.nanopic）はアプリのフォルダーの中でだけ書く。外の場所では隣に手を出せないので、素の PSD だけを書く
+        if appFolders.contains(url) { try editor.sidecar.write(for: url) }
         editor.markSaved(url: url)
     }
 

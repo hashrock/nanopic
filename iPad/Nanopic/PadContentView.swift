@@ -28,6 +28,7 @@ struct PadContentView: View {
     @State private var exportType: UTType = .png
     @State private var showExporter = false
     @State private var confirmDiscard: PendingAction?
+    @State private var showOutsideInfo = false
 
     enum ImportKind: Identifiable {
         case open, layer
@@ -131,6 +132,9 @@ struct PadContentView: View {
         .onChange(of: state.showColorPanelRequest) { _, _ in
             if !isPinned(.colors) { showColors = true }
         }
+        .onChange(of: state.isOutsideDocument) { _, outside in
+            if outside { state.show("アプリのフォルダーの外の書類です。素の PSD として開きました") }
+        }
         .onChange(of: editor.tool) { _, tool in showToolHint(tool) }
         .onChange(of: editor.brushes) { _, _ in state.savePreferences() }
         .onChange(of: editor.erasers) { _, _ in state.savePreferences() }
@@ -167,6 +171,28 @@ struct PadContentView: View {
         } catch {
             state.show("書き出しに失敗しました: \(error.localizedDescription)")
         }
+    }
+
+    /// 外の場所の書類を開いているときの案内
+    private var outsideInfo: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("アプリのフォルダーの外にある書類です").font(.headline)
+            Text("素の PSD として開いています。スイッチフォルダー・タイムライン・リグ・書き出し設定（隣の「\(state.documentName).nanopic」の情報）は読まず、保存しても書きません。")
+            Text("Nanopic のフォルダー（ファイル App の「このiPad内 › Nanopic」か「iCloud Drive › Nanopic」）に移すと全部使えます。「\(state.documentName).nanopic」があるときは、ファイル App で PSD と一緒に移してください。")
+            Button {
+                showOutsideInfo = false
+                state.duplicateIntoAppFolder()
+            } label: {
+                Label("Nanopic のフォルダーに複製して開く", systemImage: "doc.on.doc")
+            }
+            .buttonStyle(.borderedProminent)
+            Text("複製は、いまの絵を新しい PSD として作ります。元の書類はそのまま残ります。")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .font(.callout)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(16)
+        .frame(width: 360)
     }
 
     // MARK: - ツールバー
@@ -220,6 +246,20 @@ struct PadContentView: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut("0")
+
+            if state.isOutsideDocument {
+                Button { showOutsideInfo = true } label: {
+                    // ツールバーは縦向きだと狭いので、印だけ出す（説明は押すと出る）
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                        .frame(width: 36, height: 30)
+                        .background(Color.yellow.opacity(0.2), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .fixedSize()
+                .accessibilityLabel("アプリのフォルダーの外にある書類です")
+                .popover(isPresented: $showOutsideInfo) { outsideInfo }
+            }
 
             Spacer(minLength: 8)
 

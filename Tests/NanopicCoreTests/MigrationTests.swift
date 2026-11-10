@@ -65,3 +65,33 @@ final class MigrationTests: XCTestCase {
     }
     #endif
 }
+
+final class AppFoldersTests: XCTestCase {
+    func testContains() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let docs = base.appendingPathComponent("Documents"), cloud = base.appendingPathComponent("Mobile Documents/iCloud~x/Documents")
+        try FileManager.default.createDirectory(at: docs.appendingPathComponent("sub"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let folders = AppFolders(roots: [docs, cloud])
+        XCTAssertTrue(folders.contains(docs.appendingPathComponent("作品.psd")))
+        XCTAssertTrue(folders.contains(docs.appendingPathComponent("sub/作品.psd")))
+        XCTAssertTrue(folders.contains(cloud.appendingPathComponent("作品.psd")), "まだないフォルダーでも場所で決まる")
+        XCTAssertFalse(folders.contains(base.appendingPathComponent("Documents2/作品.psd")), "名前の前が同じだけの別のフォルダー")
+        XCTAssertFalse(folders.contains(base.appendingPathComponent("作品.psd")))
+        // /var と /private/var の違いは同じ場所として扱う
+        let alt = URL(fileURLWithPath: docs.path.replacingOccurrences(of: "/private/var/", with: "/var/"))
+        XCTAssertTrue(folders.contains(alt.appendingPathComponent("作品.psd")))
+        XCTAssertFalse(AppFolders(roots: []).contains(docs))
+    }
+
+    func testCoordinatedReadWrite() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("a.bin")
+        XCTAssertThrowsError(try CoordinatedFile.read(url))
+        try CoordinatedFile.write(Data([1, 2, 3]), to: url)
+        try CoordinatedFile.write(Data([4]), to: url)
+        XCTAssertEqual(try CoordinatedFile.read(url), Data([4]))
+    }
+}
