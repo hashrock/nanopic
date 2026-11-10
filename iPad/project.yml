@@ -32,7 +32,7 @@ targets:
         product: NanopicKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hashrock.nanopic.ipad
+        PRODUCT_BUNDLE_IDENTIFIER: com.hashrock.nanopic
         DEVELOPMENT_TEAM: 5WLLZHK49R
         CODE_SIGN_STYLE: Automatic
         PRODUCT_NAME: Nanopic

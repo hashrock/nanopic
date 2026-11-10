@@ -260,7 +260,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.hashrock.nanopic.ipad;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hashrock.nanopic;
 				PRODUCT_NAME = Nanopic;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 2;
@@ -288,7 +288,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.hashrock.nanopic.ipad;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hashrock.nanopic;
 				PRODUCT_NAME = Nanopic;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 2;

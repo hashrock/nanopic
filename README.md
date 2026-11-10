@@ -35,8 +35,29 @@ App Store 用のビルドには、エージェント連携（MCP サーバー、
 - ふだんのビルドと中間ファイルが混ざらないよう、ビルド先は `.build-appstore/` に分けます
 - `build-appstore.sh` は、できたバイナリに MCP の文字列・シンボルと待ち受け（`NWListener`、Network.framework）が残っていないことを `strings`／`nm`／`otool` で確かめ、残っていれば失敗します
 - `SANDBOX=1 ./scripts/build-appstore.sh` とすると、App Sandbox の entitlement（`scripts/appstore.entitlements`）を付けて ad-hoc 署名します。Sandbox の中での動作（サイドカーの読み書きなど）を手元で確かめるためのもので、配布用の署名ではありません
+- App Store に出すのに要るもの（Info.plist の `LSApplicationCategoryType`・`ITSAppUsesNonExemptEncryption`、プライバシーマニフェスト `Resources/PrivacyInfo.xcprivacy`、1024px まで入ったアイコン、ユニバーサルバイナリ、通信や例外のない entitlement）も確かめます
 - 直接配布（Developer ID、`release.sh`）のビルドは今までどおりエージェント連携を含みます
 - iPad 版が使うライブラリ `NanopicKit` には、どちらの構成でも `NanopicAgent` を入れません
+
+### Mac App Store
+
+```sh
+./scripts/package-appstore.sh --dry-run   # 証明書なしで流れだけ確かめる（ad-hoc 署名、署名なしの .pkg）
+PROFILE=<.provisionprofile> ./scripts/package-appstore.sh   # 配布用に署名して dist/appstore/Nanopic-<版>.pkg を作る
+```
+
+`package-appstore.sh` は `build-appstore.sh` でアプリを作り、プロファイルを埋め込み、Apple Distribution で署名し、`productbuild` で `.pkg` にして Mac Installer Distribution で署名します。Apple とは通信しません（アップロードは Transporter か `xcrun altool` で別に行います）。
+
+要るもの（どれも Apple Developer の Certificates, Identifiers & Profiles で作る）:
+
+1. App ID `com.hashrock.nanopic`（Mac の直接配布版・Mac App Store 版・iPad 版で同じ ID）
+2. 証明書 Apple Distribution と Mac Installer Distribution（キーチェーンでは `3rd Party Mac Developer Installer: ...` と出る）
+3. Mac App Store Connect 用のプロビジョニングプロファイル（App ID は 1、証明書は 2 の Apple Distribution）→ `PROFILE` で渡す
+
+- SwiftPM で作った `.app` をスクリプトで署名・`.pkg` 化しています（Xcode プロジェクトにはしていません）。直接配布版と同じ手順でアプリを組めて、違いが entitlement と署名だけになるためです
+- entitlement（`scripts/appstore.entitlements`）は `app-sandbox`、`files.user-selected.read-write`（選んだ書類の読み書き）、`files.bookmarks.app-scope`（「書き出す」の書き出し先を覚える）の 3 つ。通信（`network.*`）はありません
+- App Store 用はユニバーサル（arm64 + x86_64）です。直接配布版はビルドした Mac の向きだけです
+- Bundle ID は 0.10.0 まで `dev.hashrock.nanopic` でした。直接配布版は、初回の起動で古い ID の設定（ブラシ・ショートカット・パレットなど）を引き継ぎます。ブラシ先端の画像（`~/Library/Application Support/Nanopic/tips`）は場所が変わらないのでそのまま使えます
 
 ### iPad 版
 
