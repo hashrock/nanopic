@@ -34,7 +34,7 @@ App Store 用のビルドには、エージェント連携（MCP サーバー、
 
 - `Package.swift` が環境変数 `NANOPIC_APPSTORE=1` を見て、アプリを `NanopicAgent` に依存させず、`Sources/Nanopic/Agent/`（MCP サーバー・設定画面・アプリ側のツール）をビルドから外し、`APPSTORE` を定義します。残りの呼び出し側は `#if !APPSTORE` で分けています
 - ふだんのビルドと中間ファイルが混ざらないよう、ビルド先は `.build-appstore/` に分けます
-- `build-appstore.sh` は、できたバイナリに MCP の文字列・シンボルと待ち受け（`NWListener`、Network.framework）が残っていないことを `strings`／`nm`／`otool` で確かめ、残っていれば失敗します
+- `build-appstore.sh` は、できたアプリを `scripts/check-appstore-app.sh` で検査します。バイナリに MCP の文字列・シンボルと待ち受け（`NWListener`、Network.framework）が残っていないことを `strings`／`nm`／`otool` で確かめ、残っていれば失敗します
 - `SANDBOX=1 ./scripts/build-appstore.sh` とすると、App Sandbox の entitlement（`scripts/appstore.entitlements`）を付けて ad-hoc 署名します。Sandbox の中での動作（サイドカーの読み書きなど）を手元で確かめるためのもので、配布用の署名ではありません
 - 訳の表にも MCP の文言が入っていないことを確かめます（エージェント連携の画面の訳は `Resources/Agent.xcstrings` に分けてあり、App Store 用のアプリには表ごと入れません）
 - App Store に出すのに要るもの（表示言語の申告 `CFBundleLocalizations` と `ja.lproj`・`en.lproj`、Info.plist の `LSApplicationCategoryType`・`ITSAppUsesNonExemptEncryption`、プライバシーマニフェスト `Resources/PrivacyInfo.xcprivacy`、1024px まで入ったアイコン、ユニバーサルバイナリ、通信や例外のない entitlement）も確かめます
@@ -44,22 +44,41 @@ App Store 用のビルドには、エージェント連携（MCP サーバー、
 ### Mac App Store
 
 ```sh
-./scripts/package-appstore.sh --dry-run   # 証明書なしで流れだけ確かめる（ad-hoc 署名、署名なしの .pkg）
-PROFILE=<.provisionprofile> ./scripts/package-appstore.sh   # 配布用に署名して dist/appstore/Nanopic-<版>.pkg を作る
+./scripts/package-appstore.sh             # クラウド署名で dist/appstore/Nanopic-<版>.pkg を作る（既定）
+./scripts/package-appstore.sh --dry-run   # 署名なしで流れだけ確かめる（ad-hoc 署名、署名なしの .pkg。提出はできない）
 ```
 
-`package-appstore.sh` は `build-appstore.sh` でアプリを作り、プロファイルを埋め込み、Apple Distribution で署名し、`productbuild` で `.pkg` にして Mac Installer Distribution で署名します。Apple とは通信しません（アップロードは Transporter か `xcrun altool` で別に行います）。
+コマンド 1 行で、提出できる `.pkg` ができます。手元のキーチェーンに配布用の証明書は要りません。
+
+1. `build-appstore.sh` でアプリを作り、Sandbox の entitlement を付けて ad-hoc 署名する
+2. それを `.xcarchive` の形に包む（`build/appstore/Nanopic.xcarchive`。`Products/Applications/Nanopic.app` と `Info.plist`、あれば `dSYMs/`。版・ビルド番号はアプリの Info.plist から読む）
+3. `xcodebuild -exportArchive -allowProvisioningUpdates` に渡す。Xcode が Apple のサーバーにある証明書（Cloud Managed Apple Distribution）でアプリを署名し、プロファイル（`Mac Team Store Provisioning Profile: com.hashrock.nanopic`）を作って埋め込み、entitlement に App ID とチーム ID を足し、`.pkg` にして Installer の証明書（3rd Party Mac Developer Installer）で署名する
+4. できた `.pkg` からアプリを取り出し、`check-appstore-app.sh` でもう一度検査する（MCP が入っていないこと、Info.plist の項目、表示言語、アイコン、署名の entitlement が Sandbox + App ID + チーム ID だけであること、プロファイルの App ID）
+
+- 要るもの: Xcode の Settings > Accounts に、チーム（`5WLLZHK49R`）の Apple ID でサインインしていること。クラウド署名を使えるのは Account Holder / Admin か、「Access to Cloud Managed Distribution Certificate」を持つ人です。App ID `com.hashrock.nanopic` が Apple Developer に登録されていること（Mac の直接配布版・Mac App Store 版・iPad 版で同じ ID）
+- Apple と通信するのは 3 の署名とプロファイルの作成だけです。アップロードはしません（`ExportOptions` の `destination` は `export`）。できた `.pkg` は Transporter か `xcrun altool` で別に送ります
+- 書き出しのログは `build/appstore/export.log`、どの証明書・プロファイルで署名されたかは `build/appstore/export/DistributionSummary.plist` に残ります
+- SwiftPM で作った `.app` をスクリプトで包んで署名・`.pkg` 化しています（Xcode プロジェクトにはしていません）。直接配布版と同じ手順でアプリを組めて、違いが entitlement と署名だけになるためです
+- entitlement（`scripts/appstore.entitlements`）は `app-sandbox`、`files.user-selected.read-write`（選んだ書類の読み書き）、`files.bookmarks.app-scope`（「書き出す」の書き出し先を覚える）の 3 つ。通信（`network.*`）はありません
+- App Store 用はユニバーサル（arm64 + x86_64）です。直接配布版はビルドした Mac の向きだけです
+- App Store Connect に入れる URL: プライバシーポリシーは <https://hashrock.github.io/nanopic/privacy.html>、サポートは <https://hashrock.github.io/nanopic/support.html>（`website/` の `privacy.html`・`support.html`）
+- Bundle ID は 0.10.0 まで `dev.hashrock.nanopic` でした。直接配布版は、初回の起動で古い ID の設定（ブラシ・ショートカット・パレットなど）を引き継ぎます。ブラシ先端の画像（`~/Library/Application Support/Nanopic/tips`）は場所が変わらないのでそのまま使えます
+
+#### 手元の証明書で署名するとき
+
+```sh
+PROFILE=<.provisionprofile> ./scripts/package-appstore.sh --local
+```
+
+クラウド署名を使えないとき（権限がない、Apple と通信せずに作りたい）の道です。プロファイルを埋め込み、Apple Distribution で署名し、`productbuild` で `.pkg` にして Mac Installer Distribution で署名します。Apple とは通信しません。できた `.pkg` の検査はクラウド署名のときと同じです。
 
 要るもの（どれも Apple Developer の Certificates, Identifiers & Profiles で作る）:
 
-1. App ID `com.hashrock.nanopic`（Mac の直接配布版・Mac App Store 版・iPad 版で同じ ID）
-2. 証明書 Apple Distribution と Mac Installer Distribution（キーチェーンでは `3rd Party Mac Developer Installer: ...` と出る）
+1. App ID `com.hashrock.nanopic`
+2. 証明書 Apple Distribution と Mac Installer Distribution（キーチェーンでは `3rd Party Mac Developer Installer: ...` と出る）。キーチェーンアクセスで証明書署名要求（CSR）を作り、それぞれ発行してダウンロードし、開いてキーチェーンに入れる
 3. Mac App Store Connect 用のプロビジョニングプロファイル（App ID は 1、証明書は 2 の Apple Distribution）→ `PROFILE` で渡す
 
-- SwiftPM で作った `.app` をスクリプトで署名・`.pkg` 化しています（Xcode プロジェクトにはしていません）。直接配布版と同じ手順でアプリを組めて、違いが entitlement と署名だけになるためです
-- entitlement（`scripts/appstore.entitlements`）は `app-sandbox`、`files.user-selected.read-write`（選んだ書類の読み書き）、`files.bookmarks.app-scope`（「書き出す」の書き出し先を覚える）の 3 つ。通信（`network.*`）はありません
-- App Store 用はユニバーサル（arm64 + x86_64）です。直接配布版はビルドした Mac の向きだけです
-- Bundle ID は 0.10.0 まで `dev.hashrock.nanopic` でした。直接配布版は、初回の起動で古い ID の設定（ブラシ・ショートカット・パレットなど）を引き継ぎます。ブラシ先端の画像（`~/Library/Application Support/Nanopic/tips`）は場所が変わらないのでそのまま使えます
+証明書の名前が違うときは `APP_IDENTITY`・`PKG_IDENTITY` で渡します。
 
 ### iPad 版
 
@@ -71,6 +90,7 @@ open NanopicPad.xcodeproj    # スキーム NanopicPad を iPad／シミュレ�
 - `xcodegen` は、リポジトリのフォルダー名が `nanopic` のところで実行します（パッケージの参照にフォルダー名が入るため。worktree で作り直すと `project.pbxproj` に余計な差分が出ます）
 - シミュレーターでは `xcrun simctl launch booted com.hashrock.nanopic -open <PSD のパス>` で書類を開けます（検証用。実機のビルドには入りません）
 - iCloud container は `iCloud.com.hashrock.nanopic`（`iPad/Nanopic/Nanopic.entitlements`、Info.plist の `NSUbiquitousContainers`）。Apple Developer で container を登録し、App ID `com.hashrock.nanopic` に iCloud（CloudKit ではなく iCloud Documents）を付けると、実機のビルドとファイル App の「iCloud Drive › Nanopic」が使えます
+- TestFlight に出す（Mac App Store 版と同じくクラウド署名。手元に配布用の証明書は要らない）: Xcode で実行先を「Any iOS Device (arm64)」にして Product > Archive → Organizer で Distribute App > App Store Connect（TestFlight だけなら TestFlight Internal Only）。署名は自動（Automatically manage signing）のままにすると、Xcode が Cloud Managed Apple Distribution で署名し、iCloud container 入りのプロファイルを作ります。版は `project.yml` の `MARKETING_VERSION`・`CURRENT_PROJECT_VERSION`（上げたら `xcodegen`）
 - Archive（署名なしで通ることの確認）: `cd iPad && xcodebuild archive -project NanopicPad.xcodeproj -scheme NanopicPad -destination 'generic/platform=iOS' -archivePath ../.build-ipad/NanopicPad.xcarchive CODE_SIGNING_ALLOWED=NO`
 - 表示言語は Mac 版と同じ日本語・英語。訳のカタログ（`Resources/Localizable.xcstrings`・`Names.xcstrings`）を Xcode がビルドのときに変換して入れます。Xcode は元の言語（日本語）の表を作らないので、`iPad/Nanopic/ja.lproj/InfoPlist.strings` を置いて、バンドルに `ja.lproj` と `en.lproj` の両方が入るようにしています（App Store の対応言語は `.lproj` から決まります）
 - iPadOS 17 以降。描画エンジン（NanopicCore）と表示部品（NanopicUI）を Mac 版と共有しています
