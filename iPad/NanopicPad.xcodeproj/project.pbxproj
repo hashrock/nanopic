@@ -11,8 +11,10 @@
 		1AF9B843C9E13356032B9535 /* PadState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281191610BBAA45D970DB8C7 /* PadState.swift */; };
 		201222756EE8C390035ECB77 /* PadCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E090EB7BBDBA0C46666CA1 /* PadCanvasView.swift */; };
 		2454A1C254A7FE37EC4A6E91 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = EF421BFAD8DD3AD97518C4A8 /* PrivacyInfo.xcprivacy */; };
+		2A656BF5D2CE4007E52665B1 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F67266164A277D3345424DC3 /* Localizable.xcstrings */; };
 		45C5D81A745D40CF682872A4 /* PerfMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 054ACB290392C69D1E7A0DD9 /* PerfMonitor.swift */; };
 		4ABF2B89126B83F4456DAC0D /* Panels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA6622FD89C50750201202F9 /* Panels.swift */; };
+		7D77BDC65CEABE880D3ABD83 /* Names.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 92FD9CA7EE38E07C9297BD88 /* Names.xcstrings */; };
 		830577A4DE868586BBB18991 /* NanopicKit in Frameworks */ = {isa = PBXBuildFile; productRef = F7D5C7327E79C75891F87128 /* NanopicKit */; };
 		8E90A9B2DD1820B5B6D78F31 /* PadContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EA38FFBE5E505105B08818D /* PadContentView.swift */; };
 		9CA20415D964A8B24349A6C0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EBF02326C7AA7BFB1D94C0FD /* Assets.xcassets */; };
@@ -24,15 +26,17 @@
 		16D197BC63A0881F02AF7134 /* NanopicPad.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NanopicPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		21E090EB7BBDBA0C46666CA1 /* PadCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadCanvasView.swift; sourceTree = "<group>"; };
 		281191610BBAA45D970DB8C7 /* PadState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadState.swift; sourceTree = "<group>"; };
-		BAD152E1A6B631A6A1BB9CB1 /* nanopic */ = {isa = PBXFileReference; lastKnownFileType = folder; name = nanopic; path = ..; sourceTree = SOURCE_ROOT; };
 		54E9183CA8042B0B6243B155 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		60C98CA0639E7EC731B25E7D /* Nanopic.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Nanopic.entitlements; sourceTree = "<group>"; };
 		7267E97985E62365F8C3A6B8 /* NanopicPadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NanopicPadApp.swift; sourceTree = "<group>"; };
 		7EA38FFBE5E505105B08818D /* PadContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadContentView.swift; sourceTree = "<group>"; };
+		92FD9CA7EE38E07C9297BD88 /* Names.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Names.xcstrings; sourceTree = "<group>"; };
 		9919269C73D52126694B5803 /* SelectionOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlayView.swift; sourceTree = "<group>"; };
 		BA6622FD89C50750201202F9 /* Panels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Panels.swift; sourceTree = "<group>"; };
 		EBF02326C7AA7BFB1D94C0FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EF421BFAD8DD3AD97518C4A8 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		BAD152E1A6B631A6A1BB9CB1 /* nanopic */ = {isa = PBXFileReference; lastKnownFileType = folder; name = nanopic; path = ..; sourceTree = SOURCE_ROOT; };
+		F67266164A277D3345424DC3 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,6 +70,8 @@
 		96C8AA5588A87944A4BA1B0F /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				F67266164A277D3345424DC3 /* Localizable.xcstrings */,
+				92FD9CA7EE38E07C9297BD88 /* Names.xcstrings */,
 				EF421BFAD8DD3AD97518C4A8 /* PrivacyInfo.xcprivacy */,
 			);
 			name = Resources;
@@ -165,6 +171,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				9CA20415D964A8B24349A6C0 /* Assets.xcassets in Resources */,
+				2A656BF5D2CE4007E52665B1 /* Localizable.xcstrings in Resources */,
+				7D77BDC65CEABE880D3ABD83 /* Names.xcstrings in Resources */,
 				2454A1C254A7FE37EC4A6E91 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

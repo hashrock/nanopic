@@ -21,7 +21,7 @@ extension AppState {
         editor.commitTransform()
         let options = editor.movieOptions(format: format)
         let panel = NSSavePanel()
-        let base = editor.fileURL?.deletingPathExtension().lastPathComponent ?? "無題"
+        let base = editor.fileURL?.deletingPathExtension().lastPathComponent ?? L("無題")
         switch format {
         case .mp4: panel.allowedContentTypes = [.mpeg4Movie]
         case .prores: panel.allowedContentTypes = [.quickTimeMovie]
@@ -31,9 +31,9 @@ extension AppState {
         }
         panel.nameFieldStringValue = format == .pngSequence ? base + "_frames" : base + "." + format.fileExtension
         var notes: [String] = []
-        if format == .pngSequence { notes.append("この名前のフォルダーを作り、中にコマごとの PNG を書きます。") }
+        if format == .pngSequence { notes.append(L("この名前のフォルダーを作り、中にコマごとの PNG を書きます。")) }
         if format.supportsAlpha && options.effectiveBackground == .transparent {
-            notes.append("透明にするには、用紙のレイヤーを隠してください。")
+            notes.append(L("透明にするには、用紙のレイヤーを隠してください。"))
         }
         if !notes.isEmpty { panel.message = notes.joined(separator: " ") }
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -58,7 +58,7 @@ extension AppState {
                 case .failure(let e) where e is MovieExport.Cancelled:
                     break
                 case .failure(let e):
-                    self.showError("動画を書き出せませんでした: \(e)")
+                    self.showError(L("動画を書き出せませんでした: \(String(describing: e))"))
                 }
             }
         }

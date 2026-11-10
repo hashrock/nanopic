@@ -112,7 +112,7 @@ struct PadContentView: View {
         }
         .fileExporter(isPresented: $showExporter, document: exportFile, contentType: exportType,
                       defaultFilename: state.documentName) { result in
-            if case let .success(url) = result { state.show("「\(url.lastPathComponent)」に書き出しました") }
+            if case let .success(url) = result { state.show(L("「\(url.lastPathComponent)」に書き出しました")) }
             exportFile = nil
         }
         .confirmationDialog("変更が保存されていません", isPresented: Binding(get: { confirmDiscard != nil }, set: { if !$0 { confirmDiscard = nil } }),
@@ -133,7 +133,7 @@ struct PadContentView: View {
             if !isPinned(.colors) { showColors = true }
         }
         .onChange(of: state.isOutsideDocument) { _, outside in
-            if outside { state.show("アプリのフォルダーの外の書類です。素の PSD として開きました") }
+            if outside { state.show(L("アプリのフォルダーの外の書類です。素の PSD として開きました")) }
         }
         .onChange(of: editor.tool) { _, tool in showToolHint(tool) }
         .onChange(of: editor.brushes) { _, _ in state.savePreferences() }
@@ -169,7 +169,7 @@ struct PadContentView: View {
             exportFile = ExportFile(data: data)
             showExporter = true
         } catch {
-            state.show("書き出しに失敗しました: \(error.localizedDescription)")
+            state.show(L("書き出しに失敗しました: \(error.localizedDescription)"))
         }
     }
 
@@ -307,20 +307,20 @@ struct PadContentView: View {
 
     private static func hint(for tool: Tool) -> String {
         switch tool {
-        case .brush: return "描く"
-        case .eraser: return "消す"
-        case .fill: return "タップした所と同じ色の範囲を塗る"
-        case .lassoFill: return "囲んだ範囲を描画色で塗る"
-        case .lassoErase: return "囲んだ範囲を消す"
-        case .selectRect: return "四角く選ぶ"
-        case .selectEllipse: return "丸く選ぶ"
-        case .lasso: return "囲んで選ぶ"
-        case .wand: return "タップした所と同じ色の範囲を選ぶ"
-        case .move: return "レイヤーや選択範囲を動かす"
-        case .transform: return "角で拡大・縮小、枠の外で回転"
-        case .eyedropper: return "タップした所の色を取る"
-        case .hand: return "表示を動かす"
-        case .zoom: return "表示を拡大・縮小する"
+        case .brush: return L("描く")
+        case .eraser: return L("消す")
+        case .fill: return L("タップした所と同じ色の範囲を塗る")
+        case .lassoFill: return L("囲んだ範囲を描画色で塗る")
+        case .lassoErase: return L("囲んだ範囲を消す")
+        case .selectRect: return L("四角く選ぶ")
+        case .selectEllipse: return L("丸く選ぶ")
+        case .lasso: return L("囲んで選ぶ")
+        case .wand: return L("タップした所と同じ色の範囲を選ぶ")
+        case .move: return L("レイヤーや選択範囲を動かす")
+        case .transform: return L("角で拡大・縮小、枠の外で回転")
+        case .eyedropper: return L("タップした所の色を取る")
+        case .hand: return L("表示を動かす")
+        case .zoom: return L("表示を拡大・縮小する")
         }
     }
 
@@ -368,10 +368,10 @@ struct PadContentView: View {
 
     private func title(_ kind: PanelKind) -> String {
         switch kind {
-        case .brushes: return editor.tool == .eraser ? "消しゴム" : "ブラシ"
-        case .brushSettings: return editor.currentBrush.name
-        case .layers: return "レイヤー"
-        case .colors: return "色"
+        case .brushes: return editor.tool == .eraser ? L("消しゴム") : L("ブラシ")
+        case .brushSettings: return LName(editor.currentBrush.name)
+        case .layers: return L("レイヤー")
+        case .colors: return L("色")
         }
     }
 
@@ -401,7 +401,7 @@ struct PadContentView: View {
             Image(systemName: colorsCollapsed ? "chevron.down" : "chevron.up")
                 .frame(width: 30, height: 30)
         }
-        .accessibilityLabel(colorsCollapsed ? "色の選択を開く" : "パレットだけにする"))
+        .accessibilityLabel(colorsCollapsed ? L("色の選択を開く") : L("パレットだけにする")))
     }
 
     private func popoverPanel(_ kind: PanelKind, _ shown: Binding<Bool>) -> some View {
@@ -594,10 +594,10 @@ struct NewDocumentSheet: View {
     @State private var height = 2048
 
     private let presets: [(String, Int, Int)] = [
-        ("正方形 2048", 2048, 2048),
-        ("フル HD（横）", 1920, 1080),
-        ("フル HD（縦）", 1080, 1920),
-        ("4K（横）", 3840, 2160),
+        (L("正方形 2048"), 2048, 2048),
+        (L("フル HD（横）"), 1920, 1080),
+        (L("フル HD（縦）"), 1080, 1920),
+        (L("4K（横）"), 3840, 2160),
         ("A4 350dpi", 2894, 4093),
         ("B5 350dpi", 2508, 3541),
     ]

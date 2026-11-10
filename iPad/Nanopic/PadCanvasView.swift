@@ -170,7 +170,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
     func updatePerfConfiguration() {
         perfLabel.isHidden = !state.perfEnabled
         renderer?.onTiming = state.perfEnabled ? { [weak self] in self?.perf.frame($0) } : nil
-        if state.perfEnabled, perfLabel.text == nil { perfLabel.text = "ペンで描くと計測します" }
+        if state.perfEnabled, perfLabel.text == nil { perfLabel.text = "ペンで描くと計測します" } // l10n:skip 性能の計測（開発用）は訳さない
         if !state.perfEnabled { perf.cancel() }
         layoutPerfLabel()
     }
@@ -367,7 +367,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
                 if state.perfEnabled {
                     let b = editor.currentBrush
                     let doc = editor.doc
-                    let meta = String(format: "%dx%d 層%d %.0fpx 手ブレ%.0f 倍率%.2f", doc.width, doc.height, doc.layers.count,
+                    let meta = String(format: "%dx%d 層%d %.0fpx 手ブレ%.0f 倍率%.2f", // l10n:skip doc.width, doc.height, doc.layers.count,
                                       Double(b.size), Double(b.smoothing) * 100, Double(zoom))
                     perf.begin(meta: meta, beginMs: (CACurrentMediaTime() - beginStart) * 1000)
                     perf.record(t, in: self)
@@ -408,7 +408,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
                 editor.recordTransformStep()
                 startDrag(.move(startCanvas: cp, startParams: f.params), t)
             } else {
-                refuse("動かせるものがありません")
+                refuse(L("動かせるものがありません"))
             }
         case .transform:
             if editor.floating != nil || editor.beginTransform(), let f = editor.floating {
@@ -416,7 +416,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
                 let handle = f.hitHandle(vp, transform: canvasToView, radius: 24)
                 startDrag(.transform(handle: handle, startCanvas: cp, startParams: f.params), t)
             } else {
-                refuse("変形できるものがありません")
+                refuse(L("変形できるものがありません"))
             }
         case .eyedropper:
             activeTouch = t
@@ -429,11 +429,11 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
     }
 
     private var lockedMessage: String {
-        guard let l = editor.doc.activeLayer else { return "描けるレイヤーがありません" }
-        if l.isFolder { return "フォルダーには描けません" }
-        if l.locked { return "レイヤーがロックされています" }
-        if !l.visible { return "非表示のレイヤーには描けません" }
-        return "このレイヤーには描けません"
+        guard let l = editor.doc.activeLayer else { return L("描けるレイヤーがありません") }
+        if l.isFolder { return L("フォルダーには描けません") }
+        if l.locked { return L("レイヤーがロックされています") }
+        if !l.visible { return L("非表示のレイヤーには描けません") }
+        return L("このレイヤーには描けません")
     }
 
     private func end() {
@@ -629,7 +629,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
         if editor.undoLabel != nil {
             let label = editor.undoLabel ?? ""
             editor.undo()
-            state.show("取り消し: \(label)")
+            state.show(L("取り消し: \(label)"))
         }
     }
 
@@ -637,7 +637,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
         guard activeTouch == nil else { return }
         if let label = editor.redoLabel {
             editor.redo()
-            state.show("やり直し: \(label)")
+            state.show(L("やり直し: \(label)"))
         }
     }
 

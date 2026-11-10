@@ -83,7 +83,7 @@ struct ToolOptionsView: View {
                     selectionHelp
                 case .lassoFill, .lassoErase:
                     Toggle("アンチエイリアス", isOn: $editor.lassoFillAntialias).font(.caption)
-                    Text(editor.tool == .lassoFill ? "囲んだ範囲を描画色で塗る" : "囲んだ範囲を消す")
+                    Text(editor.tool == .lassoFill ? L("囲んだ範囲を描画色で塗る") : L("囲んだ範囲を消す"))
                         .font(.caption).foregroundStyle(.secondary)
                 case .selectRect, .selectEllipse, .lasso:
                     Toggle("アンチエイリアス", isOn: $editor.selectionAntialias).font(.caption)
@@ -218,7 +218,7 @@ struct BrushOptionsView: View {
                             .renderingMode(.template)
                             .frame(width: 20, height: 20)
                     }
-                    Text(b.name).font(.callout)
+                    Text(LName(b.name)).font(.callout)
                     Spacer()
                     ShortcutBadge(state: state, target: .preset(b.id))
                     Text(String(format: "%.0f", b.size)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
@@ -233,7 +233,7 @@ struct BrushOptionsView: View {
                 }
                 .popover(isPresented: Binding(get: { editingShortcut == b.id }, set: { if !$0 { editingShortcut = nil } }),
                          arrowEdge: .trailing) {
-                    ShortcutPopover(state: state, title: b.name, target: .preset(b.id))
+                    ShortcutPopover(state: state, title: LName(b.name), target: .preset(b.id))
                 }
                 .contextMenu {
                     Button("ショートカットを設定…") { editingShortcut = b.id }
@@ -243,7 +243,7 @@ struct BrushOptionsView: View {
                 }
             }
             HStack {
-                TextField("名前", text: brush.name)
+                TextField("名前", text: brush.name.localizedName)
                     .textFieldStyle(.roundedBorder)
                     .controlSize(.small)
                 Button { duplicate(activeIndex) } label: { Image(systemName: "plus.square.on.square") }
@@ -260,7 +260,7 @@ struct BrushOptionsView: View {
     private func duplicate(_ i: Int) {
         var b = presets[i]
         b.id = UUID()
-        b.name += " コピー"
+        b.name += " コピー" // l10n:stored
         if isEraser {
             editor.erasers.insert(b, at: i + 1)
             editor.activeEraserIndex = i + 1
@@ -295,7 +295,7 @@ struct BrushOptionsView: View {
                 .background(brush.wrappedValue.tipID == tip.id ? Color.accentColor.opacity(0.35) : Color.gray.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
                 .onTapGesture { brush.wrappedValue.tipID = tip.id }
-                .help(tip.name)
+                .help(LName(tip.name))
             }
             Button {
                 state.importBrushTip()
@@ -344,9 +344,9 @@ struct TransformOptionsView: View {
                 let _ = editor.revision
                 let p = f.params
                 Group {
-                    Text(String(format: "位置: %.0f, %.0f", p.tx, p.ty))
-                    Text(String(format: "拡大率: %.1f%% × %.1f%%", p.sx * 100, p.sy * 100))
-                    Text(String(format: "回転: %.1f°", p.rotation * 180 / .pi))
+                    Text(LFormat("位置: %.0f, %.0f", p.tx, p.ty))
+                    Text(LFormat("拡大率: %.1f%% × %.1f%%", p.sx * 100, p.sy * 100))
+                    Text(LFormat("回転: %.1f°", p.rotation * 180 / .pi))
                 }
                 .font(.caption.monospacedDigit())
                 HStack {
@@ -364,7 +364,7 @@ struct TransformOptionsView: View {
                     Button("キャンセル (Esc)") { editor.cancelTransform() }
                 }
             } else {
-                Text(editor.tool == .move ? "ドラッグでレイヤー（選択範囲）を移動" : "キャンバスをクリックで変形開始")
+                Text(editor.tool == .move ? L("ドラッグでレイヤー（選択範囲）を移動") : L("キャンバスをクリックで変形開始"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Text("ハンドル: 拡大縮小（Shift で縦横比固定）\n枠の外: 回転（Shift で 15° 単位）\n枠の内側: 移動")

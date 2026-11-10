@@ -29,7 +29,7 @@ struct RigPanel: View {
     private func linked(parameter id: String) -> Bool { state.rigFocus?.parameters.contains(id) ?? false }
     private func linked(deformer id: String) -> Bool { state.rigFocus?.deformers.contains(id) ?? false }
 
-    private func layerName(_ d: Deformer) -> String { editor.doc.node(psdID: d.layer)?.name ?? "" }
+    private func layerName(_ d: Deformer) -> String { (editor.doc.node(psdID: d.layer)?.name).map(LName) ?? "" }
 
     // MARK: パラメータ
 
@@ -39,7 +39,7 @@ struct RigPanel: View {
                 Text("パラメータ").font(.headline)
                 Spacer()
                 Button {
-                    let id = editor.addParameter(name: "パラメータ\(editor.rig.parameters.count + 1)")
+                    let id = editor.addParameter(name: "パラメータ\(editor.rig.parameters.count + 1)") // l10n:stored
                     state.editingParameter = id
                 } label: { Image(systemName: "plus") }
                 .buttonStyle(.borderless)
@@ -72,14 +72,14 @@ struct RigPanel: View {
             HStack(spacing: 6) {
                 Image(systemName: editing ? "pencil.circle.fill" : "slider.horizontal.3")
                     .foregroundStyle(editing ? Color.accentColor : .secondary)
-                Text(p.name).font(.callout.weight(editing ? .semibold : .regular)).lineLimit(1)
+                Text(LName(p.name)).font(.callout.weight(editing ? .semibold : .regular)).lineLimit(1)
                 Spacer()
                 Text(String(format: "%.2f", editor.parameterValue(p.id)))
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                 Menu {
                     Button("名前を変える...") {
-                        if let name = state.promptText("パラメータの名前", value: p.name), !name.isEmpty {
-                            editor.updateParameter(p.id) { $0.name = name }
+                        if let name = state.promptText(L("パラメータの名前"), value: LName(p.name)), !name.isEmpty {
+                            editor.updateParameter(p.id) { $0.name = LNameEdited(name, original: p.name) }
                         }
                     }
                     Button("範囲と既定値...") {
@@ -113,7 +113,7 @@ struct RigPanel: View {
                     ForEach(driven, id: \.id) { d in
                         RigLinkChip(state: state, target: .deformer(d.id),
                                     systemImage: d.kind == .rotation ? "arrow.triangle.2.circlepath" : "squareshape.split.2x2",
-                                    title: d.name, outer: .parameter(p.id)) { state.revealDeformer(d.id) }
+                                    title: LName(d.name), outer: .parameter(p.id)) { state.revealDeformer(d.id) }
                             .help("「\(layerName(d))」のデフォーマ。クリックでそのレイヤーを編集中にして、このデフォーマのハンドルだけを出す")
                     }
                 }
@@ -134,7 +134,7 @@ struct RigPanel: View {
         var out: [(Deformer, String)] = []
         for depth in stride(from: path.count, through: 1, by: -1) {
             guard let n = editor.doc.node(at: Array(path.prefix(depth))) else { continue }
-            out += editor.deformers(on: n.id).map { ($0, n.name) }
+            out += editor.deformers(on: n.id).map { ($0, LName(n.name)) }
         }
         return out
     }
@@ -143,7 +143,7 @@ struct RigPanel: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("デフォーマ").font(.headline)
             if let layer = editor.doc.activeLayer {
-                Text("編集中: \(layer.name)").font(.caption).foregroundStyle(.secondary)
+                Text("編集中: \(LName(layer.name))").font(.caption).foregroundStyle(.secondary)
                 HStack {
                     Button("移動・回転を付ける") { editor.addDeformer(to: layer.id, kind: .rotation) }
                     Button("ワープを付ける") { editor.addDeformer(to: layer.id, kind: .warp) }
@@ -157,8 +157,8 @@ struct RigPanel: View {
             ForEach(ds, id: \.0.id) { d, layerName in deformerRow(d, layerName) }
             if !ds.isEmpty {
                 Text(state.editingParameter == nil
-                     ? "パラメータの名前を選ぶと、キャンバスにハンドルが出ます。"
-                     : "デフォーマをクリックすると、そのハンドルだけを出します。")
+                     ? L("パラメータの名前を選ぶと、キャンバスにハンドルが出ます。")
+                     : L("デフォーマをクリックすると、そのハンドルだけを出します。"))
                     .font(.caption2).foregroundStyle(.secondary)
             }
         }
@@ -171,7 +171,7 @@ struct RigPanel: View {
                 Image(systemName: d.kind == .rotation ? "arrow.triangle.2.circlepath" : "squareshape.split.2x2")
                     .foregroundStyle(selected ? Color.accentColor : .secondary)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(d.name).font(.callout.weight(selected ? .semibold : .regular)).lineLimit(1)
+                    Text(LName(d.name)).font(.callout.weight(selected ? .semibold : .regular)).lineLimit(1)
                     if let n = editor.doc.node(psdID: d.layer), n.id != editor.activeLayerID {
                         // 親フォルダーのデフォーマ: クリックでそのフォルダーを編集中に
                         RigLinkChip(state: state, target: .layer(n.id), systemImage: n.isFolder ? "folder" : "photo",
@@ -184,11 +184,11 @@ struct RigPanel: View {
                 Spacer()
                 Menu {
                     Button("名前を変える...") {
-                        if let name = state.promptText("デフォーマの名前", value: d.name), !name.isEmpty {
-                            editor.updateDeformer(d.id, label: "デフォーマの名前") { $0.name = name }
+                        if let name = state.promptText(L("デフォーマの名前"), value: LName(d.name)), !name.isEmpty {
+                            editor.updateDeformer(d.id, label: L("デフォーマの名前")) { $0.name = LNameEdited(name, original: d.name) }
                         }
                     }
-                    Button(d.kind == .rotation ? "中心を描かれている所に合わせる" : "範囲を描かれている所に合わせる") {
+                    Button(d.kind == .rotation ? L("中心を描かれている所に合わせる") : L("範囲を描かれている所に合わせる")) {
                         editor.fitDeformerToContent(d.id)
                     }
                     Divider()
@@ -210,7 +210,7 @@ struct RigPanel: View {
             FlowLayout {
                 ForEach(drivers, id: \.id) { p in
                     RigLinkChip(state: state, target: .parameter(p.id), systemImage: "slider.horizontal.3",
-                                title: p.name, outer: .deformer(d.id)) { state.revealParameter(p.id) }
+                                title: LName(p.name), outer: .deformer(d.id)) { state.revealParameter(p.id) }
                         .help("このデフォーマを動かすパラメータ。クリックで形を記録する対象にする")
                 }
             }

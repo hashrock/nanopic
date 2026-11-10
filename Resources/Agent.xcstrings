@@ -1,0 +1,126 @@
+{
+  "sourceLanguage" : "ja",
+  "strings" : {
+    "Claude Code などのエージェントが、開いているキャンバスを操作できるようになります（レイヤー、ブラシ、塗りつぶし、線画の領域ごとの下塗りなど）。この Mac の中（127.0.0.1）からだけ接続できます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lets agents such as Claude Code work on the open canvas (layers, brushes, fills, flat colors for each region of line art, and more). Connections are accepted only from this Mac (127.0.0.1)."
+          }
+        }
+      }
+    },
+    "Claude Code に登録する" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Claude Code"
+          }
+        }
+      }
+    },
+    "MCP サーバーを有効にする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable MCP Server"
+          }
+        }
+      }
+    },
+    "エージェント連携" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agents"
+          }
+        }
+      }
+    },
+    "エージェント連携（MCP）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent Integration (MCP)"
+          }
+        }
+      }
+    },
+    "コピー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy"
+          }
+        }
+      }
+    },
+    "ポート" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port"
+          }
+        }
+      }
+    },
+    "停止中" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopped"
+          }
+        }
+      }
+    },
+    "待ち受け中: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listening: %@"
+          }
+        }
+      }
+    },
+    "状態" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "登録したら、エージェントに「開いている線画を下塗りして」のように頼めます。操作は ⌘Z で取り消せます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Once added, you can ask the agent things like “lay in flat colors on the open line art.” Anything it does can be undone with ⌘Z."
+          }
+        }
+      }
+    },
+    "起動できませんでした: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t start: %@"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

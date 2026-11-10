@@ -19,11 +19,11 @@ extension Editor {
         guard let id = doc.activeLayerID, let activePath = doc.indexPath(of: id) else { return nil }
         commitTransform()
         cancelAdjustment()
-        checkpoint("新しいセル")
+        checkpoint(L("新しいセル"))
         doc.assignPSDIDs()
         var swPath = switchPath(containing: id)
         if swPath == nil {
-            var folder = LayerNode(name: nextLayerName(prefix: "アニメーション"), kind: .folder)
+            var folder = LayerNode(name: nextLayerName(prefix: "アニメーション"), kind: .folder) // l10n:stored
             folder.isSwitch = true
             let folderID = folder.id
             doc.insert(folder, parentPath: Array(activePath.dropLast()), index: activePath.last! + 1)

@@ -110,7 +110,7 @@ struct StatusBar: View {
             }
             .frame(width: 90)
             if abs(state.rotationDegrees) > 0.01 {
-                Button(String(format: "回転 %.0f°", state.rotationDegrees)) { state.canvasView?.resetRotation() }
+                Button(LFormat("回転 %.0f°", state.rotationDegrees)) { state.canvasView?.resetRotation() }
                     .help("クリックで回転をリセット")
             }
             Text("\(editor.doc.width) × \(editor.doc.height) px")
@@ -219,8 +219,8 @@ struct NewDocumentSheet: View {
 extension AppState {
     func showCanvasSizeDialog() {
         let alert = NSAlert()
-        alert.messageText = "キャンバスサイズ"
-        alert.informativeText = "左上を基準に変更します"
+        alert.messageText = L("キャンバスサイズ")
+        alert.informativeText = L("左上を基準に変更します")
         let w = NSTextField(string: "\(editor.doc.width)")
         let h = NSTextField(string: "\(editor.doc.height)")
         w.frame = NSRect(x: 0, y: 30, width: 120, height: 24)
@@ -230,7 +230,7 @@ extension AppState {
         box.addSubview(h)
         alert.accessoryView = box
         alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "キャンセル")
+        alert.addButton(withTitle: L("キャンセル"))
         guard alert.runModal() == .alertFirstButtonReturn, let nw = Int(w.stringValue), let nh = Int(h.stringValue) else { return }
         editor.resizeCanvas(width: min(max(nw, 1), 12000), height: min(max(nh, 1), 12000))
         canvasView?.fitToWindow()

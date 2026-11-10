@@ -148,11 +148,11 @@ public enum Easing: String, Codable, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .linear: return "直線"
-        case .easeIn: return "ゆっくり始まる"
-        case .easeOut: return "ゆっくり止まる"
-        case .easeInOut: return "ゆっくり始まり、ゆっくり止まる"
-        case .hold: return "止める（次のキーまで保つ）"
+        case .linear: return L("直線")
+        case .easeIn: return L("ゆっくり始まる")
+        case .easeOut: return L("ゆっくり止まる")
+        case .easeInOut: return L("ゆっくり始まり、ゆっくり止まる")
+        case .hold: return L("止める（次のキーまで保つ）")
         }
     }
 

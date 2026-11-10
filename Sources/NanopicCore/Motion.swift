@@ -14,7 +14,10 @@ public enum MotionPreset: String, CaseIterable, Sendable {
     /// 下を止めて、上の方を左右になびかせる
     case flutter
 
-    public var displayName: String {
+    public var displayName: String { LName(storedName) }
+
+    /// デフォーマの名前に入れて保存する名前。日本語のまま保存し、出すときに LName で訳す
+    public var storedName: String {
         switch self {
         case .breathe: return "呼吸"
         case .sway: return "ゆらゆら"
@@ -88,8 +91,8 @@ extension Editor {
         doc.assignPSDIDs()
         guard let n = doc.node(id), let bounds = Self.contentBounds(n) else { return nil }
         commitTransform()
-        checkpoint("\(preset.displayName)の動きを付ける")
-        var d = makeDeformer(n, bounds: bounds, kind: preset.deformerKind, name: "\(n.name)の\(preset.displayName)", cols: 2, rows: 2)
+        checkpoint(L("\(preset.displayName)の動きを付ける"))
+        var d = makeDeformer(n, bounds: bounds, kind: preset.deformerKind, name: "\(n.name)の\(preset.storedName)", cols: 2, rows: 2) // l10n:stored
         d.pivot = preset.pivot(d.rect)
         let values = preset.cycle.map(\.value)
         var p = makeParameter(name: d.name, min: values.min()!, max: values.max()!, defaultValue: 0)

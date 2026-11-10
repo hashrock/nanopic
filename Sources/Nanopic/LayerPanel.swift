@@ -69,22 +69,22 @@ struct LayerPanel: View {
                         .frame(width: 36, alignment: .trailing)
                 }
                 Slider(value: Binding(get: { layer.opacity }, set: { v in
-                    editor.setLayerProperty(layer.id, label: "不透明度", coalesce: true) { $0.opacity = (v * 100).rounded() / 100 }
+                    editor.setLayerProperty(layer.id, label: L("不透明度"), coalesce: true) { $0.opacity = (v * 100).rounded() / 100 }
                 }), in: 0...1)
                 .controlSize(.small)
                 HStack(spacing: 4) {
                     toggleButton("paperclip", "下のレイヤーでクリッピング (⌘⌥G)", layer.clipping) {
-                        editor.setLayerProperty(layer.id, label: "クリッピング") { $0.clipping.toggle() }
+                        editor.setLayerProperty(layer.id, label: L("クリッピング")) { $0.clipping.toggle() }
                     }
                     toggleButton("checkerboard.rectangle", "透明ピクセルをロック", layer.lockAlpha) {
-                        editor.setLayerProperty(layer.id, label: "透明ピクセルをロック") { $0.lockAlpha.toggle() }
+                        editor.setLayerProperty(layer.id, label: L("透明ピクセルをロック")) { $0.lockAlpha.toggle() }
                     }
                     .disabled(layer.isFolder)
                     toggleButton("lock", "レイヤーをロック", layer.locked) {
-                        editor.setLayerProperty(layer.id, label: "レイヤーをロック") { $0.locked.toggle() }
+                        editor.setLayerProperty(layer.id, label: L("レイヤーをロック")) { $0.locked.toggle() }
                     }
                     toggleButton("scope", "参照レイヤーに設定", layer.isReference) {
-                        editor.setLayerProperty(layer.id, label: "参照レイヤー") { $0.isReference.toggle() }
+                        editor.setLayerProperty(layer.id, label: L("参照レイヤー")) { $0.isReference.toggle() }
                     }
                     Spacer()
                 }
@@ -93,10 +93,10 @@ struct LayerPanel: View {
     }
 
     private func setBlend(_ layer: LayerNode, _ m: NanopicCore.BlendMode) {
-        editor.setLayerProperty(layer.id, label: "合成モード") { $0.blendMode = m }
+        editor.setLayerProperty(layer.id, label: L("合成モード")) { $0.blendMode = m }
     }
 
-    private func toggleButton(_ symbol: String, _ help: String, _ on: Bool, action: @escaping () -> Void) -> some View {
+    private func toggleButton(_ symbol: String, _ help: LocalizedStringKey, _ on: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .frame(width: 26, height: 22)
@@ -116,7 +116,7 @@ struct LayerPanel: View {
             // リグモード（実験的な機能）を切っていれば、デフォーマは出さない
             LayerRowModel(node: node, depth: depth, inSwitch: editor.isInSwitch(node.id), showsRig: state.rigEnabled,
                           timelineOpen: state.timelineOpen, hasTrack: editor.hasTrack(node.id),
-                          deformers: state.rigEnabled ? editor.deformers(on: node.id).map(\.name) : [],
+                          deformers: state.rigEnabled ? editor.deformers(on: node.id).map { LName($0.name) } : [],
                           rigLink: focus.map { $0.layers.contains(node.id) ? .target : $0.affectedLayers.contains(node.id) ? .affected : .none } ?? .none,
                           active: node.id == activeID,
                           selected: editor.selectedLayerIDs.contains(node.id), renaming: node.id == rename.id,
@@ -139,7 +139,7 @@ struct LayerPanel: View {
         }
     }
 
-    private func iconButton(_ symbol: String, _ help: String, action: @escaping () -> Void) -> some View {
+    private func iconButton(_ symbol: String, _ help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol).frame(width: 26, height: 22)
         }
@@ -211,7 +211,7 @@ struct LayerRowModel: Equatable {
 
     init(node: LayerNode, depth: Int, inSwitch: Bool, showsRig: Bool, timelineOpen: Bool, hasTrack: Bool, deformers: [String], rigLink: LayerRigLink, active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
         id = node.id
-        name = node.name
+        name = LName(node.name)
         isFolder = node.isFolder
         isSwitch = node.isFolder && node.isSwitch
         self.inSwitch = inSwitch
@@ -371,6 +371,11 @@ struct LayerDropIndicator: View {
 }
 
 struct LayerRowView: View, Equatable {
+    private var deformerHelp: String {
+        let names = model.deformers.joined(separator: L("、"))
+        return L("デフォーマ: \(names)（クリックでハンドルを出す）")
+    }
+
     let model: LayerRowModel
     let actions: LayerRowActions
     @FocusState private var renameFocused: Bool
@@ -402,7 +407,7 @@ struct LayerRowView: View, Equatable {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(m.inSwitch ? "この子に切り替える" : "表示・非表示")
+            .help(m.inSwitch ? L("この子に切り替える") : L("表示・非表示"))
             Divider()
             // 複数選択（編集レイヤーはペンのマーク）
             Button {
@@ -445,7 +450,7 @@ struct LayerRowView: View, Equatable {
                     .buttonStyle(.plain)
                     Image(systemName: m.isSwitch ? "switch.2" : m.expanded ? "folder" : "folder.fill")
                         .frame(width: 20)
-                        .help(m.isSwitch ? "スイッチフォルダー（子を 1 つだけ表示）" : "")
+                        .help(m.isSwitch ? L("スイッチフォルダー（子を 1 つだけ表示）") : "")
                 } else {
                     ZStack {
                         CheckerboardView()
@@ -475,7 +480,7 @@ struct LayerRowView: View, Equatable {
                                     .foregroundStyle(m.rigLink == .target ? Color.orange : Color.secondary)
                             }
                             .buttonStyle(.plain)
-                            .help("デフォーマ: " + m.deformers.joined(separator: "、") + "（クリックでハンドルを出す）")
+                            .help(deformerHelp)
                         }
                     }
                     .font(.caption2)
@@ -529,7 +534,7 @@ struct LayerRowView: View, Equatable {
             Button("下のレイヤーに結合") { editor.setActiveLayer(m.id); editor.mergeDown() }
             Button("フォルダーを作成して挿入") { targetThis(); editor.groupSelectedLayers() }
             if m.isFolder {
-                Button(m.isSwitch ? "ふつうのフォルダーに戻す" : "スイッチフォルダーにする") { editor.setSwitch(m.id, !m.isSwitch) }
+                Button(m.isSwitch ? L("ふつうのフォルダーに戻す") : L("スイッチフォルダーにする")) { editor.setSwitch(m.id, !m.isSwitch) }
             }
             if m.timelineOpen {
                 if m.hasTrack {
@@ -546,7 +551,7 @@ struct LayerRowView: View, Equatable {
                     if !ds.isEmpty {
                         Divider()
                         ForEach(ds, id: \.id) { d in
-                            Button("「\(d.name)」を外す") { editor.removeDeformer(d.id) }
+                            Button("「\(LName(d.name))」を外す") { editor.removeDeformer(d.id) }
                         }
                     }
                 }
@@ -594,9 +599,9 @@ final class LayerRenameState {
         guard let id else { return }
         self.id = nil
         NSApp.keyWindow?.makeFirstResponder(nil)
-        let name = text
-        if !name.isEmpty, let node = editor.doc.node(id), node.name != name {
-            editor.setLayerProperty(id, label: "名前の変更") { $0.name = name }
+        // 訳して出した既定の名前をそのまま確定したときは、保存してある名前を変えない
+        if !text.isEmpty, let node = editor.doc.node(id), case let name = LNameEdited(text, original: node.name), node.name != name {
+            editor.setLayerProperty(id, label: L("名前の変更")) { $0.name = name }
         }
     }
 

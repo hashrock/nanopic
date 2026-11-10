@@ -15,20 +15,20 @@ public enum Tool: String, CaseIterable, Codable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .brush: return "ブラシ"
-        case .eraser: return "消しゴム"
-        case .fill: return "塗りつぶし"
-        case .lassoFill: return "投げなわ塗り"
-        case .lassoErase: return "投げなわ消しゴム"
-        case .selectRect: return "矩形選択"
-        case .selectEllipse: return "楕円選択"
-        case .lasso: return "投げなわ選択"
-        case .wand: return "自動選択"
-        case .move: return "レイヤー移動"
-        case .transform: return "拡大・縮小・回転"
-        case .eyedropper: return "スポイト"
-        case .hand: return "手のひら"
-        case .zoom: return "ズーム"
+        case .brush: return L("ブラシ")
+        case .eraser: return L("消しゴム")
+        case .fill: return L("塗りつぶし")
+        case .lassoFill: return L("投げなわ塗り")
+        case .lassoErase: return L("投げなわ消しゴム")
+        case .selectRect: return L("矩形選択")
+        case .selectEllipse: return L("楕円選択")
+        case .lasso: return L("投げなわ選択")
+        case .wand: return L("自動選択")
+        case .move: return L("レイヤー移動")
+        case .transform: return L("拡大・縮小・回転")
+        case .eyedropper: return L("スポイト")
+        case .hand: return L("手のひら")
+        case .zoom: return L("ズーム")
         }
     }
 
@@ -142,9 +142,9 @@ public final class Editor {
 
     public static func makeNewDocument(width: Int, height: Int, gen: Int) -> DocumentState {
         var d = DocumentState(width: width, height: height)
-        var paper = LayerNode(name: "用紙")
+        var paper = LayerNode(name: "用紙") // l10n:stored
         paper.tiles = TileMap.filled(width: width, height: height, rgba: (255, 255, 255, 255), gen: gen)
-        let l1 = LayerNode(name: "レイヤー 1")
+        let l1 = LayerNode(name: "レイヤー 1") // l10n:stored
         d.layers = [paper, l1]
         d.activeLayerID = l1.id
         return d
@@ -463,7 +463,7 @@ public final class Editor {
         let isMix = mixBuffer != nil
         let touched = buf.touched
         if !touched.isEmpty {
-            checkpoint(strokeMode == .erase ? "消しゴム" : "描画")
+            checkpoint(strokeMode == .erase ? L("消しゴム") : L("描画"))
             let g = gen
             let mode = strokeMode
             let sel = doc.selection
@@ -563,7 +563,7 @@ public final class Editor {
         guard canPaintOnActiveLayer, let layer = doc.activeLayer, doc.bounds.contains(x, y) else { return }
         let (mask, bounds) = regionMask(at: x, y, settings: fillSettings)
         if bounds.isEmpty { return }
-        paintMask(mask, bounds: bounds, layerID: layer.id, label: "塗りつぶし")
+        paintMask(mask, bounds: bounds, layerID: layer.id, label: L("塗りつぶし"))
     }
 
     /// 閉じたパスの内側を描画色で塗る（erase: true なら消す）。選択範囲があればさらに制限。
@@ -572,7 +572,7 @@ public final class Editor {
         guard canPaintOnActiveLayer, let layer = doc.activeLayer else { return }
         let m = SelectionMask.fromPath(path, width: doc.width, height: doc.height, antialias: lassoFillAntialias)
         if m.isEmpty { return }
-        paintMask(m.data, bounds: m.bounds, layerID: layer.id, label: erase ? "投げなわ消しゴム" : "投げなわ塗り", erase: erase)
+        paintMask(m.data, bounds: m.bounds, layerID: layer.id, label: erase ? L("投げなわ消しゴム") : L("投げなわ塗り"), erase: erase)
     }
 
     /// マスク（0...255）の範囲を描画色で塗る（erase: true なら消す）。選択範囲があればさらに制限。
@@ -656,7 +656,7 @@ public final class Editor {
         commitTransform()
         guard canPaintOnActiveLayer, let layer = doc.activeLayer else { return }
         let mask = [UInt8](repeating: 255, count: doc.width * doc.height)
-        paintMask(mask, bounds: doc.selection?.bounds ?? doc.bounds, layerID: layer.id, label: "塗りつぶし")
+        paintMask(mask, bounds: doc.selection?.bounds ?? doc.bounds, layerID: layer.id, label: L("塗りつぶし"))
     }
 
     public func wandSelect(atX x: Int, y: Int, op: SelectionOp) {
@@ -664,7 +664,7 @@ public final class Editor {
         commitTransform()
         let (mask, bounds) = regionMask(at: x, y, settings: wandSettings)
         let new = SelectionMask(width: doc.width, height: doc.height, data: bounds.isEmpty ? [UInt8](repeating: 0, count: doc.width * doc.height) : mask)
-        setSelection(SelectionMask.combine(doc.selection, new, op: op), label: "自動選択")
+        setSelection(SelectionMask.combine(doc.selection, new, op: op), label: L("自動選択"))
     }
 
     // MARK: - 選択範囲
@@ -678,26 +678,26 @@ public final class Editor {
 
     public func select(path: CGPath, op: SelectionOp) {
         let m = SelectionMask.fromPath(path, width: doc.width, height: doc.height, antialias: selectionAntialias)
-        setSelection(SelectionMask.combine(doc.selection, m, op: op), label: "選択範囲")
+        setSelection(SelectionMask.combine(doc.selection, m, op: op), label: L("選択範囲"))
     }
 
     public func selectAll() {
         commitTransform()
-        setSelection(SelectionMask.all(width: doc.width, height: doc.height), label: "すべてを選択")
+        setSelection(SelectionMask.all(width: doc.width, height: doc.height), label: L("すべてを選択"))
     }
 
     public func deselect() {
         commitTransform()
         guard doc.selection != nil else { return }
-        setSelection(nil, label: "選択を解除")
+        setSelection(nil, label: L("選択を解除"))
     }
 
     public func invertSelection() {
         commitTransform()
         if let s = doc.selection {
-            setSelection(s.inverted(), label: "選択範囲を反転")
+            setSelection(s.inverted(), label: L("選択範囲を反転"))
         } else {
-            setSelection(SelectionMask.all(width: doc.width, height: doc.height), label: "選択範囲を反転")
+            setSelection(SelectionMask.all(width: doc.width, height: doc.height), label: L("選択範囲を反転"))
         }
     }
 
@@ -708,7 +708,7 @@ public final class Editor {
             return
         }
         guard canPaintOnActiveLayer, let layer = doc.activeLayer else { return }
-        checkpoint("消去")
+        checkpoint(L("消去"))
         let g = gen
         let sel = doc.selection
         let rect = sel?.bounds ?? doc.bounds
@@ -759,7 +759,7 @@ public final class Editor {
     public func deleteFloatingContent() {
         guard let f = floating else { return }
         floating = nil
-        checkpoint("消去")
+        checkpoint(L("消去"))
         doc.modify(f.layerID) { $0.tiles = f.baseTiles }
         if f.originalSelection != nil {
             doc.selection = f.transformedSelection
@@ -782,7 +782,7 @@ public final class Editor {
             markDirty(f.sourceRect)
             return
         }
-        checkpoint("変形")
+        checkpoint(L("変形"))
         let tiles = f.resultTiles(gen: gen)
         doc.modify(f.layerID) { $0.tiles = tiles }
         if f.originalSelection != nil {
@@ -820,7 +820,7 @@ public final class Editor {
             return
         }
         let rect = adjustmentBounds(layer)
-        checkpoint("色調補正")
+        checkpoint(L("色調補正"))
         let g = gen
         let sel = doc.selection
         doc.modify(lid) { l in
@@ -849,7 +849,7 @@ public final class Editor {
         cancelAdjustment()
         // スイッチフォルダーの隠れている子を選んだら、その子に切り替える（描き直せるように）
         if isHiddenBySwitch(id) {
-            checkpoint("表示の切り替え")
+            checkpoint(L("表示の切り替え"))
             reveal(id)
             doc.activeLayerID = id
             selectedLayerIDs = []
@@ -909,6 +909,7 @@ public final class Editor {
         return out
     }
 
+    /// 既定の名前は日本語のまま保存し、出すときに LName で訳す（Localized.swift）
     func nextLayerName(prefix: String) -> String {
         var maxN = 0
         doc.forEachNode { n in
@@ -925,8 +926,8 @@ public final class Editor {
 
     public func addLayer(name: String? = nil) {
         commitTransform()
-        checkpoint("新規レイヤー")
-        let node = LayerNode(name: name ?? nextLayerName(prefix: "レイヤー"))
+        checkpoint(L("新規レイヤー"))
+        let node = LayerNode(name: name ?? nextLayerName(prefix: "レイヤー")) // l10n:stored
         let (parent, index) = insertionPoint()
         doc.insert(node, parentPath: parent, index: index)
         doc.activeLayerID = node.id
@@ -936,8 +937,8 @@ public final class Editor {
 
     public func addFolder(name: String? = nil) {
         commitTransform()
-        checkpoint("新規フォルダー")
-        let node = LayerNode(name: name ?? nextLayerName(prefix: "フォルダー"), kind: .folder)
+        checkpoint(L("新規フォルダー"))
+        let node = LayerNode(name: name ?? nextLayerName(prefix: "フォルダー"), kind: .folder) // l10n:stored
         let (parent, index) = insertionPoint()
         doc.insert(node, parentPath: parent, index: index)
         doc.activeLayerID = node.id
@@ -950,8 +951,8 @@ public final class Editor {
         commitTransform()
         let ids = targetLayerIDs
         guard let top = ids.last, let topPath = doc.indexPath(of: top) else { return }
-        checkpoint("フォルダーを作成して挿入")
-        var folder = LayerNode(name: nextLayerName(prefix: "フォルダー"), kind: .folder)
+        checkpoint(L("フォルダーを作成して挿入"))
+        var folder = LayerNode(name: nextLayerName(prefix: "フォルダー"), kind: .folder) // l10n:stored
         let folderID = folder.id
         doc.insert(folder, parentPath: Array(topPath.dropLast()), index: topPath.last! + 1)
         folder.children = ids.compactMap { doc.remove($0) }
@@ -971,7 +972,7 @@ public final class Editor {
         var count = 0
         doc.forEachNode { _ in count += 1 }
         guard count > removed.count else { return }
-        checkpoint("レイヤーを削除")
+        checkpoint(L("レイヤーを削除"))
         // 削除した一番上のレイヤーがあった位置の、表示上すぐ下のレイヤーを選ぶ
         let before = doc.flattenedForDisplay().map(\.node.id)
         let first = before.firstIndex { removed.contains($0) } ?? 0
@@ -990,7 +991,7 @@ public final class Editor {
     public func duplicateActiveLayer() {
         commitTransform()
         guard let id = doc.activeLayerID, let path = doc.indexPath(of: id), let node = doc.node(id) else { return }
-        checkpoint("レイヤーを複製")
+        checkpoint(L("レイヤーを複製"))
         func dup(_ n: LayerNode) -> LayerNode {
             var c = n
             c.id = UUID()
@@ -998,7 +999,7 @@ public final class Editor {
             return c
         }
         var copy = dup(node)
-        copy.name = node.name + " のコピー"
+        copy.name = node.name + " のコピー" // l10n:stored
         doc.insert(copy, parentPath: Array(path.dropLast()), index: path.last! + 1)
         doc.activeLayerID = copy.id
         selectedLayerIDs = []
@@ -1012,7 +1013,7 @@ public final class Editor {
               let upper = doc.node(id) else { return }
         let lowerPath = Array(path.dropLast()) + [path.last! - 1]
         guard let lower = doc.node(at: lowerPath), lower.kind == .raster else { return }
-        checkpoint("下のレイヤーに結合")
+        checkpoint(L("下のレイヤーに結合"))
         var tmp = DocumentState(width: doc.width, height: doc.height)
         var base = lower
         base.visible = true
@@ -1054,7 +1055,7 @@ public final class Editor {
         let parent = Array(path.dropLast())
         let idx = path.last!
         let siblings = parent.isEmpty ? doc.layers : (doc.node(at: parent)?.children ?? [])
-        checkpoint("レイヤーの移動")
+        checkpoint(L("レイヤーの移動"))
         doc.remove(id)
         if up {
             if idx + 1 < siblings.count {
@@ -1120,7 +1121,7 @@ public final class Editor {
             let si = sp.last!, ti = tp0.last!
             if (placement == .above && si == ti + 1) || (placement == .below && si == ti - 1) { return }
         }
-        checkpoint("レイヤーの移動")
+        checkpoint(L("レイヤーの移動"))
         let nodes = ids.compactMap { doc.remove($0) }
         guard let tp = doc.indexPath(of: target), let tnode = doc.node(target) else { return }
         let (parent, index): ([Int], Int)
@@ -1153,7 +1154,7 @@ public final class Editor {
                 for c in 0..<4 { canvas[(cy * doc.width + cx) * 4 + c] = buf[(y * w + x) * 4 + c] }
             }
         }
-        checkpoint("画像を読み込み")
+        checkpoint(L("画像を読み込み"))
         var node = LayerNode(name: name)
         node.tiles = canvas.withUnsafeBufferPointer { TileMap.from(buffer: $0.baseAddress!, width: doc.width, height: doc.height, gen: gen) }
         let (parent, index) = insertionPoint()
@@ -1183,7 +1184,7 @@ public final class Editor {
     // MARK: - キャンバス操作
 
     /// キャンバスの大きさを変える。新しいキャンバスの (0, 0) は元の (originX, originY)（左上基準なら 0, 0）
-    public func resizeCanvas(width: Int, height: Int, originX: Int = 0, originY: Int = 0, label: String = "キャンバスサイズ変更") {
+    public func resizeCanvas(width: Int, height: Int, originX: Int = 0, originY: Int = 0, label: String = L("キャンバスサイズ変更")) {
         commitTransform()
         cancelAdjustment()
         guard width > 0, height > 0 else { return }
@@ -1227,7 +1228,7 @@ public final class Editor {
     public func cropToSelection() -> Bool {
         guard let sel = doc.selection, !sel.bounds.isEmpty else { return false }
         let r = sel.bounds
-        resizeCanvas(width: r.width, height: r.height, originX: r.x, originY: r.y, label: "トリミング")
+        resizeCanvas(width: r.width, height: r.height, originX: r.x, originY: r.y, label: L("トリミング"))
         return true
     }
 }

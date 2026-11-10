@@ -1,0 +1,4461 @@
+{
+  "sourceLanguage" : "ja",
+  "strings" : {
+    "#%@（Option＋クリックでサブカラー）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "#%@ (Option-click to set as sub color)"
+          }
+        }
+      }
+    },
+    "%.2f に形を記録済み（クリックで移動、右クリックで消す）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shape recorded at %.2f (click to go there, right-click to remove)"
+          }
+        }
+      }
+    },
+    "%.2f の形を消す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Shape at %.2f"
+          }
+        }
+      }
+    },
+    "%@ のショートカット" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shortcut for %@"
+          }
+        }
+      }
+    },
+    "%@ はほかの機能で使っています" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is already used by another command"
+          }
+        }
+      }
+    },
+    "%@..." : {
+      "comment" : "動画を書き出しのサブメニュー。%@ は形式の名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@…"
+          }
+        }
+      }
+    },
+    "%@の動きを付ける" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add %@ Motion"
+          }
+        }
+      }
+    },
+    "%lld / %lld コマ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld / %lld frames"
+          }
+        }
+      }
+    },
+    "%lld コマ" : {
+      "comment" : "タイムラインの長さ。",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "4K（横）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4K (Landscape)"
+          }
+        }
+      }
+    },
+    "APNG（透過）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APNG (Transparent)"
+          }
+        }
+      }
+    },
+    "Esc で取り消し、Delete で割り当てを外す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press Esc to cancel, Delete to clear the shortcut"
+          }
+        }
+      }
+    },
+    "GIF（SNS・チャット向け）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GIF (for Social Media and Chat)"
+          }
+        }
+      }
+    },
+    "MOV（ProRes 4444、透過）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MOV (ProRes 4444, Transparent)"
+          }
+        }
+      }
+    },
+    "MP4（H.264）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MP4 (H.264)"
+          }
+        }
+      }
+    },
+    "Nanopic のフォルダーに複製して開く" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicate to the Nanopic Folder and Open"
+          }
+        }
+      }
+    },
+    "Nanopic のフォルダー（ファイル App の「このiPad内 › Nanopic」か「iCloud Drive › Nanopic」）に移すと全部使えます。「%@.nanopic」があるときは、ファイル App で PSD と一緒に移してください。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move it into the Nanopic folder (“On My iPad › Nanopic” or “iCloud Drive › Nanopic” in the Files app) to use everything. If there is a “%@.nanopic” file, move it together with the PSD in the Files app."
+          }
+        }
+      }
+    },
+    "PNG として書き出し..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export as PNG…"
+          }
+        }
+      }
+    },
+    "PNG の連番（透過）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PNG Sequence (Transparent)"
+          }
+        }
+      }
+    },
+    "PNG を書き出し…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export PNG…"
+          }
+        }
+      }
+    },
+    "PSD を書き出し…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export PSD…"
+          }
+        }
+      }
+    },
+    "Shift: 追加 / Option: 削除 / Shift+Option: 共通部分" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift: Add / Option: Subtract / Shift+Option: Intersect"
+          }
+        }
+      }
+    },
+    "⌘・⌃ との組み合わせや、文字のないキーは使えません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Combinations with ⌘ or ⌃, and keys that don’t type a character, can’t be used"
+          }
+        }
+      }
+    },
+    "、" : {
+      "comment" : "名前を並べるときの区切り。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ", "
+          }
+        }
+      }
+    },
+    "「%@」に保存しました" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved to “%@”"
+          }
+        }
+      }
+    },
+    "「%@」に書き出しました" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exported to “%@”"
+          }
+        }
+      }
+    },
+    "「%@」のデフォーマ。クリックでそのレイヤーを編集中にして、このデフォーマのハンドルだけを出す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deformer on “%@”. Click to make that layer active and show only this deformer’s handles"
+          }
+        }
+      }
+    },
+    "「%@」の動きを付けました。ファイル ＞ 動画を書き出し で GIF などにできます" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added the “%@” motion. Use File > Export Movie to make a GIF or other movie"
+          }
+        }
+      }
+    },
+    "「%@」は「%@」に付く情報のファイルです。「%@」のほうを開いてください" : {
+      "comment" : "1 つめはサイドカー（.nanopic）、2・3 つめは PSD のファイル名。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%1$@” holds extra information for “%2$@”. Open “%3$@” instead"
+          }
+        }
+      }
+    },
+    "「%@」を外す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove “%@”"
+          }
+        }
+      }
+    },
+    "「このiPad内 › Nanopic」に「%@」を作りました" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Created “%@” in “On My iPad › Nanopic”"
+          }
+        }
+      }
+    },
+    "「＋ セル」で今のコマに新しいセルを作って描きます（「,」「.」で前後のコマへ）。ほかのレイヤーの表示を切り替えるには、レイヤーの右クリックで「タイムラインに足す」。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click “+ Cel” to create a new cel on the current frame and draw on it (press “,” and “.” to step between frames). To switch the visibility of another layer over time, right-click the layer and choose “Add to Timeline”."
+          }
+        }
+      }
+    },
+    "おまかせで動かす" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto Motion"
+          }
+        }
+      }
+    },
+    "ここにキーを打つ（今の値）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Key Here (Current Value)"
+          }
+        }
+      }
+    },
+    "ここにキーを打つ（今の表示）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Key Here (Current Visibility)"
+          }
+        }
+      }
+    },
+    "このデフォーマが付いているレイヤー。クリックで編集中にする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The layer this deformer is attached to. Click to make it active"
+          }
+        }
+      }
+    },
+    "このデフォーマを動かすパラメータ。クリックで形を記録する対象にする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A parameter that drives this deformer. Click to record shapes for it"
+          }
+        }
+      }
+    },
+    "このレイヤーには描けません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can’t draw on this layer"
+          }
+        }
+      }
+    },
+    "この名前のフォルダーを作り、中にコマごとの PNG を書きます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creates a folder with this name and writes one PNG per frame into it."
+          }
+        }
+      }
+    },
+    "この子に切り替える" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch to this layer"
+          }
+        }
+      }
+    },
+    "すべてのつまみを既定値に戻す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset all parameters to their default values"
+          }
+        }
+      }
+    },
+    "すべてを選択" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select All"
+          }
+        }
+      }
+    },
+    "すべて選択" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select All"
+          }
+        }
+      }
+    },
+    "つまみを足し、つまみの値ごとにデフォーマの形を記録して動かします。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a parameter, then record a deformer shape for each of its values to animate."
+          }
+        }
+      }
+    },
+    "なし" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "なし（空のコマ）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None (Empty Frame)"
+          }
+        }
+      }
+    },
+    "ふつうのフォルダーに戻す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Convert to Normal Folder"
+          }
+        }
+      }
+    },
+    "ぼかし" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blur"
+          }
+        }
+      }
+    },
+    "ぼかし強さ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blur Strength"
+          }
+        }
+      }
+    },
+    "まだどのパラメータにも動かされていません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not driven by any parameter yet"
+          }
+        }
+      }
+    },
+    "やり直し" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redo"
+          }
+        }
+      }
+    },
+    "やり直し (⇧⌘Z)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redo (⇧⌘Z)"
+          }
+        }
+      }
+    },
+    "やり直し: %@" : {
+      "comment" : "%@ は操作の名前。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redo %@"
+          }
+        }
+      }
+    },
+    "ゆがみ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liquify"
+          }
+        }
+      }
+    },
+    "ゆっくり始まり、ゆっくり止まる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ease In and Out"
+          }
+        }
+      }
+    },
+    "ゆっくり始まる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ease In"
+          }
+        }
+      }
+    },
+    "ゆっくり止まる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ease Out"
+          }
+        }
+      }
+    },
+    "アプリのフォルダーの外にある書類です" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This document is outside the app’s folder"
+          }
+        }
+      }
+    },
+    "アプリのフォルダーの外の書類です。素の PSD として開きました" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This document is outside the app’s folder. Opened as a plain PSD"
+          }
+        }
+      }
+    },
+    "アンチエイリアス" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anti-aliasing"
+          }
+        }
+      }
+    },
+    "オニオンスキン" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onion Skin"
+          }
+        }
+      }
+    },
+    "オーバーレイ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overlay"
+          }
+        }
+      }
+    },
+    "カスタム" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom"
+          }
+        }
+      }
+    },
+    "カラー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color"
+          }
+        }
+      }
+    },
+    "カラー比較(明)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lighter Color"
+          }
+        }
+      }
+    },
+    "カラー比較(暗)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darker Color"
+          }
+        }
+      }
+    },
+    "カーソルの方を向く" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow Cursor"
+          }
+        }
+      }
+    },
+    "キャンセル" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "キャンセル (Esc)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel (Esc)"
+          }
+        }
+      }
+    },
+    "キャンバスをクリックで変形開始" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click the canvas to start transforming"
+          }
+        }
+      }
+    },
+    "キャンバスサイズ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canvas Size"
+          }
+        }
+      }
+    },
+    "キャンバスサイズ..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canvas Size…"
+          }
+        }
+      }
+    },
+    "キャンバスサイズ変更" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canvas Size"
+          }
+        }
+      }
+    },
+    "キャンバス全体" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whole Canvas"
+          }
+        }
+      }
+    },
+    "キーの動き方" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Key Easing"
+          }
+        }
+      }
+    },
+    "キーを削除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Key"
+          }
+        }
+      }
+    },
+    "キーを動かす" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Key"
+          }
+        }
+      }
+    },
+    "キーを打つ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Key"
+          }
+        }
+      }
+    },
+    "キーを押してください…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press a key…"
+          }
+        }
+      }
+    },
+    "キーを消す" : {
+      "comment" : "取り消しの名前。パラメータの値に記録した形を消す。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Shape"
+          }
+        }
+      }
+    },
+    "キーを貼り付け" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste Keys"
+          }
+        }
+      }
+    },
+    "クリックでこのデフォーマのハンドルだけを出す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click to show only this deformer’s handles"
+          }
+        }
+      }
+    },
+    "クリックで回転をリセット" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click to reset rotation"
+          }
+        }
+      }
+    },
+    "クリックで表示色を取得\n⌘+クリックで編集レイヤーから取得" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click to pick the displayed color\n⌘-click to pick from the current layer"
+          }
+        }
+      }
+    },
+    "クリッピング" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clipping"
+          }
+        }
+      }
+    },
+    "グリッド" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grid"
+          }
+        }
+      }
+    },
+    "グリッドを表示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Grid"
+          }
+        }
+      }
+    },
+    "グリッドを隠す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Grid"
+          }
+        }
+      }
+    },
+    "コントラスト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contrast"
+          }
+        }
+      }
+    },
+    "サイズに影響" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affects Size"
+          }
+        }
+      }
+    },
+    "サイズのランダム" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size Jitter"
+          }
+        }
+      }
+    },
+    "サイズ変化の滑らかさ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size Smoothing"
+          }
+        }
+      }
+    },
+    "サイズ（px）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size (px)"
+          }
+        }
+      }
+    },
+    "サブカラーにする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set as Sub Color"
+          }
+        }
+      }
+    },
+    "ショートカット" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shortcuts"
+          }
+        }
+      }
+    },
+    "ショートカットを設定…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Shortcut…"
+          }
+        }
+      }
+    },
+    "スイッチフォルダーにする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Convert to Switch Folder"
+          }
+        }
+      }
+    },
+    "スイッチフォルダーを戻す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Convert to Normal Folder"
+          }
+        }
+      }
+    },
+    "スイッチフォルダー（子を 1 つだけ表示）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch folder (shows only one child at a time)"
+          }
+        }
+      }
+    },
+    "スクリーン" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Screen"
+          }
+        }
+      }
+    },
+    "スポイト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eyedropper"
+          }
+        }
+      }
+    },
+    "ズーム" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom"
+          }
+        }
+      }
+    },
+    "ズームアウト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom Out"
+          }
+        }
+      }
+    },
+    "ズームイン" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom In"
+          }
+        }
+      }
+    },
+    "セル" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cel"
+          }
+        }
+      }
+    },
+    "ソフトライト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soft Light"
+          }
+        }
+      }
+    },
+    "タイムライン" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timeline"
+          }
+        }
+      }
+    },
+    "タイムラインから外す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Timeline"
+          }
+        }
+      }
+    },
+    "タイムラインにトラックを足す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Track to Timeline"
+          }
+        }
+      }
+    },
+    "タイムラインに足す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Timeline"
+          }
+        }
+      }
+    },
+    "タイムラインのトラックを削除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Track from Timeline"
+          }
+        }
+      }
+    },
+    "タイムラインの設定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timeline Settings"
+          }
+        }
+      }
+    },
+    "タイムラインを広げる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make the timeline longer"
+          }
+        }
+      }
+    },
+    "タイムラインを縮める" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make the timeline shorter"
+          }
+        }
+      }
+    },
+    "タイムラインを表示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Timeline"
+          }
+        }
+      }
+    },
+    "タップした所と同じ色の範囲を塗る" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fill the area that matches the color you tap"
+          }
+        }
+      }
+    },
+    "タップした所と同じ色の範囲を選ぶ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select the area that matches the color you tap"
+          }
+        }
+      }
+    },
+    "タップした所の色を取る" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick the color you tap"
+          }
+        }
+      }
+    },
+    "ツール" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tools"
+          }
+        }
+      }
+    },
+    "ディザ合成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dissolve"
+          }
+        }
+      }
+    },
+    "デフォーマ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deformers"
+          }
+        }
+      }
+    },
+    "デフォーマ: %@（クリックでハンドルを出す）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deformers: %@ (click to show handles)"
+          }
+        }
+      }
+    },
+    "デフォーマの名前" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deformer Name"
+          }
+        }
+      }
+    },
+    "デフォーマの設定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deformer Settings"
+          }
+        }
+      }
+    },
+    "デフォーマをクリックすると、そのハンドルだけを出します。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click a deformer to show only its handles."
+          }
+        }
+      }
+    },
+    "デフォーマを付ける" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Deformer"
+          }
+        }
+      }
+    },
+    "デフォーマを外す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Deformer"
+          }
+        }
+      }
+    },
+    "デフォーマ（移動・回転、ワープ）とパラメータで、描いた絵を動かすモードです。入れると、表示メニューに「リグモード（実験的）」（⌥⌘T）が出ます。作りかけの機能なので、使い方や保存の形式が変わることがあります。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A mode for animating your artwork with deformers (move/rotate and warp) and parameters. When turned on, “Rig Mode (Experimental)” (⌥⌘T) appears in the View menu. This feature is still in progress, so how it works and how it is saved may change."
+          }
+        }
+      }
+    },
+    "トラックに追加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Track"
+          }
+        }
+      }
+    },
+    "トラックを削除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Track"
+          }
+        }
+      }
+    },
+    "トラックを追加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Track"
+          }
+        }
+      }
+    },
+    "トリミング" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crop"
+          }
+        }
+      }
+    },
+    "ドラッグでスクロール\nトラックパッド: 2本指でスクロール、ピンチでズーム、回転ジェスチャーで回転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to scroll\nTrackpad: scroll with two fingers, pinch to zoom, rotate with two fingers"
+          }
+        }
+      }
+    },
+    "ドラッグでレイヤー（選択範囲）を移動" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to move the layer (or the selection)"
+          }
+        }
+      }
+    },
+    "ハンドル: 拡大縮小（Shift で縦横比固定）\n枠の外: 回転（Shift で 15° 単位）\n枠の内側: 移動" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Handles: scale (hold Shift to keep proportions)\nOutside the frame: rotate (hold Shift for 15° steps)\nInside the frame: move"
+          }
+        }
+      }
+    },
+    "ハードミックス" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hard Mix"
+          }
+        }
+      }
+    },
+    "ハードライト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hard Light"
+          }
+        }
+      }
+    },
+    "パラメータ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parameters"
+          }
+        }
+      }
+    },
+    "パラメータの名前" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parameter Name"
+          }
+        }
+      }
+    },
+    "パラメータの名前を選ぶと、キャンバスにハンドルが出ます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a parameter’s name to show handles on the canvas."
+          }
+        }
+      }
+    },
+    "パラメータの設定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parameter Settings"
+          }
+        }
+      }
+    },
+    "パラメータを削除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Parameter"
+          }
+        }
+      }
+    },
+    "パラメータを消す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Parameter"
+          }
+        }
+      }
+    },
+    "パラメータを足す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Parameter"
+          }
+        }
+      }
+    },
+    "パラメータ（名前つきのつまみ）を足す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a parameter (a named slider)"
+          }
+        }
+      }
+    },
+    "パレット" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Palette"
+          }
+        }
+      }
+    },
+    "パレットだけにする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show palette only"
+          }
+        }
+      }
+    },
+    "ビビッドライト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vivid Light"
+          }
+        }
+      }
+    },
+    "ピンライト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pin Light"
+          }
+        }
+      }
+    },
+    "ファイルを受け取れませんでした" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t receive the file"
+          }
+        }
+      }
+    },
+    "ファイルを受け取れませんでした: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t receive the file: %@"
+          }
+        }
+      }
+    },
+    "ファイルを開けませんでした: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t open the file: %@"
+          }
+        }
+      }
+    },
+    "フィルター" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter"
+          }
+        }
+      }
+    },
+    "フォルダーには描けません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can’t draw on a folder"
+          }
+        }
+      }
+    },
+    "フォルダーに付けると、中のレイヤー全部が一緒に動きます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attach one to a folder to move all the layers inside it together."
+          }
+        }
+      }
+    },
+    "フォルダーを作成してレイヤーを挿入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Group Layers into New Folder"
+          }
+        }
+      }
+    },
+    "フォルダーを作成して挿入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Group into New Folder"
+          }
+        }
+      }
+    },
+    "フル HD（横）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full HD (Landscape)"
+          }
+        }
+      }
+    },
+    "フル HD（縦）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full HD (Portrait)"
+          }
+        }
+      }
+    },
+    "ブラシ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brush"
+          }
+        }
+      }
+    },
+    "ブラシと消しゴムは、最後に使ったブラシに切り替わります。キーを押したまま描くと、離したときに元に戻ります。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brush and Eraser switch to the last brush you used. Hold the key while drawing to switch back when you release it."
+          }
+        }
+      }
+    },
+    "ブラシの種類" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brushes"
+          }
+        }
+      }
+    },
+    "ブラシの詳細設定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brush Settings"
+          }
+        }
+      }
+    },
+    "ブラシを初期状態に戻す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Brushes to Defaults"
+          }
+        }
+      }
+    },
+    "ブラシを削除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete brush"
+          }
+        }
+      }
+    },
+    "ブラシを複製" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicate brush"
+          }
+        }
+      }
+    },
+    "ブラシサイズ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brush Size"
+          }
+        }
+      }
+    },
+    "ブラシ先端" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brush Tip"
+          }
+        }
+      }
+    },
+    "ブラシ先端にする画像を選択（透明部分があればアルファ、なければ黒い部分が濃く塗られます）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose an image to use as the brush tip (its alpha is used if it has transparency; otherwise darker areas paint more strongly)"
+          }
+        }
+      }
+    },
+    "プリセット" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preset"
+          }
+        }
+      }
+    },
+    "プレビュー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview"
+          }
+        }
+      }
+    },
+    "メインカラー / サブカラー（クリックまたは X で入れ替え）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Main color / Sub color (click or press X to swap)"
+          }
+        }
+      }
+    },
+    "モード" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode"
+          }
+        }
+      }
+    },
+    "リグ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig"
+          }
+        }
+      }
+    },
+    "リグモード" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig Mode"
+          }
+        }
+      }
+    },
+    "リグモード（実験的）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig Mode (Experimental)"
+          }
+        }
+      }
+    },
+    "リセット" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        }
+      }
+    },
+    "リニアライト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linear Light"
+          }
+        }
+      }
+    },
+    "ループ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loop"
+          }
+        }
+      }
+    },
+    "レイヤー" : {
+      "comment" : "Mac のメニュー名と、iPad のレイヤーのパネルの題。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Layer"
+          }
+        }
+      }
+    },
+    "レイヤーがロックされています" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The layer is locked"
+          }
+        }
+      }
+    },
+    "レイヤーの移動" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Layer"
+          }
+        }
+      }
+    },
+    "レイヤーや選択範囲を動かす" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move the layer or the selection"
+          }
+        }
+      }
+    },
+    "レイヤーをロック" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock Layer"
+          }
+        }
+      }
+    },
+    "レイヤーを上へ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Layer Up"
+          }
+        }
+      }
+    },
+    "レイヤーを下へ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Layer Down"
+          }
+        }
+      }
+    },
+    "レイヤーを削除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Layer"
+          }
+        }
+      }
+    },
+    "レイヤーを複製" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicate Layer"
+          }
+        }
+      }
+    },
+    "レイヤーを選択に追加・除外" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add or remove the layer from the selection"
+          }
+        }
+      }
+    },
+    "レイヤー名" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Layer Name"
+          }
+        }
+      }
+    },
+    "レイヤー移動" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Layer"
+          }
+        }
+      }
+    },
+    "ロック" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock"
+          }
+        }
+      }
+    },
+    "ワープを付ける" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Warp"
+          }
+        }
+      }
+    },
+    "ワープデフォーマを付ける" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Warp Deformer"
+          }
+        }
+      }
+    },
+    "上へ移動" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Up"
+          }
+        }
+      }
+    },
+    "上下反転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flip Vertical"
+          }
+        }
+      }
+    },
+    "下のレイヤーでクリッピング" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clip to Layer Below"
+          }
+        }
+      }
+    },
+    "下のレイヤーでクリッピング (⌘⌥G)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clip to Layer Below (⌥⌘G)"
+          }
+        }
+      }
+    },
+    "下のレイヤーに結合" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merge Down"
+          }
+        }
+      }
+    },
+    "下のレイヤーに結合 (⌘E)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merge Down (⌘E)"
+          }
+        }
+      }
+    },
+    "下へ移動" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Down"
+          }
+        }
+      }
+    },
+    "不透明度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opacity"
+          }
+        }
+      }
+    },
+    "不透明度: %lld%%" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opacity: %lld%%"
+          }
+        }
+      }
+    },
+    "不透明度に影響" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affects Opacity"
+          }
+        }
+      }
+    },
+    "中心を描かれている所に合わせる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit Center to Content"
+          }
+        }
+      }
+    },
+    "丸く選ぶ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select an ellipse"
+          }
+        }
+      }
+    },
+    "乗算" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiply"
+          }
+        }
+      }
+    },
+    "今のコマに新しいセルを作って描く（⌥⌘N）。編集中のレイヤーがスイッチフォルダーになければ、包んでスイッチフォルダーにする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create a new cel on the current frame and draw on it (⌥⌘N). If the current layer isn’t in a switch folder, it is wrapped in one"
+          }
+        }
+      }
+    },
+    "他レイヤーを参照" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Layers"
+          }
+        }
+      }
+    },
+    "位置: %.0f, %.0f" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position: %.0f, %.0f"
+          }
+        }
+      }
+    },
+    "作成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create"
+          }
+        }
+      }
+    },
+    "保存" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        }
+      }
+    },
+    "保存してから続ける" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save and Continue"
+          }
+        }
+      }
+    },
+    "保存に失敗しました: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t save: %@"
+          }
+        }
+      }
+    },
+    "停止" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop"
+          }
+        }
+      }
+    },
+    "全体表示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit to Window"
+          }
+        }
+      }
+    },
+    "全選択" : {
+      "comment" : "選択ツールの小さいボタン（全選択・解除・反転）。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        }
+      }
+    },
+    "共通部分" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intersect"
+          }
+        }
+      }
+    },
+    "再生" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play"
+          }
+        }
+      }
+    },
+    "出しっぱなしにする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep panel open"
+          }
+        }
+      }
+    },
+    "出しっぱなしをやめる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop keeping panel open"
+          }
+        }
+      }
+    },
+    "出力" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Output"
+          }
+        }
+      }
+    },
+    "出力を範囲と同じ大きさにする（範囲を変えても等倍のまま）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make the output the same size as the area (it stays at actual size even if the area changes)"
+          }
+        }
+      }
+    },
+    "分割数: %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subdivisions: %lld"
+          }
+        }
+      }
+    },
+    "初期設定に戻す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Defaults"
+          }
+        }
+      }
+    },
+    "別名で保存..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save As…"
+          }
+        }
+      }
+    },
+    "削除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
+    "前 %lld コマ" : {
+      "comment" : "オニオンスキンで、前に出すコマ数。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld before"
+          }
+        }
+      }
+    },
+    "前後に何コマ出すか" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How many frames to show before and after"
+          }
+        }
+      }
+    },
+    "前後のコマを薄く重ねる（前は赤、後ろは青）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overlay the neighboring frames faintly (earlier frames in red, later frames in blue)"
+          }
+        }
+      }
+    },
+    "前方（押し出し）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push Forward"
+          }
+        }
+      }
+    },
+    "割り当てを外す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear shortcut"
+          }
+        }
+      }
+    },
+    "加算" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linear Dodge (Add)"
+          }
+        }
+      }
+    },
+    "動かす絵がありません。描いてあるレイヤーかフォルダーを選んでください。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There is nothing to animate. Select a layer or folder that has artwork."
+          }
+        }
+      }
+    },
+    "動かせるものがありません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There is nothing to move"
+          }
+        }
+      }
+    },
+    "動き方: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Easing: %@"
+          }
+        }
+      }
+    },
+    "動き方（次のキーまで）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Easing (to Next Key)"
+          }
+        }
+      }
+    },
+    "動画を書き出し" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Movie"
+          }
+        }
+      }
+    },
+    "動画を書き出しています" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exporting Movie"
+          }
+        }
+      }
+    },
+    "動画を書き出せませんでした: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t export the movie: %@"
+          }
+        }
+      }
+    },
+    "参照" : {
+      "comment" : "塗りつぶし・自動選択が、どのレイヤーを見て範囲を決めるか。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refer to"
+          }
+        }
+      }
+    },
+    "参照レイヤー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reference Layer"
+          }
+        }
+      }
+    },
+    "参照レイヤーに設定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set as Reference Layer"
+          }
+        }
+      }
+    },
+    "参照レイヤーを参照" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reference Layers"
+          }
+        }
+      }
+    },
+    "反転" : {
+      "comment" : "選択ツールの小さいボタン。選択範囲を反転する。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invert"
+          }
+        }
+      }
+    },
+    "取り消し" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo"
+          }
+        }
+      }
+    },
+    "取り消し (⌘Z)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo (⌘Z)"
+          }
+        }
+      }
+    },
+    "取り消し: %@" : {
+      "comment" : "%@ は操作の名前。編集メニューと iPad のお知らせ。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo %@"
+          }
+        }
+      }
+    },
+    "合成モード" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blend Mode"
+          }
+        }
+      }
+    },
+    "名前" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "名前の変更" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename"
+          }
+        }
+      }
+    },
+    "名前を変える..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename…"
+          }
+        }
+      }
+    },
+    "名前を選ぶと、キャンバスのハンドルでそのつまみの今の値の形を記録できます。移動・回転は中心の点で移動、腕で回転（Option を押しながら中心を動かすと、回す中心を置き直す）。ワープは点を選ぶとハンドルが出て、曲がり方を変えられます（右クリックで自動に戻す）。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a name to record the shape for that parameter’s current value using the handles on the canvas. For move/rotate, drag the center point to move and the arm to rotate (hold Option while dragging the center to reposition the pivot). For warp, select a point to show handles that change how it bends (right-click to return to automatic)."
+          }
+        }
+      }
+    },
+    "品質" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quality"
+          }
+        }
+      }
+    },
+    "四角く選ぶ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a rectangle"
+          }
+        }
+      }
+    },
+    "回転 %.0f°" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation %.0f°"
+          }
+        }
+      }
+    },
+    "回転: %.1f°" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation: %.1f°"
+          }
+        }
+      }
+    },
+    "回転の中心" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Pivot"
+          }
+        }
+      }
+    },
+    "回転をリセット" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Rotation"
+          }
+        }
+      }
+    },
+    "囲んだ範囲を描画色で塗る" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fill the area you draw around with the main color"
+          }
+        }
+      }
+    },
+    "囲んだ範囲を消す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase the area you draw around"
+          }
+        }
+      }
+    },
+    "囲んで選ぶ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draw around an area to select it"
+          }
+        }
+      }
+    },
+    "基本" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basics"
+          }
+        }
+      }
+    },
+    "塗りつぶし" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fill"
+          }
+        }
+      }
+    },
+    "塗りつぶし（描画色）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fill with Main Color"
+          }
+        }
+      }
+    },
+    "変える..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change…"
+          }
+        }
+      }
+    },
+    "変形" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transform"
+          }
+        }
+      }
+    },
+    "変形できるものがありません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There is nothing to transform"
+          }
+        }
+      }
+    },
+    "変更が保存されていません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have unsaved changes"
+          }
+        }
+      }
+    },
+    "変更を破棄" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard Changes"
+          }
+        }
+      }
+    },
+    "外す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        }
+      }
+    },
+    "実験的な機能" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental"
+          }
+        }
+      }
+    },
+    "左上を基準に変更します" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The canvas is resized from the top-left corner"
+          }
+        }
+      }
+    },
+    "左右にドラッグでズーム" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag left or right to zoom"
+          }
+        }
+      }
+    },
+    "左右反転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flip Horizontal"
+          }
+        }
+      }
+    },
+    "左回転 ↔ 右回転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twist Left ↔ Twist Right"
+          }
+        }
+      }
+    },
+    "差の絶対値" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Difference"
+          }
+        }
+      }
+    },
+    "幅" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Width"
+          }
+        }
+      }
+    },
+    "形を記録" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record Shape"
+          }
+        }
+      }
+    },
+    "形式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Format"
+          }
+        }
+      }
+    },
+    "彩度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saturation"
+          }
+        }
+      }
+    },
+    "後ろ %lld コマ" : {
+      "comment" : "オニオンスキンで、後ろに出すコマ数。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld after"
+          }
+        }
+      }
+    },
+    "性能を計測" : {
+      "comment" : "iPad の書類メニュー。描いているあいだの性能を画面に出す（開発用）。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Performance"
+          }
+        }
+      }
+    },
+    "扁平率" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Roundness"
+          }
+        }
+      }
+    },
+    "手のひら" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hand"
+          }
+        }
+      }
+    },
+    "手ブレ補正" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabilization"
+          }
+        }
+      }
+    },
+    "投げなわ塗り" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lasso Fill"
+          }
+        }
+      }
+    },
+    "投げなわ消しゴム" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lasso Erase"
+          }
+        }
+      }
+    },
+    "投げなわ選択" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lasso Select"
+          }
+        }
+      }
+    },
+    "抜きの長さ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taper Length"
+          }
+        }
+      }
+    },
+    "拡大・縮小・回転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transform"
+          }
+        }
+      }
+    },
+    "拡大率: %.1f%% × %.1f%%" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scale: %.1f%% × %.1f%%"
+          }
+        }
+      }
+    },
+    "指で描く" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draw with Finger"
+          }
+        }
+      }
+    },
+    "振り向かせる絵がありません。顔などのパーツをまとめたフォルダーか、描いてあるレイヤーを選んでください。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There is nothing to turn. Select a folder that groups the parts (of a face, for example) or a layer that has artwork."
+          }
+        }
+      }
+    },
+    "振り向くリグを、キャンバスの上のマウスの方へ向かせます（タイムラインには記録しません）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Makes a turning rig face the pointer over the canvas (not recorded to the timeline)"
+          }
+        }
+      }
+    },
+    "振り向くリグを付けました。リグパネルの「カーソルの方を向く」で、マウスの方を向かせられます" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added a turning rig. Turn on “Follow Cursor” in the Rig panel to make it face the pointer"
+          }
+        }
+      }
+    },
+    "描く" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draw"
+          }
+        }
+      }
+    },
+    "描くモードでもタイムラインを出す（パラパラ用、⌥⌘L）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show the timeline in Draw mode too (for frame-by-frame animation, ⌥⌘L)"
+          }
+        }
+      }
+    },
+    "描くモードとリグモードを切り替える（⌥⌘T）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch between Draw mode and Rig mode (⌥⌘T)"
+          }
+        }
+      }
+    },
+    "描けるレイヤーがありません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There is no layer to draw on"
+          }
+        }
+      }
+    },
+    "描画" : {
+      "comment" : "取り消しの名前（「取り消し: 描画」）。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brush Stroke"
+          }
+        }
+      }
+    },
+    "描画色で上書き" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace with Main Color"
+          }
+        }
+      }
+    },
+    "描画色をパレットに登録" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add the main color to the palette"
+          }
+        }
+      }
+    },
+    "新しいセル" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Cel"
+          }
+        }
+      }
+    },
+    "新しいセル（今のコマ）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Cel (Current Frame)"
+          }
+        }
+      }
+    },
+    "新しく選ぶ" : {
+      "comment" : "iPad の選択の組み合わせ方（新しく選ぶ・追加・削除・共通部分）。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New"
+          }
+        }
+      }
+    },
+    "新規..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New…"
+          }
+        }
+      }
+    },
+    "新規…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New…"
+          }
+        }
+      }
+    },
+    "新規キャンバス" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Canvas"
+          }
+        }
+      }
+    },
+    "新規フォルダー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Folder"
+          }
+        }
+      }
+    },
+    "新規ラスターレイヤー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Raster Layer"
+          }
+        }
+      }
+    },
+    "新規ラスターレイヤー (⇧⌘N)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Raster Layer (⇧⌘N)"
+          }
+        }
+      }
+    },
+    "新規レイヤー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Layer"
+          }
+        }
+      }
+    },
+    "新規レイヤーフォルダー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Layer Folder"
+          }
+        }
+      }
+    },
+    "既定値に戻す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset to Defaults"
+          }
+        }
+      }
+    },
+    "明るさ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brightness"
+          }
+        }
+      }
+    },
+    "明るさ・コントラスト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brightness/Contrast"
+          }
+        }
+      }
+    },
+    "明るさ・コントラスト..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brightness/Contrast…"
+          }
+        }
+      }
+    },
+    "明度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lightness"
+          }
+        }
+      }
+    },
+    "書き出しに失敗しました: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t export: %@"
+          }
+        }
+      }
+    },
+    "書き出しの設定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Settings"
+          }
+        }
+      }
+    },
+    "書き出しました: %@（%lld × %lld）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exported: %@ (%lld × %lld)"
+          }
+        }
+      }
+    },
+    "書き出し先" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save To"
+          }
+        }
+      }
+    },
+    "書き出し範囲" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Area"
+          }
+        }
+      }
+    },
+    "書き出し範囲にする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set as Export Area"
+          }
+        }
+      }
+    },
+    "書き出し設定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Settings"
+          }
+        }
+      }
+    },
+    "書き出し設定..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Settings…"
+          }
+        }
+      }
+    },
+    "書き出す" : {
+      "comment" : "書き出し設定のとおりに、すぐ書き出す。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export"
+          }
+        }
+      }
+    },
+    "書き出す（⌥⌘E）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export (⌥⌘E)"
+          }
+        }
+      }
+    },
+    "最初のコマへ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to first frame"
+          }
+        }
+      }
+    },
+    "最小サイズ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum Size"
+          }
+        }
+      }
+    },
+    "最小・最大・既定値（既定値が基本ポーズ）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum, maximum, and default value (the default is the rest pose)"
+          }
+        }
+      }
+    },
+    "最小不透明度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum Opacity"
+          }
+        }
+      }
+    },
+    "格子" : {
+      "comment" : "ワープデフォーマの格子。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grid"
+          }
+        }
+      }
+    },
+    "格子のマス数" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warp Grid Size"
+          }
+        }
+      }
+    },
+    "楕円選択" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ellipse Select"
+          }
+        }
+      }
+    },
+    "横 %lld" : {
+      "comment" : "ワープの格子の横のマス数。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Columns: %lld"
+          }
+        }
+      }
+    },
+    "止める（次のキーまで保つ）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold (Keep Until Next Key)"
+          }
+        }
+      }
+    },
+    "正方形 2048" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Square 2048"
+          }
+        }
+      }
+    },
+    "比率" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ratio"
+          }
+        }
+      }
+    },
+    "比較(明)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lighten"
+          }
+        }
+      }
+    },
+    "比較(暗)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darken"
+          }
+        }
+      }
+    },
+    "消しゴム" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eraser"
+          }
+        }
+      }
+    },
+    "消す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase"
+          }
+        }
+      }
+    },
+    "消去" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        }
+      }
+    },
+    "減算" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtract"
+          }
+        }
+      }
+    },
+    "濃度（フロー）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flow"
+          }
+        }
+      }
+    },
+    "無題" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untitled"
+          }
+        }
+      }
+    },
+    "焼き込み(リニア)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linear Burn"
+          }
+        }
+      }
+    },
+    "焼き込みカラー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color Burn"
+          }
+        }
+      }
+    },
+    "現在のドキュメントの変更を破棄しますか？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Do you want to discard the changes to the current document?"
+          }
+        }
+      }
+    },
+    "画像からブラシ先端を読み込み" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load a brush tip from an image"
+          }
+        }
+      }
+    },
+    "画像をレイヤーとして読み込み..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Image as Layer…"
+          }
+        }
+      }
+    },
+    "画像をレイヤーとして読み込み…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Image as Layer…"
+          }
+        }
+      }
+    },
+    "画像を読み込み" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Image"
+          }
+        }
+      }
+    },
+    "画像を読み込めませんでした" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load the image"
+          }
+        }
+      }
+    },
+    "登録" : {
+      "comment" : "iPad のパレットで、描画色を登録するボタン。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        }
+      }
+    },
+    "白で埋める" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fill with White"
+          }
+        }
+      }
+    },
+    "直線" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linear"
+          }
+        }
+      }
+    },
+    "矩形選択" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rectangle Select"
+          }
+        }
+      }
+    },
+    "破棄" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard"
+          }
+        }
+      }
+    },
+    "硬さ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hardness"
+          }
+        }
+      }
+    },
+    "確定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply"
+          }
+        }
+      }
+    },
+    "確定 (Return)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply (Return)"
+          }
+        }
+      }
+    },
+    "移動・回転を付ける" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Move/Rotate"
+          }
+        }
+      }
+    },
+    "移動・回転デフォーマを付ける" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Move/Rotate Deformer"
+          }
+        }
+      }
+    },
+    "立体的に振り向かせる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add 3D Head Turn"
+          }
+        }
+      }
+    },
+    "筆圧" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pressure"
+          }
+        }
+      }
+    },
+    "筆圧のならし（入りの遅さ）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pressure Smoothing (Slow Start)"
+          }
+        }
+      }
+    },
+    "筆圧カーブ（硬↔軟）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pressure Curve (Hard ↔ Soft)"
+          }
+        }
+      }
+    },
+    "等倍" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actual Size"
+          }
+        }
+      }
+    },
+    "範囲" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Area"
+          }
+        }
+      }
+    },
+    "範囲と既定値" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Range and Default Value"
+          }
+        }
+      }
+    },
+    "範囲と既定値..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Range and Default Value…"
+          }
+        }
+      }
+    },
+    "範囲の縦横比を固定する。自由のときも Shift を押しながらドラッグすると比を保つ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock the aspect ratio of the area. Even when set to Free, hold Shift while dragging to keep the ratio"
+          }
+        }
+      }
+    },
+    "範囲を合わせる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit Area"
+          }
+        }
+      }
+    },
+    "範囲を描かれている所に合わせる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit Area to Content"
+          }
+        }
+      }
+    },
+    "素の PSD として開いています。スイッチフォルダー・タイムライン・リグ・書き出し設定（隣の「%@.nanopic」の情報）は読まず、保存しても書きません。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It is open as a plain PSD. Switch folders, the timeline, rigs, and export settings (the information in “%@.nanopic” next to it) are not read, and are not written when you save."
+          }
+        }
+      }
+    },
+    "組み合わせ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Combine"
+          }
+        }
+      }
+    },
+    "絵の具量" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paint Amount"
+          }
+        }
+      }
+    },
+    "編集レイヤーのみ参照" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current Layer Only"
+          }
+        }
+      }
+    },
+    "編集中: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editing: %@"
+          }
+        }
+      }
+    },
+    "縦 %lld" : {
+      "comment" : "ワープの格子の縦のマス数。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rows: %lld"
+          }
+        }
+      }
+    },
+    "縮小 ↔ 膨張" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pinch ↔ Bloat"
+          }
+        }
+      }
+    },
+    "自動選択" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Magic Wand"
+          }
+        }
+      }
+    },
+    "自由" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Free"
+          }
+        }
+      }
+    },
+    "色" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color"
+          }
+        }
+      }
+    },
+    "色の誤差" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tolerance"
+          }
+        }
+      }
+    },
+    "色の選択を開く" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show color picker"
+          }
+        }
+      }
+    },
+    "色延び" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color Stretch"
+          }
+        }
+      }
+    },
+    "色混ぜ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color Mixing"
+          }
+        }
+      }
+    },
+    "色混ぜを有効にする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Color Mixing"
+          }
+        }
+      }
+    },
+    "色相" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hue"
+          }
+        }
+      }
+    },
+    "色相・彩度・明度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hue/Saturation/Lightness"
+          }
+        }
+      }
+    },
+    "色相・彩度・明度..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hue/Saturation/Lightness…"
+          }
+        }
+      }
+    },
+    "色調補正" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color Adjustment"
+          }
+        }
+      }
+    },
+    "表示の切り替え" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toggle Visibility"
+          }
+        }
+      }
+    },
+    "表示を動かす" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pan the view"
+          }
+        }
+      }
+    },
+    "表示を拡大・縮小する" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom the view in or out"
+          }
+        }
+      }
+    },
+    "表示・非表示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show or hide"
+          }
+        }
+      }
+    },
+    "表示切替" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toggle Visibility"
+          }
+        }
+      }
+    },
+    "複製" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicate"
+          }
+        }
+      }
+    },
+    "複製に失敗しました: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t duplicate: %@"
+          }
+        }
+      }
+    },
+    "複製は、いまの絵を新しい PSD として作ります。元の書類はそのまま残ります。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicating saves the current artwork as a new PSD. The original document is left as it is."
+          }
+        }
+      }
+    },
+    "覆い焼きカラー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color Dodge"
+          }
+        }
+      }
+    },
+    "角で拡大・縮小、枠の外で回転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag a corner to scale, outside the frame to rotate"
+          }
+        }
+      }
+    },
+    "角度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angle"
+          }
+        }
+      }
+    },
+    "角度のランダム" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angle Jitter"
+          }
+        }
+      }
+    },
+    "解除" : {
+      "comment" : "選択ツールの小さいボタン。選択を解除する。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "詳細設定…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brush Settings…"
+          }
+        }
+      }
+    },
+    "輝度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luminosity"
+          }
+        }
+      }
+    },
+    "追加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        }
+      }
+    },
+    "透明な所" : {
+      "comment" : "書き出し設定の欄の名前。透明な所をどう書き出すか（透明のまま・白で埋める）。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Background"
+          }
+        }
+      }
+    },
+    "透明にするには、用紙のレイヤーを隠してください。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To keep the background transparent, hide the Paper layer."
+          }
+        }
+      }
+    },
+    "透明のまま" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Transparent"
+          }
+        }
+      }
+    },
+    "透明ピクセルをロック" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock Transparent Pixels"
+          }
+        }
+      }
+    },
+    "透明ロック" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock Alpha"
+          }
+        }
+      }
+    },
+    "通常" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normal"
+          }
+        }
+      }
+    },
+    "通過" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pass Through"
+          }
+        }
+      }
+    },
+    "進行方向に回転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow Stroke Direction"
+          }
+        }
+      }
+    },
+    "選択を解除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deselect"
+          }
+        }
+      }
+    },
+    "選択中のプリセットを複製" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicate Selected Preset"
+          }
+        }
+      }
+    },
+    "選択範囲" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selection"
+          }
+        }
+      }
+    },
+    "選択範囲から" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From Selection"
+          }
+        }
+      }
+    },
+    "選択範囲でトリミング" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crop to Selection"
+          }
+        }
+      }
+    },
+    "選択範囲の中を消す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Inside Selection"
+          }
+        }
+      }
+    },
+    "選択範囲を反転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invert Selection"
+          }
+        }
+      }
+    },
+    "閉じる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "開く..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open…"
+          }
+        }
+      }
+    },
+    "開く…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open…"
+          }
+        }
+      }
+    },
+    "開けませんでした: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t open: %@"
+          }
+        }
+      }
+    },
+    "間隔" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spacing"
+          }
+        }
+      }
+    },
+    "間隔: %lld px" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spacing: %lld px"
+          }
+        }
+      }
+    },
+    "除外" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exclusion"
+          }
+        }
+      }
+    },
+    "除算" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Divide"
+          }
+        }
+      }
+    },
+    "隙間閉じ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Gaps"
+          }
+        }
+      }
+    },
+    "隣接ピクセルのみ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contiguous"
+          }
+        }
+      }
+    },
+    "非表示のレイヤーには描けません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can’t draw on a hidden layer"
+          }
+        }
+      }
+    },
+    "領域拡縮" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand/Contract"
+          }
+        }
+      }
+    },
+    "高さ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Height"
+          }
+        }
+      }
+    },
+    "（初回に選びます）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(Not chosen yet)"
+          }
+        }
+      }
+    },
+    "（削除されたレイヤー）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(Deleted Layer)"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

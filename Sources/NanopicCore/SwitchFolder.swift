@@ -13,7 +13,7 @@ extension Editor {
     public func setSwitch(_ id: UUID, _ on: Bool) {
         guard let n = doc.node(id), n.isFolder, n.isSwitch != on else { return }
         commitTransform()
-        checkpoint(on ? "スイッチフォルダーにする" : "スイッチフォルダーを戻す")
+        checkpoint(on ? L("スイッチフォルダーにする") : L("スイッチフォルダーを戻す"))
         doc.modify(id) { $0.isSwitch = on }
         normalizeSwitches()
         structureChanged()
@@ -25,7 +25,7 @@ extension Editor {
             showSwitchChild(id)
         } else {
             guard doc.node(id) != nil else { return }
-            checkpoint("表示切替")
+            checkpoint(L("表示切替"))
             doc.modify(id) { $0.visible.toggle() }
             autoKey(id)
             structureChanged()
@@ -36,7 +36,7 @@ extension Editor {
     public func showSwitchChild(_ id: UUID) {
         guard isInSwitch(id), let n = doc.node(id), !n.visible else { return }
         commitTransform()
-        checkpoint("表示の切り替え")
+        checkpoint(L("表示の切り替え"))
         reveal(id)
         if let path = doc.indexPath(of: id), let parent = doc.node(at: Array(path.dropLast())) { autoKey(parent.id) }
         structureChanged()

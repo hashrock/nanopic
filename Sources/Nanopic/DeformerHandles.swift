@@ -135,7 +135,7 @@ extension CanvasView {
         case let .restPivot(id):
             guard let d = editor.rig.deformer(id) else { return }
             let l = localDelta(delta, at: startPivot, after: d, forms)
-            editor.updateDeformer(id, label: "回転の中心") { $0.pivot = RigPoint(startPivot.x + l.x, startPivot.y + l.y) }
+            editor.updateDeformer(id, label: L("回転の中心")) { $0.pivot = RigPoint(startPivot.x + l.x, startPivot.y + l.y) }
         case let .pivot(id):
             guard let d = editor.rig.deformer(id) else { return }
             let m = forms[id]?.move ?? .zero

@@ -48,7 +48,7 @@ public enum PublishFormat: String, Codable, CaseIterable, Sendable {
 public enum PublishBackground: String, Codable, CaseIterable, Sendable {
     case transparent, white
 
-    public var displayName: String { self == .transparent ? "透明のまま" : "白で埋める" }
+    public var displayName: String { self == .transparent ? L("透明のまま") : L("白で埋める") }
 }
 
 /// 範囲の縦横比の固定（幅:高さ）
@@ -350,7 +350,7 @@ extension Editor {
     public var publishSettings: PublishSettings { doc.publish ?? PublishSettings() }
 
     /// 書き出しの設定を変える（取り消せる。保存が必要な変更になる）
-    public func setPublishSettings(_ s: PublishSettings, label: String = "書き出しの設定") {
+    public func setPublishSettings(_ s: PublishSettings, label: String = L("書き出しの設定")) {
         guard s != doc.publish else { return }
         checkpoint(label)
         doc.publish = s
@@ -403,7 +403,7 @@ extension Editor {
         let r = sel.bounds.intersection(doc.bounds)
         // 比を固定していれば、選択範囲を囲むようにその比で広げる
         s.rect = s.aspect.map { Publish.expand(r, aspect: $0.ratio, canvas: doc.bounds) } ?? r
-        setPublishSettings(s, label: "書き出し範囲")
+        setPublishSettings(s, label: L("書き出し範囲"))
         return true
     }
 }

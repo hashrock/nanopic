@@ -37,9 +37,9 @@ final class MCPServer {
                 guard let self else { return }
                 let text: String
                 switch st {
-                case .ready: text = "待ち受け中: \(self.endpoint)"
-                case let .failed(e): text = "起動できませんでした: \(e)"
-                case .cancelled: text = "停止中"
+                case .ready: text = LA("待ち受け中: \(self.endpoint)")
+                case let .failed(e): text = LA("起動できませんでした: \(String(describing: e))")
+                case .cancelled: text = LA("停止中")
                 default: return
                 }
                 DispatchQueue.main.async { self.onStatusChange?(text) }
@@ -47,7 +47,7 @@ final class MCPServer {
             l.start(queue: queue)
             listener = l
         } catch {
-            onStatusChange?("起動できませんでした: \(error)")
+            onStatusChange?(LA("起動できませんでした: \(String(describing: error))"))
         }
     }
 

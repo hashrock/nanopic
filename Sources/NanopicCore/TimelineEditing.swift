@@ -8,7 +8,7 @@ extension Editor {
     public func addTrack(_ id: UUID) {
         doc.assignPSDIDs()
         guard let n = doc.node(id), doc.timeline.track(for: n.psdID) == nil, let key = currentKey(n, frame: 0) else { return }
-        checkpoint("トラックを追加")
+        checkpoint(L("トラックを追加"))
         doc.timeline.tracks.append(TimelineTrack(layer: n.psdID, keys: [key]))
         revision += 1
     }
@@ -34,7 +34,7 @@ extension Editor {
 
     public func removeTrack(layer: UInt32) {
         guard doc.timeline.track(for: layer) != nil else { return }
-        checkpoint("トラックを削除")
+        checkpoint(L("トラックを削除"))
         doc.timeline.tracks.removeAll { $0.layer == layer }
         revision += 1
     }
@@ -43,7 +43,7 @@ extension Editor {
     public func setKeyFromCurrentState(layer: UInt32, frame: Int) {
         guard let n = doc.node(psdID: layer), let key = currentKey(n, frame: frame),
               let ti = doc.timeline.tracks.firstIndex(where: { $0.layer == layer }) else { return }
-        checkpoint("キーを打つ")
+        checkpoint(L("キーを打つ"))
         doc.timeline.tracks[ti].set(key)
         revision += 1
     }
@@ -51,7 +51,7 @@ extension Editor {
     /// キーを直接置く（エージェント用）
     public func setKey(layer: UInt32, _ key: TimelineKey) {
         guard let ti = doc.timeline.tracks.firstIndex(where: { $0.layer == layer }) else { return }
-        checkpoint("キーを打つ")
+        checkpoint(L("キーを打つ"))
         doc.timeline.tracks[ti].set(key)
         revision += 1
         applyFrame()
@@ -60,7 +60,7 @@ extension Editor {
     public func deleteKey(layer: UInt32, frame: Int) {
         guard let ti = doc.timeline.tracks.firstIndex(where: { $0.layer == layer }),
               doc.timeline.tracks[ti].keys.contains(where: { $0.frame == frame }) else { return }
-        checkpoint("キーを削除")
+        checkpoint(L("キーを削除"))
         doc.timeline.tracks[ti].keys.removeAll { $0.frame == frame }
         if doc.timeline.tracks[ti].keys.isEmpty { doc.timeline.tracks.remove(at: ti) }
         revision += 1
@@ -71,7 +71,7 @@ extension Editor {
     public func moveKey(layer: UInt32, from: Int, to: Int) {
         guard from != to, let ti = doc.timeline.tracks.firstIndex(where: { $0.layer == layer }),
               var key = doc.timeline.tracks[ti].keys.first(where: { $0.frame == from }) else { return }
-        checkpoint("キーを動かす")
+        checkpoint(L("キーを動かす"))
         doc.timeline.tracks[ti].keys.removeAll { $0.frame == from }
         key.frame = max(0, to)
         doc.timeline.tracks[ti].set(key)
@@ -85,7 +85,7 @@ extension Editor {
         if let frameCount { t.frameCount = min(max(frameCount, 1), 10_000) }
         if let loop { t.loop = loop }
         guard t != doc.timeline else { return }
-        checkpoint("タイムラインの設定", coalesceKey: "timeline-settings")
+        checkpoint(L("タイムラインの設定"), coalesceKey: "timeline-settings")
         doc.timeline = t
         currentFrame = min(currentFrame, t.frameCount - 1)
         revision += 1

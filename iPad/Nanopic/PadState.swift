@@ -36,7 +36,7 @@ final class PadState {
     /// Apple Pencil のダブルタップで色のパネルを開く（増えたら開く）
     var showColorPanelRequest = 0
     /// 開いているファイル名（タイトル表示用）
-    var documentName = "無題"
+    var documentName = L("無題")
     /// アプリのフォルダー（書類フォルダー・iCloud container）の外にある書類を開いている。
     /// このときはサイドカー（作品.nanopic）を読まず・書かず、素の PSD として扱う
     private(set) var isOutsideDocument = false
@@ -153,7 +153,7 @@ final class PadState {
         isOutsideDocument = false
         editor.newDocument(width: width, height: height)
         thumbCache.removeAll()
-        documentName = "無題"
+        documentName = L("無題")
         canvas?.fitToView()
     }
 
@@ -183,7 +183,7 @@ final class PadState {
                 defer { if scoped { url.stopAccessingSecurityScopedResource() } }
                 guard let img = ImageUtil.loadImage(url: url),
                       let doc = Editor.document(from: img, name: url.deletingPathExtension().lastPathComponent) else {
-                    throw NSError(domain: "Nanopic", code: 1, userInfo: [NSLocalizedDescriptionKey: "画像を読み込めませんでした"])
+                    throw NSError(domain: "Nanopic", code: 1, userInfo: [NSLocalizedDescriptionKey: L("画像を読み込めませんでした")])
                 }
                 editor.load(doc, url: nil)
                 isOutsideDocument = false
@@ -193,7 +193,7 @@ final class PadState {
             canvas?.fitToView()
         } catch {
             if scoped { url.stopAccessingSecurityScopedResource() }
-            show("開けませんでした: \(error.localizedDescription)")
+            show(L("開けませんでした: \(error.localizedDescription)"))
         }
     }
 
@@ -204,7 +204,7 @@ final class PadState {
             guard let type = Self.openableTypes.first(where: { provider.hasItemConformingToTypeIdentifier($0.identifier) }) else { continue }
             provider.loadInPlaceFileRepresentation(forTypeIdentifier: type.identifier) { [self] url, inPlace, _ in
                 guard let url else {
-                    DispatchQueue.main.async { self.show("ファイルを受け取れませんでした") }
+                    DispatchQueue.main.async { self.show(L("ファイルを受け取れませんでした")) }
                     return
                 }
                 if inPlace && url.startAccessingSecurityScopedResource() {
@@ -215,7 +215,7 @@ final class PadState {
                     let copy = try Self.copyDropped(url)
                     DispatchQueue.main.async { completion(copy, false) }
                 } catch {
-                    DispatchQueue.main.async { self.show("ファイルを受け取れませんでした: \(error.localizedDescription)") }
+                    DispatchQueue.main.async { self.show(L("ファイルを受け取れませんでした: \(error.localizedDescription)")) }
                 }
             }
             return true
@@ -249,7 +249,7 @@ final class PadState {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         guard let img = ImageUtil.loadImage(url: url) else {
-            show("画像を読み込めませんでした")
+            show(L("画像を読み込めませんでした"))
             return
         }
         editor.addImageLayer(name: url.deletingPathExtension().lastPathComponent, image: img)
@@ -276,10 +276,10 @@ final class PadState {
             }
             try writePSD(to: url)
             documentName = url.deletingPathExtension().lastPathComponent
-            if !quiet { show("「\(url.lastPathComponent)」に保存しました") }
+            if !quiet { show(L("「\(url.lastPathComponent)」に保存しました")) }
             return true
         } catch {
-            show("保存に失敗しました: \(error.localizedDescription)")
+            show(L("保存に失敗しました: \(error.localizedDescription)"))
             return false
         }
     }
@@ -301,10 +301,10 @@ final class PadState {
             releaseAccess()
             isOutsideDocument = false
             documentName = url.deletingPathExtension().lastPathComponent
-            show("「このiPad内 › Nanopic」に「\(url.lastPathComponent)」を作りました")
+            show(L("「このiPad内 › Nanopic」に「\(url.lastPathComponent)」を作りました"))
             return true
         } catch {
-            show("複製に失敗しました: \(error.localizedDescription)")
+            show(L("複製に失敗しました: \(error.localizedDescription)"))
             return false
         }
     }
