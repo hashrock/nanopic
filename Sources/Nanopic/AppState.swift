@@ -260,6 +260,15 @@ final class AppState {
     }
 
     func open(url: URL) {
+        // サイドカー（作品.nanopic）を渡されたら、隣の PSD を開く
+        if url.pathExtension.lowercased() == Sidecar.pathExtension {
+            let psd = url.deletingPathExtension().appendingPathExtension("psd")
+            guard FileManager.default.isReadableFile(atPath: psd.path) else {
+                showError("「\(url.lastPathComponent)」は「\(psd.lastPathComponent)」に付く情報のファイルです。「\(psd.lastPathComponent)」のほうを開いてください")
+                return
+            }
+            return open(url: psd)
+        }
         do {
             try load(url: url)
         } catch {
@@ -273,7 +282,8 @@ final class AppState {
         if ext == "psd" || ext == "psb" {
             let data = try Data(contentsOf: url)
             let doc = try PSD.read(data)
-            // サイドカーが読めなくても PSD は開く（壊れたサイドカーは、次に保存するとき書き直す）
+            // サイドカー（作品.nanopic。なければ古い名前の 作品.nanopic.json）が読めなくても PSD は開く。
+            // 壊れたサイドカーは、次に保存するとき書き直す
             let sidecar = (try? Sidecar.read(for: url)) ?? nil
             editor.load(doc, url: url, sidecar: sidecar ?? Sidecar())
         } else {

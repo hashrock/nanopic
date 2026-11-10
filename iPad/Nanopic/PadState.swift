@@ -137,7 +137,7 @@ final class PadState {
             if ext == "psd" || ext == "psb" {
                 let data = try Data(contentsOf: url)
                 let doc = try PSD.read(data)
-                // サイドカー（タイムライン・リグ）は同じフォルダーにあるときだけ読める
+                // サイドカー（作品.nanopic。タイムライン・リグ）は、アプリの書類フォルダーの中など、隣を読める場所にあるときだけ読める
                 let sidecar = (try? Sidecar.read(for: url)) ?? nil
                 editor.load(doc, url: url, sidecar: sidecar ?? Sidecar())
                 // 上書き保存できるよう、閉じるまでアクセス権を持っておく
@@ -271,7 +271,7 @@ final class PadState {
     private func writePSD(to url: URL) throws {
         let data = try psdData()
         try data.write(to: url, options: .atomic)
-        // サイドカーは同じフォルダーに書ける場合だけ（外の場所では書けないことがある）
+        // サイドカー（作品.nanopic）は隣に書ける場合だけ（外の場所では書けないことがある）
         try? editor.sidecar.write(for: url)
         editor.markSaved(url: url)
     }
