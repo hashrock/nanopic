@@ -339,6 +339,26 @@
         }
       }
     },
+    "「%@」に保存しました。アプリのフォルダーの外なので、素の PSD として扱います" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved to “%@”. It is outside the app’s folder, so it is treated as a plain PSD"
+          }
+        }
+      }
+    },
+    "「%@」に保存しましたが、追加の情報を書けませんでした: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved to “%1$@”, but could not write the extra information: %2$@"
+          }
+        }
+      }
+    },
     "「%@」に書き出しました" : {
       "localizations" : {
         "en" : {
@@ -2677,6 +2697,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rename"
+          }
+        }
+      }
+    },
+    "名前を付けて保存…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save As…"
           }
         }
       }

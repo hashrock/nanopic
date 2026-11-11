@@ -27,6 +27,8 @@ struct PadContentView: View {
     @State private var exportFile: ExportFile?
     @State private var exportType: UTType = .png
     @State private var showExporter = false
+    /// 書き出しではなく「名前を付けて保存」として保存先を選んでいる
+    @State private var savingAs = false
     @State private var confirmDiscard: PendingAction?
     @State private var showOutsideInfo = false
 
@@ -112,7 +114,9 @@ struct PadContentView: View {
         }
         .fileExporter(isPresented: $showExporter, document: exportFile, contentType: exportType,
                       defaultFilename: state.documentName) { result in
-            if case let .success(url) = result { state.show(L("「\(url.lastPathComponent)」に書き出しました")) }
+            if case let .success(url) = result {
+                if savingAs { state.adoptSavedAs(url) } else { state.show(L("「\(url.lastPathComponent)」に書き出しました")) }
+            }
             exportFile = nil
         }
         .confirmationDialog("変更が保存されていません", isPresented: Binding(get: { confirmDiscard != nil }, set: { if !$0 { confirmDiscard = nil } }),
@@ -133,7 +137,8 @@ struct PadContentView: View {
             if !isPinned(.colors) { showColors = true }
         }
         .onChange(of: state.isOutsideDocument) { _, outside in
-            if outside { state.show(L("アプリのフォルダーの外の書類です。素の PSD として開きました")) }
+            // 名前を付けて保存で外に置いたときは、保存の知らせのほうで伝える
+            if outside && !savingAs { state.show(L("アプリのフォルダーの外の書類です。素の PSD として開きました")) }
         }
         .onChange(of: editor.tool) { _, tool in showToolHint(tool) }
         .onChange(of: editor.brushes) { _, _ in state.savePreferences() }
@@ -156,7 +161,8 @@ struct PadContentView: View {
         }
     }
 
-    private func export(_ type: UTType) {
+    private func export(_ type: UTType, saveAs: Bool = false) {
+        savingAs = saveAs
         do {
             let data: Data
             if type == .psd {
@@ -203,12 +209,15 @@ struct PadContentView: View {
                 Button { requestDiscard(.new) } label: { Label("新規…", systemImage: "doc.badge.plus") }
                     .keyboardShortcut("n")
                 Button { requestDiscard(.open) } label: { Label("開く…", systemImage: "folder") }
+                    .keyboardShortcut("o")
                 Button { requestDiscard(.close) } label: { Label("閉じる", systemImage: "xmark.circle") }
                     .disabled(editor.fileURL == nil && !editor.isDirty)
-                    .keyboardShortcut("o")
+                    .keyboardShortcut("w")
                 Divider()
                 Button { state.save() } label: { Label("保存", systemImage: "square.and.arrow.down") }
                     .keyboardShortcut("s")
+                Button { export(.psd, saveAs: true) } label: { Label("名前を付けて保存…", systemImage: "square.and.arrow.down.on.square") }
+                    .keyboardShortcut("s", modifiers: [.command, .shift])
                 Button { export(.psd) } label: { Label("PSD を書き出し…", systemImage: "square.and.arrow.up") }
                 Button { export(.png) } label: { Label("PNG を書き出し…", systemImage: "photo") }
                 Divider()

@@ -284,6 +284,30 @@ final class PadState {
         }
     }
 
+    /// 「名前を付けて保存」で書いたファイルを、今の書類として扱う（以後の上書き保存先になる）
+    func adoptSavedAs(_ url: URL) {
+        releaseAccess()
+        let scoped = url.startAccessingSecurityScopedResource()
+        let inside = appFolders.contains(url)
+        var sidecarError: Error?
+        // サイドカーはアプリのフォルダーの中でだけ書く（外の場所は素の PSD）
+        if inside {
+            do { try editor.sidecar.write(for: url) } catch { sidecarError = error }
+        }
+        editor.markSaved(url: url)
+        isOutsideDocument = !inside
+        // 上書き保存できるよう、閉じるまでアクセス権を持っておく
+        if scoped { accessedURL = url }
+        documentName = url.deletingPathExtension().lastPathComponent
+        if let sidecarError {
+            show(L("「\(url.lastPathComponent)」に保存しましたが、追加の情報を書けませんでした: \(sidecarError.localizedDescription)"))
+        } else if inside {
+            show(L("「\(url.lastPathComponent)」に保存しました"))
+        } else {
+            show(L("「\(url.lastPathComponent)」に保存しました。アプリのフォルダーの外なので、素の PSD として扱います"))
+        }
+    }
+
     /// アプリを離れるとき、アプリのフォルダーの書類だけ自動で保存する（外の場所のファイルは勝手に上書きしない）
     func autosave() {
         guard editor.isDirty, !editor.isStroking else { return }
