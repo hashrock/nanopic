@@ -1503,6 +1503,16 @@
         }
       }
     },
+    "ドラッグして動かす" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to move"
+          }
+        }
+      }
+    },
     "ドラッグでスクロール\nトラックパッド: 2本指でスクロール、ピンチでズーム、回転ジェスチャーで回転" : {
       "localizations" : {
         "en" : {
