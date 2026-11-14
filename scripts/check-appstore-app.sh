@@ -98,7 +98,7 @@ case "$MODE" in
     security cms -D -i "$APP/Contents/embedded.provisionprofile" > "$PROFILE_PLIST" 2>/dev/null || fail "embedded.provisionprofile がありません"
     PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.application-identifier" "$PROFILE_PLIST")
     [ "$PROFILE_APP_ID" = "$TEAM_ID.$BUNDLE_ID" ] || fail "プロファイルの App ID が違います: ${PROFILE_APP_ID}"
-    echo "OK: 配布用の署名（${AUTHORITY}）、プロファイル「$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")」、entitlement は Sandbox + App ID + チーム ID + iCloud 同期だけ"
+    echo "OK: 配布用の署名（${AUTHORITY}）、プロファイル「$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")」、entitlement は Sandbox + ファイル + 待ち受け + App ID + チーム ID + iCloud 同期だけ"
     rm -f "$PROFILE_PLIST"
     ;;
 *) fail "知らないオプション: $MODE" ;;
