@@ -2156,16 +2156,6 @@
         }
       }
     },
-    "上へ" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Move Up"
-          }
-        }
-      }
-    },
     "上へ移動" : {
       "localizations" : {
         "en" : {
@@ -2222,16 +2212,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Merge Down (⌘E)"
-          }
-        }
-      }
-    },
-    "下へ" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Move Down"
           }
         }
       }

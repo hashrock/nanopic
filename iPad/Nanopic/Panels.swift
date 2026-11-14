@@ -305,14 +305,8 @@ struct LayerPanel: View {
             HStack {
                 iconButton("doc.badge.plus", L("新規レイヤー")) { editor.addLayer() }
                 iconButton("folder.badge.plus", L("新規フォルダー")) { editor.addFolder() }
-                iconButton("rectangle.stack.badge.plus", L("フォルダーを作成して挿入")) {
-                    editor.groupSelectedLayers()
-                    setSelecting(false)
-                }
                 iconButton("plus.square.on.square", L("レイヤーを複製")) { editor.duplicateActiveLayer() }
                 iconButton("arrow.down.to.line", L("下のレイヤーに結合")) { editor.mergeDown() }
-                iconButton("arrow.up", L("上へ")) { editor.moveActiveLayer(up: true) }
-                iconButton("arrow.down", L("下へ")) { editor.moveActiveLayer(up: false) }
                 Button { setSelecting(!selecting) } label: {
                     Image(systemName: selecting ? "checkmark.circle.fill" : "checkmark.circle")
                         .frame(maxWidth: .infinity, minHeight: 36)
