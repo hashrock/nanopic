@@ -510,6 +510,16 @@
         }
       }
     },
+    "この版では使えません。iCloud での同期は Mac App Store 版で使えます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not available in this version. Syncing with iCloud is available in the Mac App Store version."
+          }
+        }
+      }
+    },
     "すべてのつまみを既定値に戻す" : {
       "localizations" : {
         "en" : {
