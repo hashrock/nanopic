@@ -5,6 +5,7 @@
 #   PROFILE=~/Downloads/Nanopic_Mac_App_Store.provisionprofile ./scripts/package-appstore.sh --local
 #                                             # 手元のキーチェーンの証明書で署名する
 #   ./scripts/package-appstore.sh --dry-run   # 署名なしで流れだけ確かめる（ad-hoc 署名、署名なしの .pkg。提出はできない）
+#   ./scripts/package-appstore.sh --upload    # クラウド署名で作って検査し、通ったら App Store Connect に上げる（TestFlight に出る）
 #
 # クラウド署名（既定）:
 #   アプリを .xcarchive の形に包み、xcodebuild -exportArchive -allowProvisioningUpdates に渡す。
@@ -22,7 +23,11 @@
 #   名前が違うときは APP_IDENTITY / PKG_IDENTITY で渡す。Apple とは通信しない（タイムスタンプも付けない）。
 #
 # どの道でも、できた .pkg からアプリを取り出して scripts/check-appstore-app.sh でもう一度検査する。
-# できた .pkg のアップロード（Transporter か xcrun altool）はここではしない。
+#
+# アップロード（--upload）:
+#   検査が全部通ったら、同じ .xcarchive を destination: upload でもう一度 xcodebuild -exportArchive に渡す。
+#   認証はクラウド署名と同じ Xcode のアカウント（鍵やパスワードは要らない）。上げたビルドは App Store Connect の
+#   処理が終わると TestFlight に出る。同じ版・ビルド番号はもう上げられないので、上げ直すときはビルド番号を上げる。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -30,13 +35,20 @@ TEAM_ID="${TEAM_ID:-5WLLZHK49R}"
 BUNDLE_ID=com.hashrock.nanopic
 APP=build/appstore/Nanopic.app
 MODE=cloud
-case "${1:-}" in
-"") ;;
---cloud) MODE=cloud ;;
---local) MODE=local ;;
---dry-run) MODE=dry-run ;;
-*) echo "使い方: $0 [--cloud（既定）| --local | --dry-run]" >&2; exit 1 ;;
-esac
+UPLOAD=0
+for ARG in "$@"; do
+    case "$ARG" in
+    --cloud) MODE=cloud ;;
+    --local) MODE=local ;;
+    --dry-run) MODE=dry-run ;;
+    --upload) UPLOAD=1 ;;
+    *) echo "使い方: $0 [--cloud（既定）| --local | --dry-run] [--upload]" >&2; exit 1 ;;
+    esac
+done
+if [ "$UPLOAD" = 1 ] && [ "$MODE" != cloud ]; then
+    echo "--upload はクラウド署名（既定）とだけ使えます" >&2
+    exit 1
+fi
 
 find_identity() { security find-identity -v | sed -n "s/.*\"\\($1[^\"]*\\)\".*/\\1/p" | head -1; }
 if [ "$MODE" = local ]; then
@@ -113,14 +125,15 @@ cloud)
 PLIST
     plutil -lint "$ARCHIVE/Info.plist" >/dev/null
     OPTIONS=$(mktemp -t nanopic-export).plist
-    cat > "$OPTIONS" <<PLIST
+    # destination: export は書き出すだけ、upload は App Store Connect に上げる（--upload で、検査のあとに使う）
+    write_options() {
+        cat > "$OPTIONS" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>method</key><string>app-store-connect</string>
-    <!-- 書き出すだけ（upload にするとアップロードまでしてしまう） -->
-    <key>destination</key><string>export</string>
+    <key>destination</key><string>$1</string>
     <key>signingStyle</key><string>automatic</string>
     <key>teamID</key><string>$TEAM_ID</string>
     <!-- 版とビルド番号はアプリの Info.plist のまま（Xcode に書き換えさせない） -->
@@ -129,6 +142,8 @@ PLIST
 </dict>
 </plist>
 PLIST
+    }
+    write_options export
     # --- クラウド署名（ここだけ Apple と通信する: 署名とプロファイルの作成） ---
     LOG=build/appstore/export.log
     echo "クラウド署名で書き出します（xcodebuild -exportArchive。ログは ${LOG}）"
@@ -138,7 +153,6 @@ PLIST
         echo "NG: 書き出しに失敗しました（${LOG}）。Xcode の Settings > Accounts にチーム $TEAM_ID でサインインしているか確かめてください" >&2
         exit 1
     fi
-    rm -f "$OPTIONS"
     [ -f "$EXPORT/Nanopic.pkg" ] || { echo "NG: $EXPORT/Nanopic.pkg ができていません（${LOG}）" >&2; exit 1; }
     PKG="dist/appstore/Nanopic-$VERSION.pkg"
     rm -f "$PKG"
@@ -154,7 +168,7 @@ local)
     security cms -D -i "$PROFILE" > "$PROFILE_PLIST"
     PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.application-identifier" "$PROFILE_PLIST")
     if [ "$PROFILE_APP_ID" != "$TEAM_ID.$BUNDLE_ID" ]; then
-        echo "プロファイルの App ID が違います: ${PROFILE_APP_ID}（要るのは $TEAM_ID.$BUNDLE_ID）" >&2
+        echo "プロファイルの App ID が違います: ${PROFILE_APP_ID}（要るのは $TEAM_ID.${BUNDLE_ID}）" >&2
         exit 1
     fi
     cp "$PROFILE" "$APP/Contents/embedded.provisionprofile"
@@ -199,10 +213,24 @@ ipb() { /usr/libexec/PlistBuddy -c "Print :$1" "$INNER/Contents/Info.plist"; }
 rm -rf "$EXPANDED"
 
 echo "Built $PKG ($(du -h "$PKG" | cut -f1)、$VERSION / $BUILD_NUMBER)"
-if [ "$MODE" = dry-run ]; then
+if [ "$UPLOAD" = 1 ]; then
+    # --- 検査を通ったので、同じアーカイブを App Store Connect に上げる（Apple と通信する） ---
+    write_options upload
+    LOG=build/appstore/upload.log
+    echo "App Store Connect に上げます（$VERSION / ${BUILD_NUMBER}。ログは ${LOG}）"
+    if ! xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist "$OPTIONS" \
+            -exportPath build/appstore/upload -allowProvisioningUpdates > "$LOG" 2>&1; then
+        grep -E 'error|Error' "$LOG" | tail -20 >&2 || tail -20 "$LOG" >&2
+        echo "NG: アップロードに失敗しました（${LOG}）。同じビルド番号をもう上げていないか確かめてください" >&2
+        exit 1
+    fi
+    rm -f "$OPTIONS"
+    echo "OK: 上げました。App Store Connect の処理が終わると TestFlight に出ます"
+elif [ "$MODE" = dry-run ]; then
     echo "（--dry-run: ad-hoc 署名・署名なしの .pkg。App Store には出せません）"
 else
-    echo "アップロードは Transporter.app にドラッグするか:"
+    rm -f "${OPTIONS:-}"
+    echo "アップロードは --upload を付けて作り直すか、Transporter.app にドラッグするか:"
     echo "  xcrun altool --upload-package $PKG --type macos --apple-id <App の Apple ID（数字）> --bundle-id $BUNDLE_ID \\\\"
     echo "      --bundle-version $BUILD_NUMBER --bundle-short-version-string $VERSION -u <Apple ID> -p @keychain:<項目名>"
 fi

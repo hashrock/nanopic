@@ -42,6 +42,7 @@ App Store 用のビルドも、直接配布（Developer ID、`release.sh`）版�
 ```sh
 ./scripts/package-appstore.sh             # クラウド署名で dist/appstore/Nanopic-<版>.pkg を作る（既定）
 ./scripts/package-appstore.sh --dry-run   # 署名なしで流れだけ確かめる（ad-hoc 署名、署名なしの .pkg。提出はできない）
+./scripts/package-appstore.sh --upload    # 作って検査し、通ったら App Store Connect に上げる（TestFlight に出る）
 ```
 
 コマンド 1 行で、提出できる `.pkg` ができます。手元のキーチェーンに配布用の証明書は要りません。
@@ -52,7 +53,7 @@ App Store 用のビルドも、直接配布（Developer ID、`release.sh`）版�
 4. できた `.pkg` からアプリを取り出し、`check-appstore-app.sh` でもう一度検査する（エージェント連携が入っていること、Info.plist の項目、表示言語、アイコン、署名の entitlement が Sandbox + MCP の待ち受け + App ID + チーム ID + iCloud 同期だけであること、プロファイルの App ID）
 
 - 要るもの: Xcode の Settings > Accounts に、チーム（`5WLLZHK49R`）の Apple ID でサインインしていること。クラウド署名を使えるのは Account Holder / Admin か、「Access to Cloud Managed Distribution Certificate」を持つ人です。App ID `com.hashrock.nanopic` が Apple Developer に登録されていること（Mac の直接配布版・Mac App Store 版・iPad 版で同じ ID）
-- Apple と通信するのは 3 の署名とプロファイルの作成だけです。アップロードはしません（`ExportOptions` の `destination` は `export`）。できた `.pkg` は Transporter か `xcrun altool` で別に送ります
+- Apple と通信するのは 3 の署名とプロファイルの作成だけです。`--upload` を付けたときだけ、4 の検査が全部通ったあとに、同じ `.xcarchive` を `destination: upload` でもう一度 `xcodebuild -exportArchive` に渡して App Store Connect に上げます（認証は Xcode のアカウント。ログは `build/appstore/upload.log`）。付けなければ上げません。できた `.pkg` を手で上げるときは Transporter か `xcrun altool` で送ります
 - 書き出しのログは `build/appstore/export.log`、どの証明書・プロファイルで署名されたかは `build/appstore/export/DistributionSummary.plist` に残ります
 - SwiftPM で作った `.app` をスクリプトで包んで署名・`.pkg` 化しています（Xcode プロジェクトにはしていません）。直接配布版と同じ手順でアプリを組めて、違いが entitlement と署名だけになるためです
 - entitlement（`scripts/appstore.entitlements`）は `app-sandbox`、`files.user-selected.read-write`（選んだ書類の読み書き）、`files.bookmarks.app-scope`（「書き出す」の書き出し先を覚える）の 3 つ。通信（`network.*`）はありません
@@ -87,7 +88,7 @@ open NanopicPad.xcodeproj    # スキーム NanopicPad を iPad／シミュレ�
 - シミュレーターでは `xcrun simctl launch booted com.hashrock.nanopic -open <PSD のパス>` で書類を開けます（検証用。実機のビルドには入りません）
 - iCloud container は `iCloud.com.hashrock.nanopic`（`iPad/Nanopic/Nanopic.entitlements`、Info.plist の `NSUbiquitousContainers`）。Apple Developer で container を登録し、App ID `com.hashrock.nanopic` に iCloud（CloudKit ではなく iCloud Documents）を付けると、実機のビルドとファイル App の「iCloud Drive › Nanopic」が使えます
 - ブラシ・消しゴム・パレットの同期（iPad は書類メニュー、Mac は設定の「同期」タブでオン）は iCloud のキー値ストア（`NSUbiquitousKeyValueStore`）で、識別子は Mac・iPad とも `5WLLZHK49R.com.hashrock.nanopic`。iPad は `project.yml` の entitlement、Mac は `scripts/package-appstore.sh` が配布用の署名のときだけ足します（プロファイルなしの ad-hoc 署名では起動できなくなるため、手元のビルドには入れない。手元のビルドでは同期は働きません）。App ID `com.hashrock.nanopic` の iCloud に Key-value storage が要ります
-- TestFlight に出す（Mac App Store 版と同じくクラウド署名。手元に配布用の証明書は要らない）: Xcode で実行先を「Any iOS Device (arm64)」にして Product > Archive → Organizer で Distribute App > App Store Connect（TestFlight だけなら TestFlight Internal Only）。署名は自動（Automatically manage signing）のままにすると、Xcode が Cloud Managed Apple Distribution で署名し、iCloud container 入りのプロファイルを作ります。版は `project.yml` の `MARKETING_VERSION`・`CURRENT_PROJECT_VERSION`（上げたら `xcodegen`）
+- TestFlight に出す（Mac App Store 版と同じくクラウド署名。手元に配布用の証明書は要らない）: `./scripts/package-ipad.sh --upload`。Archive してクラウド署名で書き出し、`dist/appstore/ipad/Nanopic-<版>-<ビルド番号>.ipa` を検査（配布用の署名、iCloud の書類と同期、版、プライバシーマニフェスト、表示言語）してから、同じアーカイブを App Store Connect に上げる。`--upload` なしなら書き出して検査するだけ。Xcode で手で出すときは実行先を「Any iOS Device (arm64)」にして Product > Archive → Organizer で Distribute App > App Store Connect（TestFlight だけなら TestFlight Internal Only）。署名は自動（Automatically manage signing）のままにすると、Xcode が Cloud Managed Apple Distribution で署名し、iCloud container 入りのプロファイルを作ります。版は `project.yml` の `MARKETING_VERSION`・`CURRENT_PROJECT_VERSION`（上げたら `xcodegen`）
 - Archive（署名なしで通ることの確認）: `cd iPad && xcodebuild archive -project NanopicPad.xcodeproj -scheme NanopicPad -destination 'generic/platform=iOS' -archivePath ../.build-ipad/NanopicPad.xcarchive CODE_SIGNING_ALLOWED=NO`
 - 表示言語は Mac 版と同じ日本語・英語。訳のカタログ（`Resources/Localizable.xcstrings`・`Names.xcstrings`）を Xcode がビルドのときに変換して入れます。Xcode は元の言語（日本語）の表を作らないので、`iPad/Nanopic/ja.lproj/InfoPlist.strings` を置いて、バンドルに `ja.lproj` と `en.lproj` の両方が入るようにしています（App Store の対応言語は `.lproj` から決まります）
 - iPadOS 17 以降。描画エンジン（NanopicCore）と表示部品（NanopicUI）を Mac 版と共有しています
