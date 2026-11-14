@@ -1,7 +1,5 @@
 import AppKit
-#if !APPSTORE
 import NanopicAgent
-#endif
 import NanopicCore
 import NanopicUI
 import Observation
@@ -27,13 +25,6 @@ final class AppState {
     @ObservationIgnored var statusToken: UUID?
     /// 描くモード／リグモード
     var mode = WorkMode.draw
-    /// 実験的な機能: リグモードを使えるようにする（設定で入れる）
-    var rigEnabled = UserDefaults.standard.bool(forKey: "experimental.rig") {
-        didSet {
-            UserDefaults.standard.set(rigEnabled, forKey: "experimental.rig")
-            if !rigEnabled && mode == .rig { setMode(.draw) }
-        }
-    }
     /// 描くモードでもタイムラインを出す（パラパラ用）。リグモードではいつも出す。起動したときはいつも閉じている
     var showsTimelineInDraw = false {
         didSet {
@@ -69,8 +60,6 @@ final class AppState {
     /// ショートカットの入力待ち（この間は単キーのショートカットを無効にする）
     var isRecordingShortcut = false
     @ObservationIgnored weak var canvasView: CanvasView?
-    // エージェント連携（MCP）は App Store 用ビルドに入れない（Sources/Nanopic/Agent もまとめて外す）
-    #if !APPSTORE
     /// エージェント連携の状態表示
     var mcpStatus = LA("停止中")
     /// 設定画面の再描画用（UserDefaults の値は Observation で追えないため）
@@ -81,7 +70,6 @@ final class AppState {
         s.onStatusChange = { [weak self] in self?.mcpStatus = $0 }
         return s
     }()
-    #endif
     @ObservationIgnored private var thumbCache: [UUID: (version: Int, image: NSImage)] = [:]
     /// ブラシ・消しゴム・パレットを iCloud で Mac と iPad の間で同期する
     var syncEnabled = false

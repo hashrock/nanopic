@@ -229,9 +229,6 @@ struct PadContentView: View {
                 Toggle(isOn: Binding(get: { state.syncEnabled }, set: { state.setSyncEnabled($0) })) {
                     Label("ブラシとパレットを iCloud で同期", systemImage: "icloud")
                 }
-                Toggle(isOn: Binding(get: { state.perfEnabled }, set: { state.perfEnabled = $0 })) {
-                    Label("性能を計測", systemImage: "speedometer")
-                }
             } label: {
                 Image(systemName: "doc")
                     .frame(width: 40, height: 40)

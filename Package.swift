@@ -1,11 +1,5 @@
 // swift-tools-version:5.10
-import Foundation
 import PackageDescription
-
-// App Store 用ビルド（NANOPIC_APPSTORE=1）では、エージェント連携（MCP）をコンパイルの段階で外す。
-// アプリは NanopicAgent に依存せず、Sources/Nanopic/Agent（MCP サーバー・設定画面・アプリ側のツール）も入れない。
-// 残りのコードは `#if !APPSTORE` で分ける。作り方は scripts/build-appstore.sh
-let appStore = ProcessInfo.processInfo.environment["NANOPIC_APPSTORE"] == "1"
 
 let package = Package(
     name: "Nanopic",
@@ -32,9 +26,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "Nanopic",
-            dependencies: appStore ? ["NanopicCore", "NanopicUI"] : ["NanopicCore", "NanopicAgent", "NanopicUI"],
-            exclude: appStore ? ["Agent"] : [],
-            swiftSettings: appStore ? [.define("APPSTORE")] : []
+            dependencies: ["NanopicCore", "NanopicAgent", "NanopicUI"]
         ),
         .testTarget(
             name: "NanopicCoreTests",

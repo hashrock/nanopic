@@ -149,14 +149,10 @@ struct SettingsView: View {
         TabView {
             ShortcutSettingsView(state: state, editor: state.editor)
                 .tabItem { Label("ショートカット", systemImage: "keyboard") }
-            #if !APPSTORE
             AgentSettingsView(state: state)
                 .tabItem { Label(LA("エージェント連携"), systemImage: "sparkles") }
-            #endif
             SyncSettingsView(state: state)
                 .tabItem { Label("同期", systemImage: "icloud") }
-            ExperimentalSettingsView(state: state)
-                .tabItem { Label("実験的な機能", systemImage: "flask") }
         }
         .frame(width: 520, height: 620)
     }
@@ -172,23 +168,6 @@ struct SyncSettingsView: View {
                 Toggle("ブラシとパレットを iCloud で同期", isOn: Binding(get: { state.syncEnabled }, set: { state.setSyncEnabled($0) }))
             } footer: {
                 Text("ブラシ・消しゴムのプリセットとパレットを、同じ Apple アカウントの Mac と iPad で同じにします。両方でオンにしてください。オンにしたとき iCloud に設定があればそちらを使います。両方で同時に変えたときは、あとから変えたほうが残ります。自分で登録したブラシ先端の画像は同期しません。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        }
-        .formStyle(.grouped)
-    }
-}
-
-/// 設定ウィンドウの「実験的な機能」タブ
-struct ExperimentalSettingsView: View {
-    let state: AppState
-
-    var body: some View {
-        Form {
-            Section {
-                Toggle("リグモード", isOn: Binding(get: { state.rigEnabled }, set: { state.rigEnabled = $0 }))
-            } footer: {
-                Text("デフォーマ（移動・回転、ワープ）とパラメータで、描いた絵を動かすモードです。入れると、表示メニューに「リグモード（実験的）」（⌥⌘T）が出ます。作りかけの機能なので、使い方や保存の形式が変わることがあります。")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

@@ -1,14 +1,13 @@
 #!/bin/bash
-# App Store 用のビルドを作る: エージェント連携（MCP）を外した build/appstore/Nanopic.app
+# App Store 用のビルドを作る: ユニバーサルの build/appstore/Nanopic.app
 #
 #   ./scripts/build-appstore.sh
 #   SANDBOX=1 ./scripts/build-appstore.sh   # App Sandbox を付けて ad-hoc 署名する（手元で Sandbox の中の動作を確かめる用）
 #
 # 配布用の署名と .pkg 化は scripts/package-appstore.sh（このスクリプトを呼んでから署名する）
 #
-# できたアプリは scripts/check-appstore-app.sh で検査する: MCP の文字列・シンボルが残っていないこと
-# （MCP はコンパイルの段階で外す。Package.swift の NANOPIC_APPSTORE）、App Store に出すのに要る
-# Info.plist の項目・プライバシーマニフェスト・アイコン・表示言語・entitlement。
+# できたアプリは scripts/check-appstore-app.sh で検査する: エージェント連携（MCP）が入っていること、App Store に出すのに要る
+# Info.plist の項目・プライバシーマニフェスト・アイコン・表示言語・entitlement（通信は MCP の待ち受けだけ）。
 # ここでは配布用の署名・App Store Connect への送信はしない（Apple とは通信しない）。
 set -euo pipefail
 cd "$(dirname "$0")/.."

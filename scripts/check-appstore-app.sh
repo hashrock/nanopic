@@ -1,8 +1,8 @@
 #!/bin/bash
 # App Store 用の Nanopic.app を検査する（作りはしない。Apple とも通信しない）
 #
-#   ./scripts/check-appstore-app.sh <Nanopic.app>                  # 中身だけ（MCP なし、Info.plist、言語、アイコンなど）
-#   ./scripts/check-appstore-app.sh <Nanopic.app> --signed         # ＋署名に Sandbox が入り、通信がないこと（ad-hoc 署名でもよい）
+#   ./scripts/check-appstore-app.sh <Nanopic.app>                  # 中身だけ（MCP、Info.plist、言語、アイコンなど）
+#   ./scripts/check-appstore-app.sh <Nanopic.app> --signed         # ＋署名に Sandbox が入り、通信は待ち受けだけなこと（ad-hoc 署名でもよい）
 #   ./scripts/check-appstore-app.sh <Nanopic.app> --distribution   # ＋配布用の署名（App ID・チーム ID・プロファイル）
 #
 # build-appstore.sh が作った直後のアプリにかけ、package-appstore.sh ができた .pkg から取り出したアプリにもう一度かける
@@ -21,29 +21,14 @@ fail() { echo "NG: $*" >&2; exit 1; }
 pb() { /usr/libexec/PlistBuddy -c "Print :$1" "$PLIST" 2>/dev/null; }
 [ -x "$BIN" ] || fail "$BIN がありません"
 
-# --- エージェント連携（MCP）が入っていないこと ---
-# MCP はコンパイルの段階で外す（Package.swift の NANOPIC_APPSTORE）。実行時に隠しているのではないことを、
-# バイナリに MCP の文字列・シンボルが残っていないことで確かめる。memcpy は "mcp" を含むので除く
-LEFT=$( { strings -a "$BIN"; nm "$BIN" 2>/dev/null; } | grep -iE 'mcp|NanopicAgent|AgentTool' | grep -v memcpy || true)
-if [ -n "$LEFT" ]; then
-    echo "App Store 用のバイナリにエージェント連携（MCP）が残っています:" >&2
-    echo "$LEFT" | head -20 >&2
-    exit 1
-fi
-# 待ち受け（NWListener）も入っていないこと
-if nm "$BIN" 2>/dev/null | grep -q 'NWListener'; then fail "バイナリに NWListener（待ち受け）が残っています"; fi
-if otool -L "$BIN" | grep -q 'Network.framework'; then fail "バイナリが Network.framework をリンクしています"; fi
-# 訳の表にも入っていないこと（エージェント連携の画面の訳は Agent の表に分けてあり、App Store 用には入れない）
-if [ -e "$RES/en.lproj/Agent.strings" ] || [ -e "$RES/ja.lproj/Agent.strings" ]; then
-    fail "エージェント連携の訳（Agent.strings）が入っています"
-fi
-LEFT=$(for f in "$RES"/*.lproj/*; do plutil -convert xml1 -o - "$f" 2>/dev/null || cat "$f"; done | grep -iE 'mcp|エージェント|agent' || true)
-if [ -n "$LEFT" ]; then
-    echo "App Store 用の訳の表にエージェント連携（MCP）の文言が残っています:" >&2
-    echo "$LEFT" | head -20 >&2
-    exit 1
-fi
-echo "OK: MCP の文字列・シンボル、待ち受けは入っていません（${BIN}、訳の表）"
+# --- エージェント連携（MCP）が入っていること ---
+# App Store 版にも入れる。待ち受けは 127.0.0.1 だけで、entitlement は network.server（下で確かめる）
+for TABLE in Agent; do
+    plutil -lint "$RES/en.lproj/$TABLE.strings" >/dev/null || fail "エージェント連携の訳（en.lproj/$TABLE.strings）がありません"
+done
+# grep -q だと途中で読むのをやめ、nm が SIGPIPE で落ちて pipefail で失敗になるので、最後まで読んで数える
+[ "$(nm "$BIN" 2>/dev/null | grep -c 'NWListener')" -gt 0 ] || fail "バイナリに MCP サーバー（NWListener）が入っていません"
+echo "OK: エージェント連携（MCP サーバー・訳）が入っています"
 
 # --- App Store に出すのに要るもの ---
 plutil -lint "$PLIST" >/dev/null || fail "Info.plist が壊れています"
@@ -71,10 +56,11 @@ iconutil -c iconset "$RES/AppIcon.icns" -o "$ICONTMP/AppIcon.iconset" || fail "A
 rm -rf "$ICONTMP"
 ARCHS=$(lipo -archs "$BIN")
 case "$ARCHS" in *arm64*x86_64*|*x86_64*arm64*) ;; *) fail "ユニバーサルではありません（${ARCHS}）" ;; esac
-# entitlement のもと: Sandbox あり、通信なし、余計な例外なし
+# entitlement のもと: Sandbox あり、通信は MCP の待ち受け（network.server）だけ、余計な例外なし
 plutil -lint "$SRC_ENT" >/dev/null || fail "entitlements が壊れています"
 [ "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' "$SRC_ENT")" = "true" ] || fail "app-sandbox がありません"
-if grep -qE 'com\.apple\.security\.(network|temporary-exception|cs\.)' "$SRC_ENT"; then fail "entitlements に通信か例外が入っています"; fi
+[ "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.network.server' "$SRC_ENT")" = "true" ] || fail "network.server（MCP の待ち受け）がありません"
+if grep -qE 'com\.apple\.security\.(network\.client|temporary-exception|cs\.)' "$SRC_ENT"; then fail "entitlements に外への通信か例外が入っています"; fi
 echo "OK: Info.plist・PrivacyInfo・アイコン・表示言語（ja・en）・entitlements（$(pb CFBundleShortVersionString) / $(pb CFBundleVersion)、${ARCHS}）"
 
 [ -n "$MODE" ] || exit 0
@@ -86,11 +72,12 @@ ent() { /usr/libexec/PlistBuddy -c "Print :$1" "$SIGNED" 2>/dev/null; }
 # キーの一覧（1 行に 1 つ）
 keys() { plutil -convert xml1 -o - "$1" | sed -n 's/^[[:space:]]*<key>\(.*\)<\/key>.*/\1/p' | sort; }
 [ "$(ent com.apple.security.app-sandbox)" = "true" ] || fail "署名に app-sandbox がありません"
-if keys "$SIGNED" | grep -qE 'com\.apple\.security\.(network|temporary-exception|cs\.)'; then fail "署名に通信か例外の entitlement が入っています"; fi
+[ "$(ent com.apple.security.network.server)" = "true" ] || fail "署名に network.server（MCP の待ち受け）がありません"
+if keys "$SIGNED" | grep -qE 'com\.apple\.security\.(network\.client|temporary-exception|cs\.)'; then fail "署名に外への通信か例外の entitlement が入っています"; fi
 
 case "$MODE" in
 --signed)
-    echo "OK: 署名に app-sandbox があり、通信の entitlement はありません"
+    echo "OK: 署名に app-sandbox があり、通信は待ち受け（network.server）だけです"
     ;;
 --distribution)
     codesign --verify --deep --strict "$APP" || fail "署名が壊れています"

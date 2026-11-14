@@ -1433,16 +1433,6 @@
         }
       }
     },
-    "デフォーマ（移動・回転、ワープ）とパラメータで、描いた絵を動かすモードです。入れると、表示メニューに「リグモード（実験的）」（⌥⌘T）が出ます。作りかけの機能なので、使い方や保存の形式が変わることがあります。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A mode for animating your artwork with deformers (move/rotate and warp) and parameters. When turned on, “Rig Mode (Experimental)” (⌥⌘T) appears in the View menu. This feature is still in progress, so how it works and how it is saved may change."
-          }
-        }
-      }
-    },
     "トラックに追加" : {
       "localizations" : {
         "en" : {
@@ -1951,16 +1941,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rig Mode"
-          }
-        }
-      }
-    },
-    "リグモード（実験的）" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rig Mode (Experimental)"
           }
         }
       }
@@ -2951,16 +2931,6 @@
         }
       }
     },
-    "実験的な機能" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Experimental"
-          }
-        }
-      }
-    },
     "左上を基準に変更します" : {
       "localizations" : {
         "en" : {
@@ -3058,17 +3028,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld after"
-          }
-        }
-      }
-    },
-    "性能を計測" : {
-      "comment" : "iPad の書類メニュー。描いているあいだの性能を画面に出す（開発用）。",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Performance"
           }
         }
       }

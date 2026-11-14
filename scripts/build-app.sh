@@ -1,10 +1,10 @@
 #!/bin/bash
 # リリースビルドして build/Nanopic.app を作る
 #
-#   ./scripts/build-app.sh                      # ふだんのビルド（Developer ID 版。エージェント連携あり）
-#   NANOPIC_APPSTORE=1 ./scripts/build-app.sh   # App Store 用（エージェント連携なし）→ build/appstore/Nanopic.app
+#   ./scripts/build-app.sh                      # ふだんのビルド（Developer ID 版）
+#   NANOPIC_APPSTORE=1 ./scripts/build-app.sh   # App Store 用（ユニバーサル）→ build/appstore/Nanopic.app
 #
-# App Store 用は scripts/build-appstore.sh から呼ぶ（MCP が入っていないことも確かめる）
+# App Store 用は scripts/build-appstore.sh から呼ぶ（App Store に出すのに要るものも確かめる）。中身はどちらも同じ（エージェント連携あり）
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ "${NANOPIC_APPSTORE:-}" = "1" ]; then
@@ -12,14 +12,11 @@ if [ "${NANOPIC_APPSTORE:-}" = "1" ]; then
     # Intel の Mac でも動くよう、App Store 用はユニバーサルにする（直接配布版はこれまでどおり、ビルドした Mac の向きだけ）
     BUILD=(swift build -c release --scratch-path .build-appstore --arch arm64 --arch x86_64)
     APP=build/appstore/Nanopic.app
-    # エージェント連携の画面の訳（Agent）は入れない
-    TABLES=(Localizable Names)
 else
-    unset NANOPIC_APPSTORE
     BUILD=(swift build -c release)
     APP=build/Nanopic.app
-    TABLES=(Localizable Names Agent)
 fi
+TABLES=(Localizable Names Agent)
 "${BUILD[@]}"
 BIN="$("${BUILD[@]}" --show-bin-path)/Nanopic"
 rm -rf "$APP"

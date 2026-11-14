@@ -2,7 +2,7 @@ import AppKit
 import NanopicCore
 import SwiftUI
 
-/// エージェント連携の画面の文言を引く。表を分けてあり（Resources/Agent.xcstrings）、App Store 用のアプリには表ごと入れない。
+/// エージェント連携の画面の文言を引く。表を分けてある（Resources/Agent.xcstrings。iPad 版には入れない）。
 /// エージェントに返す文（ツールの説明・結果・エラー）は訳さない
 func LA(_ key: String.LocalizationValue) -> String { L(key, table: "Agent") }
 

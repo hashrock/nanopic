@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- App Store 用ビルドの entitlement。待ち受け・通信（network.*）は入れない。
+<!-- App Store 用ビルドの entitlement。
+     - network.server: エージェント連携（MCP サーバー）の待ち受け。127.0.0.1 だけで待ち受け、既定はオフ。外への通信（network.client）は入れない
      - files.user-selected.read-write: 開く・保存のパネルやドロップで選んだ書類の読み書き。
        PSD の隣のサイドカー（作品.nanopic）は、Info.plist の関連ファイルの宣言で読み書きする
      - files.bookmarks.app-scope: 「書き出す」（⌥⌘E）で前回と同じ場所へ上書きするため、保存パネルで選んだ書き出し先を覚える
@@ -11,5 +12,6 @@
     <key>com.apple.security.app-sandbox</key><true/>
     <key>com.apple.security.files.user-selected.read-write</key><true/>
     <key>com.apple.security.files.bookmarks.app-scope</key><true/>
+    <key>com.apple.security.network.server</key><true/>
 </dict>
 </plist>

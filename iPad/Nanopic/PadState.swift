@@ -25,13 +25,8 @@ final class PadState {
     }
     /// 選択範囲を作るときの、今の選択範囲との組み合わせ方
     var selectionOp: SelectionOp = .replace
-    /// 性能を計測して画面に出す
-    var perfEnabled = UserDefaults.standard.bool(forKey: "pad.perfEnabled") {
-        didSet {
-            UserDefaults.standard.set(perfEnabled, forKey: "pad.perfEnabled")
-            canvas?.updatePerfConfiguration()
-        }
-    }
+    /// 性能を計測して画面に出す（開発用。画面には出さず、起動の引数 `-perf` を付けたときだけ）
+    let perfEnabled = ProcessInfo.processInfo.arguments.contains("-perf")
     /// 画面の下に少しの間だけ出す知らせ
     var toast: String?
     @ObservationIgnored private var toastToken: UUID?
