@@ -30,6 +30,9 @@
 #   処理が終わると TestFlight に出る。同じ版・ビルド番号はもう上げられないので、上げ直すときはビルド番号を上げる。
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# 一時ファイルはこのフォルダーに置き、終わったら（途中で失敗しても）フォルダーごと消す
+WORKTMP=$(mktemp -d -t nanopic)
+trap 'rm -rf "$WORKTMP"' EXIT
 
 TEAM_ID="${TEAM_ID:-5WLLZHK49R}"
 BUNDLE_ID=com.hashrock.nanopic
@@ -78,7 +81,7 @@ mkdir -p dist/appstore
 # 配布用の entitlement: Sandbox のもの + どのアプリ・どのチームか（プロファイルと合っていること）
 # + ブラシ・パレットの iCloud 同期（キー値ストア。iPad 版と同じ識別子）。
 # iCloud の entitlement はプロファイルなしでは起動できなくなるので、手元で試す ad-hoc 署名（build-appstore.sh）には入れず、ここでだけ足す
-ENT=$(mktemp -t nanopic-entitlements).plist
+ENT="$WORKTMP/entitlements.plist"
 cp scripts/appstore.entitlements "$ENT"
 /usr/libexec/PlistBuddy -c "Add :com.apple.application-identifier string $TEAM_ID.$BUNDLE_ID" \
                         -c "Add :com.apple.developer.team-identifier string $TEAM_ID" \
@@ -124,7 +127,7 @@ cloud)
 </plist>
 PLIST
     plutil -lint "$ARCHIVE/Info.plist" >/dev/null
-    OPTIONS=$(mktemp -t nanopic-export).plist
+    OPTIONS="$WORKTMP/export-options.plist"
     # destination: export は書き出すだけ、upload は App Store Connect に上げる（--upload で、検査のあとに使う）
     write_options() {
         cat > "$OPTIONS" <<PLIST
@@ -164,7 +167,7 @@ PLIST
     ;;
 local)
     # プロファイルの App ID とチームが合っているか（合っていないと、アップロードしてから弾かれる）
-    PROFILE_PLIST=$(mktemp -t nanopic-profile).plist
+    PROFILE_PLIST="$WORKTMP/profile.plist"
     security cms -D -i "$PROFILE" > "$PROFILE_PLIST"
     PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.application-identifier" "$PROFILE_PLIST")
     if [ "$PROFILE_APP_ID" != "$TEAM_ID.$BUNDLE_ID" ]; then
@@ -187,7 +190,6 @@ dry-run)
     productbuild --component "$APP" /Applications "$PKG"
     ;;
 esac
-rm -f "$ENT"
 
 # --- できた .pkg を検査する: 署名、中のアプリ（取り出して、作った直後と同じ検査をもう一度） ---
 if [ "$MODE" != dry-run ]; then
@@ -197,7 +199,8 @@ if [ "$MODE" != dry-run ]; then
     *) pkgutil --check-signature "$PKG" | head -8 >&2; echo "NG: .pkg が Installer の証明書で署名されていません" >&2; exit 1 ;;
     esac
 fi
-EXPANDED=$(mktemp -d)
+EXPANDED="$WORKTMP/expanded"
+mkdir -p "$EXPANDED"
 pkgutil --expand-full "$PKG" "$EXPANDED/pkg"
 INNER=$(find "$EXPANDED/pkg" -maxdepth 3 -name Nanopic.app -type d | head -1)
 [ -n "$INNER" ] || { echo "NG: .pkg にアプリが入っていません" >&2; exit 1; }
@@ -210,7 +213,6 @@ fi
 ipb() { /usr/libexec/PlistBuddy -c "Print :$1" "$INNER/Contents/Info.plist"; }
 [ "$(ipb CFBundleShortVersionString) $(ipb CFBundleVersion)" = "$VERSION $BUILD_NUMBER" ] \
     || { echo "NG: .pkg の中のアプリの版が変わっています（$(ipb CFBundleShortVersionString) / $(ipb CFBundleVersion)）" >&2; exit 1; }
-rm -rf "$EXPANDED"
 
 echo "Built $PKG ($(du -h "$PKG" | cut -f1)、$VERSION / $BUILD_NUMBER)"
 if [ "$UPLOAD" = 1 ]; then
@@ -224,12 +226,10 @@ if [ "$UPLOAD" = 1 ]; then
         echo "NG: アップロードに失敗しました（${LOG}）。同じビルド番号をもう上げていないか確かめてください" >&2
         exit 1
     fi
-    rm -f "$OPTIONS"
     echo "OK: 上げました。App Store Connect の処理が終わると TestFlight に出ます"
 elif [ "$MODE" = dry-run ]; then
     echo "（--dry-run: ad-hoc 署名・署名なしの .pkg。App Store には出せません）"
 else
-    rm -f "${OPTIONS:-}"
     echo "アップロードは --upload を付けて作り直すか、Transporter.app にドラッグするか:"
     echo "  xcrun altool --upload-package $PKG --type macos --apple-id <App の Apple ID（数字）> --bundle-id $BUNDLE_ID \\\\"
     echo "      --bundle-version $BUILD_NUMBER --bundle-short-version-string $VERSION -u <Apple ID> -p @keychain:<項目名>"

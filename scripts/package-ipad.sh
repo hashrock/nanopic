@@ -9,6 +9,9 @@
 # 版とビルド番号は iPad/project.yml の MARKETING_VERSION・CURRENT_PROJECT_VERSION。同じ版・ビルド番号はもう上げられない。
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# 一時ファイルはこのフォルダーに置き、終わったら（途中で失敗しても）フォルダーごと消す
+WORKTMP=$(mktemp -d -t nanopic)
+trap 'rm -rf "$WORKTMP"' EXIT
 
 TEAM_ID="${TEAM_ID:-5WLLZHK49R}"
 BUNDLE_ID=com.hashrock.nanopic
@@ -43,9 +46,12 @@ apb() { /usr/libexec/PlistBuddy -c "Print :$1" "$APP_IN_ARCHIVE/Info.plist"; }
 VERSION=$(apb CFBundleShortVersionString)
 BUILD_NUMBER=$(apb CFBundleVersion)
 [ "$(apb CFBundleIdentifier)" = "$BUNDLE_ID" ] || fail "CFBundleIdentifier が $BUNDLE_ID ではありません"
+IPA="$OUT/Nanopic-$VERSION-$BUILD_NUMBER.ipa"
+# 同じ版・ビルド番号はもう上げられないので、あるならたいてい上げたもの。上書きしない（作り直すならビルド番号を上げるか、消してから）
+[ ! -e "$IPA" ] || fail "$IPA はもうあります。上げたものを残すため上書きしません（iPad/project.yml の CURRENT_PROJECT_VERSION を上げるか、消してから）"
 
 # destination: export は書き出すだけ、upload は App Store Connect に上げる
-OPTIONS=$(mktemp -t nanopic-ipad-export).plist
+OPTIONS="$WORKTMP/export-options.plist"
 write_options() {
     cat > "$OPTIONS" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -74,11 +80,10 @@ export_archive() { # $1: destination, $2: 書き出し先, $3: ログ
 echo "クラウド署名で書き出します（$VERSION / ${BUILD_NUMBER}。ログは $WORK/export.log）"
 export_archive export "$EXPORT" "$WORK/export.log" || fail "書き出しに失敗しました（$WORK/export.log）"
 [ -f "$EXPORT/Nanopic.ipa" ] || fail "$EXPORT/Nanopic.ipa ができていません"
-IPA="$OUT/Nanopic-$VERSION-$BUILD_NUMBER.ipa"
 cp "$EXPORT/Nanopic.ipa" "$IPA"
 
 # --- 検査: .ipa の中のアプリ（署名、entitlement、版、プライバシーマニフェスト） ---
-EXPANDED=$(mktemp -d)
+EXPANDED="$WORKTMP/expanded"
 unzip -q "$IPA" -d "$EXPANDED"
 INNER="$EXPANDED/Payload/Nanopic.app"
 [ -d "$INNER" ] || fail ".ipa にアプリが入っていません"
@@ -87,7 +92,7 @@ ipb() { /usr/libexec/PlistBuddy -c "Print :$1" "$INNER/Info.plist" 2>/dev/null; 
 codesign --verify --deep --strict "$INNER" || fail "署名が壊れています"
 AUTHORITY=$(codesign -dvv "$INNER" 2>&1 | sed -n 's/^Authority=//p' | head -1)
 case "$AUTHORITY" in "Apple Distribution: "*|"iPhone Distribution: "*) ;; *) fail "配布用の証明書で署名されていません（${AUTHORITY:-署名なし}）" ;; esac
-SIGNED=$(mktemp -t nanopic-ipad-signed).plist
+SIGNED="$WORKTMP/signed.plist"
 codesign -d --entitlements - --xml "$INNER" 2>/dev/null > "$SIGNED" || fail "署名の entitlement を読めません"
 ent() { /usr/libexec/PlistBuddy -c "Print :$1" "$SIGNED" 2>/dev/null; }
 [ "$(ent get-task-allow)" != "true" ] || fail "get-task-allow が入っています（開発用の署名）"
@@ -96,7 +101,6 @@ ent com.apple.developer.icloud-container-identifiers | grep -q 'iCloud.com.hashr
 [ -f "$INNER/embedded.mobileprovision" ] || fail "embedded.mobileprovision がありません"
 plutil -lint "$INNER/PrivacyInfo.xcprivacy" >/dev/null || fail "PrivacyInfo.xcprivacy がありません"
 for L in ja en; do [ -d "$INNER/$L.lproj" ] || fail "$L.lproj がありません"; done
-rm -rf "$EXPANDED" "$SIGNED"
 echo "OK: 配布用の署名（${AUTHORITY%%:*}）、iCloud（書類・同期）、版 $VERSION / ${BUILD_NUMBER}、プライバシーマニフェスト、表示言語"
 echo "Built $IPA ($(du -h "$IPA" | cut -f1))"
 
@@ -109,4 +113,3 @@ if [ "$UPLOAD" = 1 ]; then
 else
     echo "上げるときは --upload を付けて作り直してください"
 fi
-rm -f "$OPTIONS"

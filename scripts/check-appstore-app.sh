@@ -8,6 +8,9 @@
 # build-appstore.sh が作った直後のアプリにかけ、package-appstore.sh ができた .pkg から取り出したアプリにもう一度かける
 # （署名や .pkg 化で中身が変わっていないこと、提出するものそのものが検査を通ることを確かめる）。
 set -euo pipefail
+# 一時ファイルはこのフォルダーに置き、終わったら（途中で失敗しても）フォルダーごと消す
+WORKTMP=$(mktemp -d -t nanopic)
+trap 'rm -rf "$WORKTMP"' EXIT
 APP="${1:?使い方: check-appstore-app.sh <Nanopic.app> [--signed|--distribution]}"
 MODE="${2:-}"
 TEAM_ID="${TEAM_ID:-5WLLZHK49R}"
@@ -50,10 +53,10 @@ for TABLE in Localizable Names; do
     [ -f "$RES/ja.lproj/$TABLE.strings" ] || fail "ja.lproj/$TABLE.strings がありません"
 done
 # アイコンは icns に 512pt の @2x（1024px）まで入っていること
-ICONTMP=$(mktemp -d)
+ICONTMP="$WORKTMP/icon"
+mkdir -p "$ICONTMP"
 iconutil -c iconset "$RES/AppIcon.icns" -o "$ICONTMP/AppIcon.iconset" || fail "AppIcon.icns を読めません"
 [ -f "$ICONTMP/AppIcon.iconset/icon_512x512@2x.png" ] && [ -f "$ICONTMP/AppIcon.iconset/icon_512x512.png" ] || fail "AppIcon.icns に 512pt（@1x・@2x）がありません"
-rm -rf "$ICONTMP"
 ARCHS=$(lipo -archs "$BIN")
 case "$ARCHS" in *arm64*x86_64*|*x86_64*arm64*) ;; *) fail "ユニバーサルではありません（${ARCHS}）" ;; esac
 # entitlement のもと: Sandbox あり、通信は MCP の待ち受け（network.server）だけ、余計な例外なし
@@ -66,7 +69,7 @@ echo "OK: Info.plist・PrivacyInfo・アイコン・表示言語（ja・en）・
 [ -n "$MODE" ] || exit 0
 
 # --- 署名に入った entitlement ---
-SIGNED=$(mktemp -t nanopic-signed).plist
+SIGNED="$WORKTMP/signed.plist"
 codesign -d --entitlements - --xml "$APP" 2>/dev/null > "$SIGNED" || fail "署名の entitlement を読めません"
 ent() { /usr/libexec/PlistBuddy -c "Print :$1" "$SIGNED" 2>/dev/null; }
 # キーの一覧（1 行に 1 つ）
@@ -94,13 +97,11 @@ case "$MODE" in
     *) fail "配布用の証明書で署名されていません（${AUTHORITY:-署名なし}）" ;;
     esac
     # プロファイル: 入っていて、App ID が合っていること
-    PROFILE_PLIST=$(mktemp -t nanopic-profile).plist
+    PROFILE_PLIST="$WORKTMP/profile.plist"
     security cms -D -i "$APP/Contents/embedded.provisionprofile" > "$PROFILE_PLIST" 2>/dev/null || fail "embedded.provisionprofile がありません"
     PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.application-identifier" "$PROFILE_PLIST")
     [ "$PROFILE_APP_ID" = "$TEAM_ID.$BUNDLE_ID" ] || fail "プロファイルの App ID が違います: ${PROFILE_APP_ID}"
     echo "OK: 配布用の署名（${AUTHORITY}）、プロファイル「$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")」、entitlement は Sandbox + ファイル + 待ち受け + App ID + チーム ID + iCloud 同期だけ"
-    rm -f "$PROFILE_PLIST"
     ;;
 *) fail "知らないオプション: $MODE" ;;
 esac
-rm -f "$SIGNED"
