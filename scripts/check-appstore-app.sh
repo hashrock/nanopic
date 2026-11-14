@@ -96,8 +96,10 @@ case "$MODE" in
     codesign --verify --deep --strict "$APP" || fail "署名が壊れています"
     [ "$(ent com.apple.application-identifier)" = "$TEAM_ID.$BUNDLE_ID" ] || fail "署名の application-identifier が $TEAM_ID.$BUNDLE_ID ではありません"
     [ "$(ent com.apple.developer.team-identifier)" = "$TEAM_ID" ] || fail "署名の team-identifier が $TEAM_ID ではありません"
-    # もとの entitlement + App ID + チーム ID のほかに、何も足されていないこと（get-task-allow など）
-    WANT=$( { keys "$SRC_ENT"; echo com.apple.application-identifier; echo com.apple.developer.team-identifier; } | sort)
+    # iCloud 同期（キー値ストア）の識別子が iPad 版と同じ（チーム ID.バンドル ID）こと
+    [ "$(ent com.apple.developer.ubiquity-kvstore-identifier)" = "$TEAM_ID.$BUNDLE_ID" ] || fail "署名の ubiquity-kvstore-identifier が $TEAM_ID.$BUNDLE_ID ではありません"
+    # もとの entitlement + App ID + チーム ID + iCloud 同期のほかに、何も足されていないこと（get-task-allow など）
+    WANT=$( { keys "$SRC_ENT"; echo com.apple.application-identifier; echo com.apple.developer.team-identifier; echo com.apple.developer.ubiquity-kvstore-identifier; } | sort)
     [ "$(keys "$SIGNED")" = "$WANT" ] || fail "署名の entitlement が想定と違います: $(keys "$SIGNED" | tr '\n' ' ')"
     AUTHORITY=$(codesign -dvv "$APP" 2>&1 | sed -n 's/^Authority=//p' | head -1)
     case "$AUTHORITY" in
@@ -109,7 +111,7 @@ case "$MODE" in
     security cms -D -i "$APP/Contents/embedded.provisionprofile" > "$PROFILE_PLIST" 2>/dev/null || fail "embedded.provisionprofile がありません"
     PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.application-identifier" "$PROFILE_PLIST")
     [ "$PROFILE_APP_ID" = "$TEAM_ID.$BUNDLE_ID" ] || fail "プロファイルの App ID が違います: ${PROFILE_APP_ID}"
-    echo "OK: 配布用の署名（${AUTHORITY}）、プロファイル「$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")」、entitlement は Sandbox + App ID + チーム ID だけ"
+    echo "OK: 配布用の署名（${AUTHORITY}）、プロファイル「$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")」、entitlement は Sandbox + App ID + チーム ID + iCloud 同期だけ"
     rm -f "$PROFILE_PLIST"
     ;;
 *) fail "知らないオプション: $MODE" ;;
