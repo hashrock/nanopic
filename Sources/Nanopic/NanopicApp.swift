@@ -2,6 +2,7 @@ import AppKit
 import NanopicCore
 import SwiftUI
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var state: AppState? {
         didSet {
@@ -13,11 +14,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private var pendingURL: URL?
     /// メインウィンドウを開く（SwiftUI の openWindow。メニューを組み立てるときに AppCommands が入れる）
-    var openMainWindow: (() -> Void)? {
+    var openMainWindow: (@MainActor @Sendable () -> Void)? {
         didSet {
             guard wantsMainWindow, let openMainWindow else { return }
             wantsMainWindow = false
-            DispatchQueue.main.async(execute: openMainWindow)
+            DispatchQueue.main.async { openMainWindow() }
         }
     }
     private var wantsMainWindow = false
@@ -33,8 +34,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] e in
             // `self?.handleKey(e) ?? e` だと処理済み（nil）のキーまで流れてビープが鳴る
-            guard let self else { return e }
-            return self.handleKey(e)
+            // ローカルのイベント監視はメインスレッドで呼ばれる。handleKey は e をそのまま返すか nil（処理済み）を返す
+            let passThrough = MainActor.assumeIsolated {
+                guard let self else { return true }
+                return self.handleKey(e) != nil
+            }
+            return passThrough ? e : nil
         }
     }
 
@@ -52,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // 書類を渡されて起動した。開くイベントを SwiftUI に渡していないので、ウィンドウは自分で開く
             pendingURL = url
             if let openMainWindow {
-                DispatchQueue.main.async(execute: openMainWindow)
+                DispatchQueue.main.async { openMainWindow() }
             } else {
                 wantsMainWindow = true
             }

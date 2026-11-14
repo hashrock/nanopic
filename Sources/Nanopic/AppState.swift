@@ -7,6 +7,7 @@ import NanopicUI
 import Observation
 import UniformTypeIdentifiers
 
+@MainActor
 @Observable
 final class AppState {
     let editor = Editor()

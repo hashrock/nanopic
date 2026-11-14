@@ -367,7 +367,7 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
                 if state.perfEnabled {
                     let b = editor.currentBrush
                     let doc = editor.doc
-                    let meta = String(format: "%dx%d 層%d %.0fpx 手ブレ%.0f 倍率%.2f", // l10n:skip doc.width, doc.height, doc.layers.count,
+                    let meta = String(format: "%dx%d 層%d %.0fpx 手ブレ%.0f 倍率%.2f", doc.width, doc.height, doc.layers.count, // l10n:skip
                                       Double(b.size), Double(b.smoothing) * 100, Double(zoom))
                     perf.begin(meta: meta, beginMs: (CACurrentMediaTime() - beginStart) * 1000)
                     perf.record(t, in: self)

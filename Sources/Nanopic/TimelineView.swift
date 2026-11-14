@@ -48,13 +48,16 @@ extension AppState {
         isPlaying = true
         editor.beginPlayback()
         playTimer = Timer.scheduledTimer(withTimeInterval: 1 / Double(max(t.fps, 1)), repeats: true) { [weak self] _ in
-            guard let self else { return }
-            let t = self.editor.timeline
-            let next = self.editor.currentFrame + 1
-            if next >= t.frameCount {
-                if t.loop { self.editor.goToFrame(0) } else { self.stopPlayback() }
-            } else {
-                self.editor.goToFrame(next)
+            // メインスレッドの RunLoop に載せたタイマーなので、メインスレッドで呼ばれる
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let t = self.editor.timeline
+                let next = self.editor.currentFrame + 1
+                if next >= t.frameCount {
+                    if t.loop { self.editor.goToFrame(0) } else { self.stopPlayback() }
+                } else {
+                    self.editor.goToFrame(next)
+                }
             }
         }
     }

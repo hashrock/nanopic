@@ -5,6 +5,7 @@ import Foundation
 /// 設定はこれまでどおり UserDefaults に保存し、同期がオンのときだけ同じ値を iCloud にも書く。
 /// ほかの端末で変わった値が届いたら UserDefaults に写して `onRemoteChange` を呼ぶ（アプリは設定を読み直す）。
 /// 両方で同じ項目を変えたときは、あとから書いたほうが残る。メインスレッドから使う
+@MainActor
 public final class PreferenceSync {
     /// 同期する UserDefaults のキー（Mac 版・iPad 版で同じキーと形式）
     public static let keys = ["brushes.v1", "erasers.v1", "palette.v1"]
@@ -24,7 +25,8 @@ public final class PreferenceSync {
             forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: store, queue: .main
         ) { [weak self] note in
             let changed = note.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String]
-            self?.receive(changedKeys: changed)
+            // queue: .main で受けている
+            MainActor.assumeIsolated { self?.receive(changedKeys: changed) }
         }
     }
 
