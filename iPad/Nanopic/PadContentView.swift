@@ -89,10 +89,10 @@ struct PadContentView: View {
                     transformBar.padding(.bottom, 70)
                 }
             } else if editor.doc.selection != nil {
-                // 選択範囲があるあいだは、ワンタップで解除できるボタンを出す
+                // 選択範囲があるあいだは、移動・変形と解除のバーを出す
                 VStack {
                     Spacer()
-                    deselectButton.padding(.bottom, 70)
+                    selectionBar.padding(.bottom, 70)
                 }
                 .transition(.opacity)
             }
@@ -315,8 +315,6 @@ struct PadContentView: View {
             toolButton(.lassoFill, "l")
             toolButton(.lassoErase, "k")
             selectionMenu
-            toolButton(.move, "v")
-            toolButton(.transform, "t")
             toolButton(.eyedropper, "i")
 
             Divider().frame(height: 24).padding(.horizontal, 4)
@@ -341,6 +339,15 @@ struct PadContentView: View {
             .popover(isPresented: $showColors) { popoverPanel(.colors, $showColors) }
             Button("") { editor.swapColors() }
                 .keyboardShortcut("x", modifiers: [])
+                .frame(width: 0, height: 0)
+                .opacity(0)
+            // 移動・変形はツールバーから外し、選択範囲のバーに置いた。キーボードではいつでも選べる
+            Button("") { editor.selectTool(.move) }
+                .keyboardShortcut("v", modifiers: [])
+                .frame(width: 0, height: 0)
+                .opacity(0)
+            Button("") { editor.selectTool(.transform) }
+                .keyboardShortcut("t", modifiers: [])
                 .frame(width: 0, height: 0)
                 .opacity(0)
         }
@@ -526,14 +533,33 @@ struct PadContentView: View {
         .accessibilityLabel("選択範囲")
     }
 
-    private var deselectButton: some View {
-        Button { editor.deselect() } label: {
-            Label("選択を解除", systemImage: "xmark.circle")
-                .padding(.horizontal, 18)
-                .padding(.vertical, 10)
-                .background(.regularMaterial, in: Capsule())
+    /// 選択範囲があるあいだに出すバー: 移動・変形ツールと選択の解除
+    private var selectionBar: some View {
+        HStack(spacing: 4) {
+            selectionBarTool(.move)
+            selectionBarTool(.transform)
+            Divider().frame(height: 22).padding(.horizontal, 6)
+            Button { editor.deselect() } label: {
+                Label("選択を解除", systemImage: "xmark.circle")
+                    .padding(.horizontal, 8)
+                    .frame(height: 40)
+            }
+            .keyboardShortcut("d")
         }
-        .keyboardShortcut("d")
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.regularMaterial, in: Capsule())
+    }
+
+    private func selectionBarTool(_ tool: Tool) -> some View {
+        Button { editor.selectTool(tool) } label: {
+            Image(systemName: tool.symbol)
+                .font(.system(size: 18))
+                .frame(width: 40, height: 40)
+                .foregroundStyle(editor.tool == tool ? Color.white : Color.primary)
+                .background(editor.tool == tool ? Color.accentColor : .clear, in: Circle())
+        }
+        .accessibilityLabel(tool.displayName)
     }
 
     /// 移動・変形の途中に出す、確定・取り消しのバー
