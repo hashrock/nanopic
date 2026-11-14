@@ -88,6 +88,13 @@ struct PadContentView: View {
                     Spacer()
                     transformBar.padding(.bottom, 70)
                 }
+            } else if editor.doc.selection != nil {
+                // 選択範囲があるあいだは、ワンタップで解除できるボタンを出す
+                VStack {
+                    Spacer()
+                    deselectButton.padding(.bottom, 70)
+                }
+                .transition(.opacity)
             }
             if dropTargeted {
                 Rectangle()
@@ -517,6 +524,16 @@ struct PadContentView: View {
                 .background(active ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 8))
         }
         .accessibilityLabel("選択範囲")
+    }
+
+    private var deselectButton: some View {
+        Button { editor.deselect() } label: {
+            Label("選択を解除", systemImage: "xmark.circle")
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+                .background(.regularMaterial, in: Capsule())
+        }
+        .keyboardShortcut("d")
     }
 
     /// 移動・変形の途中に出す、確定・取り消しのバー
