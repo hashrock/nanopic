@@ -88,6 +88,13 @@ struct PadContentView: View {
                     Spacer()
                     transformBar.padding(.bottom, 70)
                 }
+            } else if editor.doc.selection != nil {
+                // 選択範囲があるあいだは、移動・変形と解除のバーを出す
+                VStack {
+                    Spacer()
+                    selectionBar.padding(.bottom, 70)
+                }
+                .transition(.opacity)
             }
             if dropTargeted {
                 Rectangle()
@@ -108,14 +115,23 @@ struct PadContentView: View {
         .fileImporter(isPresented: Binding(get: { importing != nil }, set: { if !$0 { importing = nil } }),
                       allowedContentTypes: importing == .layer ? [.png, .jpeg, .heic, .tiff, .gif] : PadState.openableTypes) { result in
             let kind = importing
-            if case let .success(url) = result {
+            switch result {
+            case let .success(url):
                 if kind == .layer { state.importLayer(url: url) } else { state.open(url: url) }
+            case let .failure(error):
+                state.showFailure(L("開けませんでした"), error)
             }
         }
         .fileExporter(isPresented: $showExporter, document: exportFile, contentType: exportType,
                       defaultFilename: state.documentName) { result in
-            if case let .success(url) = result {
+            switch result {
+            case let .success(url):
                 if savingAs { state.adoptSavedAs(url) } else { state.show(L("「\(url.lastPathComponent)」に書き出しました")) }
+            case let .failure(error):
+                // 保存先を選ばずに閉じたときは失敗ではない
+                if (error as? CocoaError)?.code != .userCancelled {
+                    state.showFailure(savingAs ? L("保存に失敗しました") : L("書き出しに失敗しました"), error)
+                }
             }
             exportFile = nil
         }
@@ -128,6 +144,12 @@ struct PadContentView: View {
             Button("キャンセル", role: .cancel) {
                 if case let .openFile(url, scoped: true) = action { url.stopAccessingSecurityScopedResource() }
             }
+        }
+        .alert(state.failure?.title ?? "", isPresented: Binding(get: { state.failure != nil }, set: { if !$0 { state.failure = nil } }),
+               presenting: state.failure) { _ in
+            Button("OK") { state.failure = nil }
+        } message: { f in
+            Text(f.message)
         }
         .onOpenURL { url in state.open(url: url) }
         .onChange(of: scenePhase) { _, phase in
@@ -168,15 +190,24 @@ struct PadContentView: View {
             if type == .psd {
                 data = try state.psdData()
             } else {
-                guard let d = state.pngData() else { return }
+                guard let d = state.pngData() else {
+                    state.showFailure(L("書き出しに失敗しました"), CocoaError(.fileWriteUnknown))
+                    return
+                }
                 data = d
             }
             exportType = type
             exportFile = ExportFile(data: data)
             showExporter = true
         } catch {
-            state.show(L("書き出しに失敗しました: \(error.localizedDescription)"))
+            state.showFailure(L("書き出しに失敗しました"), error)
         }
+    }
+
+    /// キャンバスごと 90 度回す（用紙の向きを直す）。表示も回したあとの大きさに合わせる
+    private func rotate(clockwise: Bool) {
+        editor.rotateCanvas90(clockwise: clockwise)
+        state.canvas?.fitToView()
     }
 
     /// 外の場所の書類を開いているときの案内
@@ -221,6 +252,12 @@ struct PadContentView: View {
                 Button { export(.psd) } label: { Label("PSD を書き出し…", systemImage: "square.and.arrow.up") }
                 Button { export(.png) } label: { Label("PNG を書き出し…", systemImage: "photo") }
                 Divider()
+                Menu {
+                    Button { rotate(clockwise: true) } label: { Label("右に 90° 回転", systemImage: "rotate.right") }
+                    Button { rotate(clockwise: false) } label: { Label("左に 90° 回転", systemImage: "rotate.left") }
+                } label: {
+                    Label("画像を回転", systemImage: "rotate.right")
+                }
                 Button { importing = .layer } label: { Label("画像をレイヤーとして読み込み…", systemImage: "photo.badge.plus") }
                 Divider()
                 Toggle(isOn: Binding(get: { state.fingerDrawing }, set: { state.fingerDrawing = $0 })) {
@@ -278,8 +315,6 @@ struct PadContentView: View {
             toolButton(.lassoFill, "l")
             toolButton(.lassoErase, "k")
             selectionMenu
-            toolButton(.move, "v")
-            toolButton(.transform, "t")
             toolButton(.eyedropper, "i")
 
             Divider().frame(height: 24).padding(.horizontal, 4)
@@ -304,6 +339,15 @@ struct PadContentView: View {
             .popover(isPresented: $showColors) { popoverPanel(.colors, $showColors) }
             Button("") { editor.swapColors() }
                 .keyboardShortcut("x", modifiers: [])
+                .frame(width: 0, height: 0)
+                .opacity(0)
+            // 移動・変形はツールバーから外し、選択範囲のバーに置いた。キーボードではいつでも選べる
+            Button("") { editor.selectTool(.move) }
+                .keyboardShortcut("v", modifiers: [])
+                .frame(width: 0, height: 0)
+                .opacity(0)
+            Button("") { editor.selectTool(.transform) }
+                .keyboardShortcut("t", modifiers: [])
                 .frame(width: 0, height: 0)
                 .opacity(0)
         }
@@ -487,6 +531,35 @@ struct PadContentView: View {
                 .background(active ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 8))
         }
         .accessibilityLabel("選択範囲")
+    }
+
+    /// 選択範囲があるあいだに出すバー: 移動・変形ツールと選択の解除
+    private var selectionBar: some View {
+        HStack(spacing: 4) {
+            selectionBarTool(.move)
+            selectionBarTool(.transform)
+            Divider().frame(height: 22).padding(.horizontal, 6)
+            Button { editor.deselect() } label: {
+                Label("選択を解除", systemImage: "xmark.circle")
+                    .padding(.horizontal, 8)
+                    .frame(height: 40)
+            }
+            .keyboardShortcut("d")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.regularMaterial, in: Capsule())
+    }
+
+    private func selectionBarTool(_ tool: Tool) -> some View {
+        Button { editor.selectTool(tool) } label: {
+            Image(systemName: tool.symbol)
+                .font(.system(size: 18))
+                .frame(width: 40, height: 40)
+                .foregroundStyle(editor.tool == tool ? Color.white : Color.primary)
+                .background(editor.tool == tool ? Color.accentColor : .clear, in: Circle())
+        }
+        .accessibilityLabel(tool.displayName)
     }
 
     /// 移動・変形の途中に出す、確定・取り消しのバー

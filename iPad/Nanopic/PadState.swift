@@ -29,6 +29,8 @@ final class PadState {
     let perfEnabled = ProcessInfo.processInfo.arguments.contains("-perf")
     /// 画面の下に少しの間だけ出す知らせ
     var toast: String?
+    /// 閉じるまで出しておく失敗の知らせ（保存の失敗は、知らせが消えて見逃すと絵を失うので）
+    var failure: Failure?
     @ObservationIgnored private var toastToken: UUID?
     /// Apple Pencil のダブルタップで色のパネルを開く（増えたら開く）
     var showColorPanelRequest = 0
@@ -60,6 +62,16 @@ final class PadState {
     }
 
     // MARK: - 知らせ
+
+    struct Failure: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
+
+    func showFailure(_ title: String, _ error: Error) {
+        failure = Failure(title: title, message: CoordinatedFile.describe(error))
+    }
 
     func show(_ message: String) {
         let token = UUID()
@@ -216,7 +228,7 @@ final class PadState {
             canvas?.fitToView()
         } catch {
             if scoped { url.stopAccessingSecurityScopedResource() }
-            show(L("開けませんでした: \(error.localizedDescription)"))
+            showFailure(L("開けませんでした"), error)
         }
     }
 
@@ -301,9 +313,11 @@ final class PadState {
             try writePSD(to: url)
             documentName = url.deletingPathExtension().lastPathComponent
             if !quiet { show(L("「\(url.lastPathComponent)」に保存しました")) }
+            checkUpload(url)
             return true
         } catch {
-            show(L("保存に失敗しました: \(error.localizedDescription)"))
+            // 自動保存（quiet）の失敗も、戻ってきたときに分かるよう閉じるまで出しておく
+            showFailure(L("保存に失敗しました"), error)
             return false
         }
     }
@@ -323,8 +337,9 @@ final class PadState {
         // 上書き保存できるよう、閉じるまでアクセス権を持っておく
         if scoped { accessedURL = url }
         documentName = url.deletingPathExtension().lastPathComponent
+        checkUpload(url)
         if let sidecarError {
-            show(L("「\(url.lastPathComponent)」に保存しましたが、追加の情報を書けませんでした: \(sidecarError.localizedDescription)"))
+            showFailure(L("「\(url.lastPathComponent)」に保存しましたが、追加の情報を書けませんでした"), sidecarError)
         } else if inside {
             show(L("「\(url.lastPathComponent)」に保存しました"))
         } else {
@@ -352,8 +367,29 @@ final class PadState {
             show(L("「このiPad内 › Nanopic」に「\(url.lastPathComponent)」を作りました"))
             return true
         } catch {
-            show(L("複製に失敗しました: \(error.localizedDescription)"))
+            showFailure(L("複製に失敗しました"), error)
             return false
+        }
+    }
+
+    /// ネットワークドライブやクラウドの場所（ファイルプロバイダー）は、書けたあとに裏で送る。
+    /// 送るのに失敗するとファイル App 側にしか出ないので、少しの間ようすを見て、失敗していたら知らせる
+    private func checkUpload(_ url: URL) {
+        guard !url.path.hasPrefix(Self.documentsDirectory.path) else { return }
+        Task { [weak self] in
+            for _ in 0..<10 {
+                try? await Task.sleep(for: .seconds(1.5))
+                guard let self, self.editor.fileURL == url else { return }
+                var u = url
+                u.removeAllCachedResourceValues()
+                guard let v = try? u.resourceValues(forKeys: [.ubiquitousItemUploadingErrorKey, .ubiquitousItemIsUploadedKey]) else { return }
+                if let e = v.ubiquitousItemUploadingError {
+                    self.showFailure(L("「\(url.lastPathComponent)」を保存先に送れませんでした"), e)
+                    return
+                }
+                // 送り終えた（あるいは、送るという考えのない場所）
+                if v.ubiquitousItemIsUploaded != false { return }
+            }
         }
     }
 

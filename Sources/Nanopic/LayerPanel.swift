@@ -1,5 +1,6 @@
 import AppKit
 import NanopicCore
+import NanopicUI
 import SwiftUI
 
 struct LayerPanel: View {
@@ -248,122 +249,6 @@ struct LayerRowActions {
     let editor: Editor
     let rename: LayerRenameState
     let drag: LayerDragState
-}
-
-// MARK: - ドラッグ&ドロップ
-
-struct LayerRowFrame: Equatable {
-    let id: UUID
-    let isFolder: Bool
-    let name: String
-    let frame: CGRect
-}
-
-struct LayerRowFramesKey: PreferenceKey {
-    static let defaultValue: [LayerRowFrame] = []
-    static func reduce(value: inout [LayerRowFrame], nextValue: () -> [LayerRowFrame]) {
-        value.append(contentsOf: nextValue())
-    }
-}
-
-/// リスト内で完結するドラッグ。NSItemProvider を介さないので軽く、即座に反応する。
-@Observable
-final class LayerDragState {
-    static let space = "layerList"
-
-    struct Target: Equatable {
-        let id: UUID
-        let placement: Editor.DropPlacement
-        let frame: CGRect
-    }
-
-    @ObservationIgnored var rowFrames: [LayerRowFrame] = []
-    private(set) var draggingID: UUID?
-    private(set) var draggingName = ""
-    private(set) var location: CGPoint = .zero
-    private(set) var target: Target?
-
-    func update(dragging id: UUID, location p: CGPoint) {
-        if draggingID != id {
-            draggingID = id
-            draggingName = rowFrames.first { $0.id == id }?.name ?? ""
-        }
-        location = p
-        let t = computeTarget(p, dragging: id)
-        if t != target { target = t }
-    }
-
-    private func computeTarget(_ p: CGPoint, dragging id: UUID) -> Target? {
-        let sorted = rowFrames.sorted { $0.frame.minY < $1.frame.minY }
-        guard let first = sorted.first, let last = sorted.last else { return nil }
-        // リストの上下にはみ出したら先頭の上 / 末尾の下
-        let row: LayerRowFrame
-        if p.y < first.frame.minY {
-            row = first
-        } else if p.y >= last.frame.maxY {
-            row = last
-        } else if let r = sorted.first(where: { p.y >= $0.frame.minY && p.y < $0.frame.maxY }) {
-            row = r
-        } else {
-            return nil
-        }
-        if row.id == id { return nil }
-        let f = row.frame
-        let rel = (p.y - f.minY) / max(f.height, 1)
-        let placement: Editor.DropPlacement
-        if row.isFolder && rel > 0.25 && rel < 0.75 {
-            placement = .into
-        } else {
-            placement = rel < 0.5 ? .above : .below
-        }
-        return Target(id: row.id, placement: placement, frame: f)
-    }
-
-    func finish(editor: Editor) {
-        defer {
-            draggingID = nil
-            target = nil
-        }
-        guard let id = draggingID, let t = target else { return }
-        // 選択中のレイヤーをつかんだら、選択中のものをまとめて動かす
-        if editor.isLayerSelected(id) {
-            editor.moveSelectedLayers(relativeTo: t.id, placement: t.placement)
-        } else {
-            editor.moveLayer(id, relativeTo: t.id, placement: t.placement)
-        }
-    }
-}
-
-struct LayerDropIndicator: View {
-    let drag: LayerDragState
-
-    var body: some View {
-        if drag.draggingID != nil {
-            ZStack(alignment: .topLeading) {
-                if let t = drag.target {
-                    switch t.placement {
-                    case .into:
-                        RoundedRectangle(cornerRadius: 3)
-                            .stroke(Color.accentColor, lineWidth: 2)
-                            .frame(width: t.frame.width, height: t.frame.height)
-                            .offset(x: t.frame.minX, y: t.frame.minY)
-                    case .above, .below:
-                        Rectangle()
-                            .fill(Color.accentColor)
-                            .frame(width: t.frame.width, height: 2)
-                            .offset(x: t.frame.minX, y: (t.placement == .above ? t.frame.minY : t.frame.maxY) - 1)
-                    }
-                }
-                Text(drag.draggingName)
-                    .font(.callout)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
-                    .offset(x: drag.location.x + 8, y: drag.location.y - 10)
-            }
-            .allowsHitTesting(false)
-        }
-    }
 }
 
 struct LayerRowView: View, Equatable {
