@@ -9,6 +9,7 @@ extension UTType {
 }
 
 /// iPad 版のアプリの状態（ドキュメント・設定・ファイル操作）
+@MainActor
 @Observable
 final class PadState {
     let editor = Editor()
@@ -147,7 +148,7 @@ final class PadState {
     // MARK: - ファイル
 
     /// アプリの書類フォルダー（ファイル App の「このiPad内 › Nanopic」）
-    static var documentsDirectory: URL {
+    nonisolated static var documentsDirectory: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
@@ -250,7 +251,8 @@ final class PadState {
         return false
     }
 
-    private static func copyDropped(_ url: URL) throws -> URL {
+    /// 受け取りの裏のスレッドから呼ぶ（ファイルの操作だけで、状態には触らない）
+    nonisolated private static func copyDropped(_ url: URL) throws -> URL {
         let fm = FileManager.default
         let ext = url.pathExtension
         let name = url.deletingPathExtension().lastPathComponent

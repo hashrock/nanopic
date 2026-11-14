@@ -1,11 +1,13 @@
 import AppKit
-import NanopicCore
+// NanopicCore の型（DocumentState など）は Sendable の注釈をまだ付けていない。書類は値のコピーを裏のスレッドに渡して書き出す
+@preconcurrency import NanopicCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// 書き出しの進み具合（シートに出す）
+/// 書き出しの進み具合（シートに出す）。
+/// 裏のスレッドから読むのはロックで守った isCancelled だけで、done・total はメインスレッドでだけ書く
 @Observable
-final class MovieExportProgress {
+final class MovieExportProgress: @unchecked Sendable {
     var done = 0
     var total = 1
     @ObservationIgnored private let lock = NSLock()
