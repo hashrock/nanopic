@@ -1,4 +1,5 @@
 import NanopicCore
+import NanopicUI
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -46,8 +47,12 @@ final class PadState {
     /// 外の場所（ファイル App で選んだ場所）のファイルを開いている間のアクセス権
     @ObservationIgnored private var accessedURL: URL?
     @ObservationIgnored private var thumbCache: [UUID: (version: Int, image: CGImage)] = [:]
+    /// ブラシ・消しゴム・パレットを iCloud で Mac と iPad の間で同期する
+    var syncEnabled = false
+    @ObservationIgnored private var sync: PreferenceSync?
 
     init() {
+        startSync()
         loadPreferences()
         locateICloudContainer()
         #if targetEnvironment(simulator)
@@ -90,6 +95,28 @@ final class PadState {
         if let v = try? enc.encode(editor.erasers) { d.set(v, forKey: "erasers.v1") }
         if let v = try? enc.encode(editor.fillSettings) { d.set(v, forKey: "fill.v1") }
         d.set(editor.palette.map(HexColor.format), forKey: "palette.v1")
+        sync?.push()
+    }
+
+    // MARK: - 設定の同期（iCloud）
+
+    func setSyncEnabled(_ on: Bool) {
+        sync?.setEnabled(on)
+        syncEnabled = sync?.isEnabled ?? false
+    }
+
+    /// ほかの端末で変わった設定を読み直す
+    private func reloadSyncedPreferences() {
+        loadPreferences()
+        editor.activeBrushIndex = min(editor.activeBrushIndex, max(0, editor.brushes.count - 1))
+        editor.activeEraserIndex = min(editor.activeEraserIndex, max(0, editor.erasers.count - 1))
+    }
+
+    private func startSync() {
+        let s = PreferenceSync { [weak self] in self?.reloadSyncedPreferences() }
+        s.pullOnLaunch()
+        sync = s
+        syncEnabled = s.isEnabled
     }
 
     private func loadPreferences() {

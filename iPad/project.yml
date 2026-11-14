@@ -90,3 +90,5 @@ targets:
         com.apple.developer.icloud-container-identifiers: [iCloud.com.hashrock.nanopic]
         com.apple.developer.ubiquity-container-identifiers: [iCloud.com.hashrock.nanopic]
         com.apple.developer.icloud-services: [CloudDocuments]
+        # ブラシ・パレットの同期（NSUbiquitousKeyValueStore）。Mac 版（scripts/package-appstore.sh）と同じ識別子にする
+        com.apple.developer.ubiquity-kvstore-identifier: $(TeamIdentifierPrefix)com.hashrock.nanopic

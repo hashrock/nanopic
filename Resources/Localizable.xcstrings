@@ -1785,6 +1785,16 @@
         }
       }
     },
+    "ブラシとパレットを iCloud で同期" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync Brushes and Palette with iCloud"
+          }
+        }
+      }
+    },
     "ブラシと消しゴムは、最後に使ったブラシに切り替わります。キーを押したまま描くと、離したときに元に戻ります。" : {
       "localizations" : {
         "en" : {
@@ -1851,6 +1861,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Brush Size"
+          }
+        }
+      }
+    },
+    "ブラシ・消しゴムのプリセットとパレットを、同じ Apple アカウントの Mac と iPad で同じにします。両方でオンにしてください。オンにしたとき iCloud に設定があればそちらを使います。両方で同時に変えたときは、あとから変えたほうが残ります。自分で登録したブラシ先端の画像は同期しません。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keeps brush and eraser presets and the palette the same on your Mac and iPad signed in to the same Apple Account. Turn this on on both. When you turn it on, settings already in iCloud are used. If both are changed at the same time, the later change wins. Brush tip images you added yourself are not synced."
           }
         }
       }
@@ -2677,6 +2697,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Blend Mode"
+          }
+        }
+      }
+    },
+    "同期" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync"
           }
         }
       }

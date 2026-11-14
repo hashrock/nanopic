@@ -63,11 +63,14 @@ VERSION=$(pb CFBundleShortVersionString)
 BUILD_NUMBER=$(pb CFBundleVersion)
 mkdir -p dist/appstore
 
-# 配布用の entitlement: Sandbox のもの + どのアプリ・どのチームか（プロファイルと合っていること）。--local と --dry-run で使う
+# 配布用の entitlement: Sandbox のもの + どのアプリ・どのチームか（プロファイルと合っていること）
+# + ブラシ・パレットの iCloud 同期（キー値ストア。iPad 版と同じ識別子）。
+# iCloud の entitlement はプロファイルなしでは起動できなくなるので、手元で試す ad-hoc 署名（build-appstore.sh）には入れず、ここでだけ足す
 ENT=$(mktemp -t nanopic-entitlements).plist
 cp scripts/appstore.entitlements "$ENT"
 /usr/libexec/PlistBuddy -c "Add :com.apple.application-identifier string $TEAM_ID.$BUNDLE_ID" \
-                        -c "Add :com.apple.developer.team-identifier string $TEAM_ID" "$ENT"
+                        -c "Add :com.apple.developer.team-identifier string $TEAM_ID" \
+                        -c "Add :com.apple.developer.ubiquity-kvstore-identifier string $TEAM_ID.$BUNDLE_ID" "$ENT"
 
 case "$MODE" in
 cloud)
@@ -75,6 +78,8 @@ cloud)
     ARCHIVE=build/appstore/Nanopic.xcarchive
     EXPORT=build/appstore/export
     rm -rf "$ARCHIVE" "$EXPORT"
+    # 配布用の entitlement（iCloud 同期を含む）で ad-hoc 署名し直す。Xcode はこれを引き継いで署名し直す
+    codesign --force --sign - --entitlements "$ENT" "$APP"
     mkdir -p "$ARCHIVE/Products/Applications"
     ditto "$APP" "$ARCHIVE/Products/Applications/Nanopic.app"
     # dSYM があれば入れる（Organizer でクラッシュの場所を読むのに使う。なくても書き出せる）
