@@ -1232,4 +1232,41 @@ public final class Editor {
         resizeCanvas(width: r.width, height: r.height, originX: r.x, originY: r.y, label: L("トリミング"))
         return true
     }
+
+    /// キャンバスを 90 度回す（全レイヤー。用紙の向きを直す）。幅と高さが入れ替わる。
+    /// リグ・書き出し範囲も一緒に回す。選択範囲は解除する
+    public func rotateCanvas90(clockwise: Bool) {
+        commitTransform()
+        cancelAdjustment()
+        checkpoint(clockwise ? L("右に 90° 回転") : L("左に 90° 回転"))
+        let rot = Rotate90(clockwise: clockwise, width: doc.width, height: doc.height)
+        let oldW = doc.width, oldH = doc.height
+        func rotate(_ n: LayerNode) -> LayerNode {
+            var c = n
+            if n.kind == .raster {
+                let buf = rot.buffer(n.tiles.toBuffer(width: oldW, height: oldH))
+                c.tiles = buf.withUnsafeBufferPointer { TileMap.from(buffer: $0.baseAddress!, width: oldH, height: oldW, gen: gen) }
+                c.contentVersion = nextVersion()
+            }
+            c.children = n.children.map(rotate)
+            return c
+        }
+        doc.layers = doc.layers.map(rotate)
+        doc.width = oldH
+        doc.height = oldW
+        doc.selection = nil
+        doc.rig = rot.rig(doc.rig)
+        if var p = doc.publish {
+            // 出力の大きさも縦横を入れ替える（等倍でなければ、回す前の出力の高さが新しい幅）
+            if p.outputWidth != nil { p.outputWidth = p.resolvedOutputSize(canvas: IntRect(x: 0, y: 0, width: oldW, height: oldH)).height }
+            if let r = p.rect {
+                let nr = rot.rect(r).intersection(doc.bounds)
+                p.rect = nr.isEmpty ? nil : nr
+            }
+            // 範囲の縦横比も入れ替える（16:9 → 9:16）
+            if let a = p.aspect { p.aspect = PublishAspect(a.height, a.width) }
+            doc.publish = p
+        }
+        structureChanged()
+    }
 }

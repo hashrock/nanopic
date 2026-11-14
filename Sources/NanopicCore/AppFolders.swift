@@ -34,8 +34,58 @@ public enum CoordinatedFile {
         try coordinate(url, write: nil) { try Data(contentsOf: $0) }
     }
 
+    /// 書いたあと、ファイルの大きさが書いたものと合っているかを確かめる（合わなければ失敗として投げる）。
+    /// ネットワークドライブ（SMB など）のように、隣に一時ファイルを作れず、まとめて置き換える書き方（atomic）が通らない場所では、
+    /// 今あるファイルに直接上書きし直す
     public static func write(_ data: Data, to url: URL) throws {
-        try coordinate(url, write: .forReplacing) { try data.write(to: $0, options: .atomic) }
+        try coordinate(url, write: .forReplacing) { u in
+            do {
+                try data.write(to: u, options: .atomic)
+            } catch let atomicError {
+                guard FileManager.default.fileExists(atPath: u.path) else { throw atomicError }
+                do {
+                    try data.write(to: u)
+                } catch {
+                    // 直接の上書きも通らなければ、両方の失敗を伝える
+                    throw WriteError.failed(atomic: atomicError, direct: error)
+                }
+            }
+            try verifySize(u, expected: data.count)
+        }
+    }
+
+    static func verifySize(_ url: URL, expected: Int) throws {
+        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+        let size = (attrs[.size] as? NSNumber)?.intValue ?? -1
+        if size != expected { throw WriteError.sizeMismatch(expected: expected, actual: size) }
+    }
+
+    public enum WriteError: LocalizedError {
+        /// まとめて置き換える書き方も、直接の上書きも通らなかった
+        case failed(atomic: Error, direct: Error)
+        /// 書いたあとのファイルの大きさが、書いたものと合わない
+        case sizeMismatch(expected: Int, actual: Int)
+
+        public var errorDescription: String? {
+            switch self {
+            case let .failed(atomic, direct):
+                return CoordinatedFile.describe(atomic) + " / " + CoordinatedFile.describe(direct)
+            case let .sizeMismatch(expected, actual):
+                return L("書いたファイルの大きさが合いません（\(expected) バイト書いて、\(actual) バイト）")
+            }
+        }
+    }
+
+    /// エラーの説明に、元の原因（下にあるエラー）とドメイン・コードを足す。ネットワークドライブの失敗の見分けに使う
+    public static func describe(_ error: Error) -> String {
+        if let e = error as? WriteError { return e.errorDescription ?? "\(e)" }
+        let ns = error as NSError
+        var parts = [ns.localizedDescription]
+        if let u = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+            parts.append(u.localizedDescription + " (\(u.domain) \(u.code))") // l10n:skip
+        }
+        parts.append("(\(ns.domain) \(ns.code))") // l10n:skip
+        return parts.joined(separator: " ")
     }
 
     /// write が nil なら読み込み

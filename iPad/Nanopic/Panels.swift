@@ -247,6 +247,19 @@ struct LayerPanel: View {
     @Bindable var editor: Editor
     @State private var renaming: UUID?
     @State private var renameText = ""
+    @State private var drag = LayerDragState()
+    /// 複数選択の途中（行をタップすると選択に足す・外す）
+    @State private var selecting = false
+    /// 一覧の見えている高さと、中身の上端の位置（スクロールすると負になる）。ドラッグ中に端で送るのに使う
+    @State private var viewportHeight: CGFloat = 0
+    @State private var contentTop: CGFloat = 0
+    /// ドラッグ中の指の位置（一覧の見えている範囲の座標）
+    @State private var dragPoint: CGPoint?
+    @State private var autoScroll: Task<Void, Never>?
+
+    private static let viewport = "layerViewport"
+    /// 端からこの距離に入ったら送る
+    private static let edge: CGFloat = 36
 
     var body: some View {
         let _ = editor.revision
@@ -256,25 +269,62 @@ struct LayerPanel: View {
                     .padding(12)
                 Divider()
             }
-            List {
-                ForEach(editor.doc.flattenedForDisplay(), id: \.node.id) { item in
-                    row(item.node, depth: item.depth)
-                        .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
-                        .listRowBackground(item.node.id == editor.activeLayerID ? Color.accentColor.opacity(0.22) : Color.clear)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(editor.doc.flattenedForDisplay(), id: \.node.id) { item in
+                            row(item.node, depth: item.depth)
+                                .id(item.node.id)
+                        }
+                    }
+                    .coordinateSpace(name: LayerDragState.space)
+                    .onPreferenceChange(LayerRowFramesKey.self) { drag.rowFrames = $0 }
+                    .overlay(alignment: .topLeading) { LayerDropIndicator(drag: drag) }
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: LayerContentTopKey.self, value: geo.frame(in: .named(Self.viewport)).minY)
+                    })
+                }
+                .coordinateSpace(name: Self.viewport)
+                // ドラッグ中は一覧を指で送らない（端に寄せると自動で送る）
+                .scrollDisabled(drag.draggingID != nil)
+                .background(GeometryReader { geo in
+                    Color.clear.preference(key: LayerViewportHeightKey.self, value: geo.size.height)
+                })
+                .onPreferenceChange(LayerContentTopKey.self) { contentTop = $0 }
+                .onPreferenceChange(LayerViewportHeightKey.self) { viewportHeight = $0 }
+                .onChange(of: drag.draggingID) { _, id in
+                    if id == nil {
+                        autoScroll?.cancel()
+                        autoScroll = nil
+                    } else if autoScroll == nil {
+                        autoScroll = Task { await autoScrollLoop(proxy) }
+                    }
                 }
             }
-            .listStyle(.plain)
             Divider()
             HStack {
-                iconButton("doc.badge.plus") { editor.addLayer() }
-                iconButton("folder.badge.plus") { editor.addFolder() }
-                iconButton("plus.square.on.square") { editor.duplicateActiveLayer() }
-                iconButton("arrow.down.to.line") { editor.mergeDown() }
-                iconButton("arrow.up") { editor.moveActiveLayer(up: true) }
-                iconButton("arrow.down") { editor.moveActiveLayer(up: false) }
-                iconButton("trash") { editor.deleteSelectedLayers() }
+                iconButton("doc.badge.plus", L("新規レイヤー")) { editor.addLayer() }
+                iconButton("folder.badge.plus", L("新規フォルダー")) { editor.addFolder() }
+                iconButton("rectangle.stack.badge.plus", L("フォルダーを作成して挿入")) {
+                    editor.groupSelectedLayers()
+                    setSelecting(false)
+                }
+                iconButton("plus.square.on.square", L("レイヤーを複製")) { editor.duplicateActiveLayer() }
+                iconButton("arrow.down.to.line", L("下のレイヤーに結合")) { editor.mergeDown() }
+                iconButton("arrow.up", L("上へ")) { editor.moveActiveLayer(up: true) }
+                iconButton("arrow.down", L("下へ")) { editor.moveActiveLayer(up: false) }
+                Button { setSelecting(!selecting) } label: {
+                    Image(systemName: selecting ? "checkmark.circle.fill" : "checkmark.circle")
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(selecting ? L("複数選択を終える") : L("複数選択"))
+                iconButton("trash", L("レイヤーを削除")) {
+                    editor.deleteSelectedLayers()
+                    setSelecting(false)
+                }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 4)
             .padding(.vertical, 6)
         }
         .alert("レイヤー名", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
@@ -340,7 +390,14 @@ struct LayerPanel: View {
     }
 
     private func row(_ node: LayerNode, depth: Int) -> some View {
-        HStack(spacing: 6) {
+        let active = node.id == editor.activeLayerID
+        let selected = editor.isLayerSelected(node.id)
+        return HStack(spacing: 6) {
+            if selecting {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                    .frame(width: 24, height: 44)
+            }
             Button {
                 editor.toggleVisibility(node.id)
             } label: {
@@ -375,15 +432,91 @@ struct LayerPanel: View {
             }
             Spacer(minLength: 0)
             if node.locked { Image(systemName: "lock.fill").font(.caption).foregroundStyle(.secondary) }
+            // つまみ: ここをドラッグして並べ替える（フォルダーの行の真ん中に落とすと中へ入る）。
+            // 一覧のスクロールとぶつからないよう、つまみだけで受ける
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(.secondary)
+                .frame(width: 36, height: 44)
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.viewport))
+                    .onChanged { v in
+                        dragPoint = v.location
+                        drag.update(dragging: node.id, location: contentPoint(v.location))
+                    }
+                    .onEnded { _ in
+                        dragPoint = nil
+                        drag.finish(editor: editor)
+                    })
+                .accessibilityLabel("ドラッグして並べ替え")
         }
+        .padding(.leading, 8)
+        .background(active ? Color.accentColor.opacity(0.22) : selected ? Color.accentColor.opacity(0.12) : Color.clear)
+        .overlay(alignment: .bottom) { Divider() }
         .contentShape(Rectangle())
-        .onTapGesture { editor.setActiveLayer(node.id) }
+        .onTapGesture {
+            if selecting {
+                if node.id == editor.activeLayerID { return }
+                editor.toggleLayerSelection(node.id)
+            } else {
+                editor.setActiveLayer(node.id)
+            }
+        }
+        .background(GeometryReader { geo in
+            Color.clear.preference(key: LayerRowFramesKey.self,
+                                   value: [LayerRowFrame(id: node.id, isFolder: node.isFolder, name: node.name,
+                                                         frame: geo.frame(in: .named(LayerDragState.space)))])
+        })
         .contextMenu {
             Button { renameText = node.name; renaming = node.id } label: { Label("名前の変更", systemImage: "pencil") }
             Button { editor.setActiveLayer(node.id); editor.duplicateActiveLayer() } label: { Label("複製", systemImage: "plus.square.on.square") }
             Button { editor.setActiveLayer(node.id); editor.mergeDown() } label: { Label("下のレイヤーに結合", systemImage: "arrow.down.to.line") }
+            Button {
+                target(node.id)
+                editor.groupSelectedLayers()
+                setSelecting(false)
+            } label: { Label("フォルダーを作成して挿入", systemImage: "rectangle.stack.badge.plus") }
             Divider()
-            Button(role: .destructive) { editor.setActiveLayer(node.id); editor.deleteSelectedLayers() } label: { Label("削除", systemImage: "trash") }
+            Button(role: .destructive) {
+                target(node.id)
+                editor.deleteSelectedLayers()
+                setSelecting(false)
+            } label: { Label("削除", systemImage: "trash") }
+        }
+    }
+
+    /// 長押しのメニューの操作の対象: 選択中の行なら選択中のもの全部、そうでなければその行だけ
+    private func target(_ id: UUID) {
+        if !editor.isLayerSelected(id) { editor.setActiveLayer(id) }
+    }
+
+    private func setSelecting(_ on: Bool) {
+        selecting = on
+        // やめたら、選択は編集レイヤーだけに戻す
+        if !on, let id = editor.activeLayerID { editor.setActiveLayer(id) }
+    }
+
+    /// 見えている範囲の座標を、一覧の中身の座標にする
+    private func contentPoint(_ p: CGPoint) -> CGPoint {
+        CGPoint(x: p.x, y: p.y - contentTop)
+    }
+
+    /// ドラッグ中、指が一覧の上下の端にあれば、1 行ずつ送る
+    private func autoScrollLoop(_ proxy: ScrollViewProxy) async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(110))
+            guard !Task.isCancelled, let p = dragPoint, let id = drag.draggingID else { continue }
+            let top = -contentTop, bottom = top + viewportHeight
+            let rows = drag.rowFrames.sorted { $0.frame.minY < $1.frame.minY }
+            if p.y < Self.edge, let r = rows.last(where: { $0.frame.minY < top - 1 }) {
+                proxy.scrollTo(r.id, anchor: .top)
+            } else if p.y > viewportHeight - Self.edge, let r = rows.first(where: { $0.frame.maxY > bottom + 1 }) {
+                proxy.scrollTo(r.id, anchor: .bottom)
+            } else {
+                continue
+            }
+            // 送ると指の下の行が変わるので、落とす先を出し直す（送った量は次の描画で contentTop に入る）
+            try? await Task.sleep(for: .milliseconds(16))
+            drag.update(dragging: id, location: contentPoint(p))
         }
     }
 
@@ -402,13 +535,24 @@ struct LayerPanel: View {
         .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.gray.opacity(0.4)))
     }
 
-    private func iconButton(_ symbol: String, action: @escaping () -> Void) -> some View {
+    private func iconButton(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .frame(maxWidth: .infinity, minHeight: 36)
         }
         .buttonStyle(.borderless)
+        .accessibilityLabel(label)
     }
+}
+
+private struct LayerContentTopKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+private struct LayerViewportHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 /// 透明部分を示す市松模様

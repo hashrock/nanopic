@@ -349,12 +349,12 @@
         }
       }
     },
-    "「%@」に保存しましたが、追加の情報を書けませんでした: %@" : {
+    "「%@」に保存しましたが、追加の情報を書けませんでした" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to “%1$@”, but could not write the extra information: %2$@"
+            "value" : "Saved “%@”, but couldn't write the extra information"
           }
         }
       }
@@ -396,6 +396,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“%1$@” holds extra information for “%2$@”. Open “%3$@” instead"
+          }
+        }
+      }
+    },
+    "「%@」を保存先に送れませんでした" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't upload “%@” to its location"
           }
         }
       }
@@ -1483,6 +1493,16 @@
         }
       }
     },
+    "ドラッグして並べ替え" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to reorder"
+          }
+        }
+      }
+    },
     "ドラッグでスクロール\nトラックパッド: 2本指でスクロール、ピンチでズーム、回転ジェスチャーで回転" : {
       "localizations" : {
         "en" : {
@@ -2136,6 +2156,16 @@
         }
       }
     },
+    "上へ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Up"
+          }
+        }
+      }
+    },
     "上へ移動" : {
       "localizations" : {
         "en" : {
@@ -2192,6 +2222,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Merge Down (⌘E)"
+          }
+        }
+      }
+    },
+    "下へ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Down"
           }
         }
       }
@@ -2322,6 +2362,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Save and Continue"
+          }
+        }
+      }
+    },
+    "保存に失敗しました" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't Save"
           }
         }
       }
@@ -2681,6 +2731,16 @@
         }
       }
     },
+    "右に 90° 回転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotate 90° Right"
+          }
+        }
+      }
+    },
     "合成モード" : {
       "localizations" : {
         "en" : {
@@ -2937,6 +2997,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove"
+          }
+        }
+      }
+    },
+    "左に 90° 回転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotate 90° Left"
           }
         }
       }
@@ -3404,6 +3474,26 @@
         }
       }
     },
+    "書いたファイルの大きさが合いません（%lld バイト書いて、%lld バイト）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The written file size doesn't match (wrote %lld bytes, found %lld bytes)"
+          }
+        }
+      }
+    },
+    "書き出しに失敗しました" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't Export"
+          }
+        }
+      }
+    },
     "書き出しに失敗しました: %@" : {
       "localizations" : {
         "en" : {
@@ -3764,6 +3854,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import Image as Layer…"
+          }
+        }
+      }
+    },
+    "画像を回転" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotate Image"
           }
         }
       }
@@ -4251,6 +4351,26 @@
         }
       }
     },
+    "複数選択" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Multiple"
+          }
+        }
+      }
+    },
+    "複数選択を終える" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done Selecting"
+          }
+        }
+      }
+    },
     "複製" : {
       "localizations" : {
         "en" : {
@@ -4261,12 +4381,12 @@
         }
       }
     },
-    "複製に失敗しました: %@" : {
+    "複製に失敗しました" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn’t duplicate: %@"
+            "value" : "Couldn't Duplicate"
           }
         }
       }
@@ -4543,12 +4663,12 @@
         }
       }
     },
-    "開けませんでした: %@" : {
+    "開けませんでした" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn’t open: %@"
+            "value" : "Couldn't Open"
           }
         }
       }
