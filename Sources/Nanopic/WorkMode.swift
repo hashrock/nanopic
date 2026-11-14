@@ -1,8 +1,8 @@
 import AppKit
 import NanopicCore
 
-/// 画面のモード。リグモード（デフォーマとパラメータで絵を動かす、実験的な機能）では変形を表示し、描けない
-/// （描くツールを出さない）。設定の「実験的な機能」で入れたときだけ入れる。
+/// 画面のモード。リグモード（デフォーマとパラメータで絵を動かす）では変形を表示し、描けない
+/// （描くツールを出さない）。
 /// 描くモードでもタイムラインは出せる（変形は表示しないので、パラパラを描ける）
 enum WorkMode: String {
     case draw, rig
@@ -44,8 +44,6 @@ extension AppState {
             showError(L("動かす絵がありません。描いてあるレイヤーかフォルダーを選んでください。"))
             return
         }
-        // 動きを見るにはリグモードがいるので、実験的な機能でも入れる
-        rigEnabled = true
         setMode(.rig)
         startPlayback()
         flashStatus(L("「\(preset.displayName)」の動きを付けました。ファイル ＞ 動画を書き出し で GIF などにできます"))
@@ -57,7 +55,6 @@ extension AppState {
             showError(L("振り向かせる絵がありません。顔などのパーツをまとめたフォルダーか、描いてあるレイヤーを選んでください。"))
             return
         }
-        rigEnabled = true
         followsCursor = false
         setMode(.rig)
         startPlayback()

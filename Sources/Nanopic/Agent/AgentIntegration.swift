@@ -53,12 +53,14 @@ extension AppState {
                 try checkDiscard(a)
                 let url = try fileURL(a)
                 guard Self.isOpenable(url) else { throw AgentError("開けない種類のファイルです: \(url.lastPathComponent)") }
-                try load(url: url)
+                try fileAccess(url) { try load(url: url) }
                 return [.text("開きました: \(url.path)（\(editor.doc.width)×\(editor.doc.height)）")]
             },
             tb.tool("import_image") { [unowned self] a in
                 let url = try fileURL(a)
-                guard let img = ImageUtil.loadImage(url: url) else { throw AgentError("画像を読み込めませんでした: \(url.path)") }
+                guard let img = ImageUtil.loadImage(url: url) else {
+                    throw AgentError("画像を読み込めませんでした: \(url.path)" + (Self.isSandboxed ? "。" + Self.sandboxNote : ""))
+                }
                 editor.addImageLayer(name: url.deletingPathExtension().lastPathComponent, image: img)
                 return [.text(tb.json(["layer_id": editor.activeLayerID?.uuidString ?? ""]))]
             },
@@ -71,7 +73,7 @@ extension AppState {
                 } else {
                     throw AgentError("まだ PSD として保存していないので path を指定してください")
                 }
-                try writePSD(to: url)
+                try fileAccess(url) { try writePSD(to: url) }
                 return [.text("保存しました: \(url.path)")]
             },
             tb.tool("set_view") { [unowned self] a in
@@ -87,7 +89,7 @@ extension AppState {
                 let url = try fileURL(a)
                 editor.commitTransform()
                 guard !editor.timeline.isEmpty else { throw AgentError("タイムラインにトラックがありません") }
-                try MovieExport.export(editor.doc, to: url, values: editor.parameterValues, options: editor.movieOptions())
+                try fileAccess(url) { try MovieExport.export(editor.doc, to: url, values: editor.parameterValues, options: editor.movieOptions()) }
                 let t = editor.timeline
                 return [.text("書き出しました: \(url.path)（\(t.frameCount) コマ、\(t.fps) fps）")]
             },
@@ -99,7 +101,9 @@ extension AppState {
                 guard let format = MovieFormat(rawValue: name) else {
                     throw AgentError("format は \(MovieFormat.allCases.map(\.rawValue).joined(separator: " / ")) のどれか")
                 }
-                try MovieExport.export(editor.doc, to: url, values: editor.parameterValues, options: editor.movieOptions(format: format))
+                try fileAccess(url) {
+                    try MovieExport.export(editor.doc, to: url, values: editor.parameterValues, options: editor.movieOptions(format: format))
+                }
                 let t = editor.timeline
                 return [.text("書き出しました: \(url.path)（\(format.displayName)、\(t.frameCount) コマ、\(t.fps) fps）")]
             },
@@ -107,7 +111,7 @@ extension AppState {
                 let url = try fileURL(a)
                 editor.commitTransform()
                 guard let img = editor.flattenedImage(), let data = ImageUtil.pngData(img) else { throw AgentError("書き出せませんでした") }
-                try data.write(to: url, options: .atomic)
+                try fileAccess(url) { try data.write(to: url, options: .atomic) }
                 return [.text("書き出しました: \(url.path)")]
             },
         ]
@@ -122,8 +126,39 @@ extension AppState {
     }
 
     private func fileURL(_ a: AgentArgs) throws -> URL {
-        let path = (try a.requireString("path") as NSString).expandingTildeInPath
+        var path = try a.requireString("path")
+        // ~ はユーザーのホームにする（App Sandbox の中では expandingTildeInPath がアプリの container を指し、
+        // 「~/Desktop/a.png」が container の中に黙って書かれてしまうため）
+        if path == "~" || path.hasPrefix("~/") { path = Self.userHome + path.dropFirst() }
         guard path.hasPrefix("/") else { throw AgentError("path は絶対パスで指定してください") }
         return URL(fileURLWithPath: path)
+    }
+
+    /// App Sandbox の中で動いている（App Store 版）
+    private static let isSandboxed = ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
+
+    private static let sandboxNote = "App Store 版の Nanopic は App Sandbox の中で動くので、ユーザーが Nanopic で開いた書類・保存パネルで選んだ場所のほかは読み書きできません。ユーザーに Nanopic で開いてもらうか、保存してもらってください"
+
+    /// ユーザーのホーム（App Sandbox の中でも container ではなく本来のホーム）
+    private static var userHome: String {
+        if let pw = getpwuid(getuid()), let dir = pw.pointee.pw_dir { return String(cString: dir) }
+        return NSHomeDirectory()
+    }
+
+    /// ファイルの読み書き。App Sandbox に断られたときは、エージェントがユーザーに伝えられるよう理由を返す
+    private func fileAccess<T>(_ url: URL, _ body: () throws -> T) throws -> T {
+        do {
+            return try body()
+        } catch where Self.isSandboxed && Self.isPermissionError(error) {
+            throw AgentError("読み書きできませんでした: \(url.path)。" + Self.sandboxNote)
+        }
+    }
+
+    private static func isPermissionError(_ error: Error) -> Bool {
+        let e = error as NSError
+        if e.domain == NSCocoaErrorDomain, [NSFileReadNoPermissionError, NSFileWriteNoPermissionError].contains(e.code) { return true }
+        if e.domain == NSPOSIXErrorDomain, [Int(EPERM), Int(EACCES)].contains(e.code) { return true }
+        if let underlying = e.userInfo[NSUnderlyingErrorKey] as? Error { return isPermissionError(underlying) }
+        return false
     }
 }

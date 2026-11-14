@@ -26,20 +26,16 @@ open build/Nanopic.app
 ### App Store 用のビルド
 
 ```sh
-./scripts/build-appstore.sh   # エージェント連携（MCP）を外して build/appstore/Nanopic.app を生成
-NANOPIC_APPSTORE=1 swift test --scratch-path .build-appstore   # App Store 用の構成でテスト
+./scripts/build-appstore.sh   # ユニバーサルの build/appstore/Nanopic.app を生成
 ```
 
-App Store 用のビルドには、エージェント連携（MCP サーバー、設定とメニューの項目、エージェント向けのツール）を入れません。実行時に隠すのではなく、コンパイルの段階で外します。
+App Store 用のビルドも、直接配布（Developer ID、`release.sh`）版と中身は同じです（エージェント連携も入ります）。違いはユニバーサルなことと、App Sandbox の entitlement と署名です。
 
-- `Package.swift` が環境変数 `NANOPIC_APPSTORE=1` を見て、アプリを `NanopicAgent` に依存させず、`Sources/Nanopic/Agent/`（MCP サーバー・設定画面・アプリ側のツール）をビルドから外し、`APPSTORE` を定義します。残りの呼び出し側は `#if !APPSTORE` で分けています
 - ふだんのビルドと中間ファイルが混ざらないよう、ビルド先は `.build-appstore/` に分けます
-- `build-appstore.sh` は、できたアプリを `scripts/check-appstore-app.sh` で検査します。バイナリに MCP の文字列・シンボルと待ち受け（`NWListener`、Network.framework）が残っていないことを `strings`／`nm`／`otool` で確かめ、残っていれば失敗します
-- `SANDBOX=1 ./scripts/build-appstore.sh` とすると、App Sandbox の entitlement（`scripts/appstore.entitlements`）を付けて ad-hoc 署名します。Sandbox の中での動作（サイドカーの読み書きなど）を手元で確かめるためのもので、配布用の署名ではありません
-- 訳の表にも MCP の文言が入っていないことを確かめます（エージェント連携の画面の訳は `Resources/Agent.xcstrings` に分けてあり、App Store 用のアプリには表ごと入れません）
-- App Store に出すのに要るもの（表示言語の申告 `CFBundleLocalizations` と `ja.lproj`・`en.lproj`、Info.plist の `LSApplicationCategoryType`・`ITSAppUsesNonExemptEncryption`、プライバシーマニフェスト `Resources/PrivacyInfo.xcprivacy`、1024px まで入ったアイコン、ユニバーサルバイナリ、通信や例外のない entitlement）も確かめます
-- 直接配布（Developer ID、`release.sh`）のビルドは今までどおりエージェント連携を含みます
-- iPad 版が使うライブラリ `NanopicKit` には、どちらの構成でも `NanopicAgent` を入れません
+- `build-appstore.sh` は、できたアプリを `scripts/check-appstore-app.sh` で検査します
+- `SANDBOX=1 ./scripts/build-appstore.sh` とすると、App Sandbox の entitlement（`scripts/appstore.entitlements`）を付けて ad-hoc 署名します。Sandbox の中での動作（サイドカーの読み書き、エージェント連携など）を手元で確かめるためのもので、配布用の署名ではありません
+- App Store に出すのに要るもの（表示言語の申告 `CFBundleLocalizations` と `ja.lproj`・`en.lproj`、Info.plist の `LSApplicationCategoryType`・`ITSAppUsesNonExemptEncryption`、プライバシーマニフェスト `Resources/PrivacyInfo.xcprivacy`、1024px まで入ったアイコン、ユニバーサルバイナリ、通信は MCP の待ち受け（`network.server`）だけで例外のない entitlement）と、エージェント連携（MCP サーバーとその画面の訳）が入っていることを確かめます
+- iPad 版が使うライブラリ `NanopicKit` には `NanopicAgent` を入れません
 
 ### Mac App Store
 
@@ -53,7 +49,7 @@ App Store 用のビルドには、エージェント連携（MCP サーバー、
 1. `build-appstore.sh` でアプリを作り、Sandbox の entitlement を付けて ad-hoc 署名する
 2. それを `.xcarchive` の形に包む（`build/appstore/Nanopic.xcarchive`。`Products/Applications/Nanopic.app` と `Info.plist`、あれば `dSYMs/`。版・ビルド番号はアプリの Info.plist から読む）
 3. `xcodebuild -exportArchive -allowProvisioningUpdates` に渡す。Xcode が Apple のサーバーにある証明書（Cloud Managed Apple Distribution）でアプリを署名し、プロファイル（`Mac Team Store Provisioning Profile: com.hashrock.nanopic`）を作って埋め込み、entitlement に App ID とチーム ID を足し、`.pkg` にして Installer の証明書（3rd Party Mac Developer Installer）で署名する
-4. できた `.pkg` からアプリを取り出し、`check-appstore-app.sh` でもう一度検査する（MCP が入っていないこと、Info.plist の項目、表示言語、アイコン、署名の entitlement が Sandbox + App ID + チーム ID だけであること、プロファイルの App ID）
+4. できた `.pkg` からアプリを取り出し、`check-appstore-app.sh` でもう一度検査する（エージェント連携が入っていること、Info.plist の項目、表示言語、アイコン、署名の entitlement が Sandbox + MCP の待ち受け + App ID + チーム ID + iCloud 同期だけであること、プロファイルの App ID）
 
 - 要るもの: Xcode の Settings > Accounts に、チーム（`5WLLZHK49R`）の Apple ID でサインインしていること。クラウド署名を使えるのは Account Holder / Admin か、「Access to Cloud Managed Distribution Certificate」を持つ人です。App ID `com.hashrock.nanopic` が Apple Developer に登録されていること（Mac の直接配布版・Mac App Store 版・iPad 版で同じ ID）
 - Apple と通信するのは 3 の署名とプロファイルの作成だけです。アップロードはしません（`ExportOptions` の `destination` は `export`）。できた `.pkg` は Transporter か `xcrun altool` で別に送ります
@@ -103,6 +99,7 @@ open NanopicPad.xcodeproj    # スキーム NanopicPad を iPad／シミュレ�
 - PSD・画像を開く（ファイル App などからキャンバスへドロップしても開ける）、PSD で保存（ファイル App の「このiPad内 › Nanopic」）、PSD・PNG の書き出し。アプリを離れると、Nanopic フォルダーの書類は自動で保存します
 - テスト: `swift test`（訳の抜けの検査 `scripts/check-localization.py` も走ります）
 - 性能計測: `NANOPIC_PERF=1 swift test -c release -Xswiftc -enable-testing --filter PerfTests`
+- iPad 版の描画の性能（フレーム時間の内訳・ペンの入力）を画面に出すには、起動の引数に `-perf` を付ける（`xcrun devicectl device process launch --device <ID> --terminate-existing com.hashrock.nanopic -perf`）。記録は `Library/Caches/nanopic-perf` に書く
 
 ## 機能
 
@@ -168,7 +165,7 @@ Sources/NanopicAgent/  エージェント（MCP）向けのツール（コアと
   Regions.swift / Gaps.swift  線画で囲まれた領域の分割と、線の隙間探し（下塗り用）
 Sources/NanopicUI/     Mac 版と iPad 版で共有する表示部品（Metal の表示、色の選択、スライダー）
 Sources/Nanopic/       macOS アプリ（SwiftUI パネル + AppKit/Metal キャンバス）
-  Agent/               エージェント連携（MCP サーバー、設定画面、アプリ側のツール）。App Store 用ビルドでは外す
+  Agent/               エージェント連携（MCP サーバー、設定画面、アプリ側のツール）
 iPad/                  iPad アプリ（XcodeGen の project.yml、UIKit/Metal キャンバス + SwiftUI パネル）
 Resources/             訳のカタログ（*.xcstrings）、アイコン、プライバシーマニフェスト
 ```
@@ -183,7 +180,7 @@ Resources/             訳のカタログ（*.xcstrings）、アイコン、プ�
 |---|---|---|
 | `Localizable.xcstrings` | 画面の文言（メニュー、ボタン、パネル、ダイアログ、エラー、取り消しの名前） | Mac（直接配布・App Store）、iPad |
 | `Names.xcstrings` | 設定に入る既定の名前（ブラシ・ブラシ先端。下の表） | Mac（直接配布・App Store）、iPad |
-| `Agent.xcstrings` | エージェント連携の設定画面とメニュー | Mac の直接配布版だけ |
+| `Agent.xcstrings` | エージェント連携の設定画面とメニュー | Mac（直接配布・App Store） |
 
 - **アプリへの入れ方**: SwiftPM（`swift build`）は `.xcstrings` を変換しないので、`scripts/build-app.sh` が `scripts/compile-localization.sh`（Xcode の `xcstringstool`）で `en.lproj/*.strings` にして `.app` の `Contents/Resources` に入れ、Info.plist の `CFBundleLocalizations` で ja・en を申告します。`ja.lproj` には空の表を置きます（キーがそのまま日本語の文言なので）。iPad 版は同じカタログを Xcode がビルドのときに変換します
 - **訳の引き方**: SwiftPM のリソース（`Bundle.module`）は使わず、どのモジュールもアプリ本体（`Bundle.main`）を引きます。SwiftUI の `Text("保存")` のようなリテラルはそのままアプリ本体を引くので、共有部品（NanopicUI）も iPad 版も同じ表で済みます。`.app` の直下にリソースのバンドルを置かずに済み、署名もそのままです。SwiftUI を通らない側（`NSAlert`、エラー、enum の表示名、取り消しの名前、`String` を受け取る部品）は `L("…")`（`%.1f` のような書式つきは `LFormat`）で引きます（`Sources/NanopicCore/Localized.swift`）。エージェント連携の画面は `LA("…")` で `Agent` の表を引きます
@@ -208,7 +205,7 @@ Resources/             訳のカタログ（*.xcstrings）、アイコン、プ�
 
 1. Swift 側に日本語で書く。`Text("…")`・`Button("…")` のリテラルはそのまま、`String` に入れてから渡すもの（三項演算子、`NSAlert`、`showError` など）は `L("…")` で包む
 2. `Resources/Localizable.xcstrings` にキー（日本語の文言。`\(n)` の埋め込みは Int が `%lld`、String が `%@`、`%` は `%%`）と英語の訳を足す
-3. `scripts/check-localization.py`（`swift test` からも走る）が、カタログに無い日本語の文言、訳の抜け、書式指定子の食い違い、App Store 用にも入る表への MCP の文言の混入を見つけます。訳さない行は `// l10n:skip`、日本語のまま設定に保存する名前（複製したブラシの「コピー」）の行は `// l10n:stored` と書いて外します
+3. `scripts/check-localization.py`（`swift test` からも走る）が、カタログに無い日本語の文言、訳の抜け、書式指定子の食い違いを見つけます。訳さない行は `// l10n:skip`、日本語のまま設定に保存する名前（複製したブラシの「コピー」）の行は `// l10n:stored` と書いて外します
 
 英語の文言は Mac / iPad の標準の言い回しに合わせています（メニューとボタンは Title Case、`…` は 1 文字、Undo／Redo、Save As… など）。
 
@@ -241,7 +238,9 @@ PSD や画像ファイルをウィンドウにドロップすると開きます�
 
 ## エージェント連携（MCP）
 
-直接配布（Developer ID）版だけの機能です。App Store 用のビルドと iPad 版には入っていません。
+Mac 版（直接配布版・App Store 版）の機能です。iPad 版には入っていません。
+
+App Store 版は App Sandbox の中で動くので、ファイルを読み書きするツール（`open_file`・`save_psd`・`export_png` など）は、ユーザーが Nanopic で開いた書類や保存パネルで選んだ場所のほかは読み書きできません。断られたときは、エージェントにその理由を返します。パスの `~` は、Sandbox の中でもユーザーのホームとして扱います。
 
 設定（⌘,）の「エージェント連携」で MCP サーバーを有効にすると、Claude Code などのエージェントが開いているキャンバスを操作できます。この Mac の中（`127.0.0.1`）からだけ接続でき、既定ではオフです。
 

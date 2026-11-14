@@ -15,11 +15,10 @@
        // l10n:skip    訳さない（開発用の表示など）
        // l10n:stored  日本語のまま設定に保存する名前（複製したブラシの「コピー」。出すときに LName で訳す）
   2. LA("…")（エージェント連携の画面）は Agent の表に、それ以外は Localizable か Names の表にあるか。
-     Agent の表は App Store 用のアプリに入れないので、取り違えると App Store 版で訳が出ない。
-  3. Localizable・Names（App Store 用にも入る表）に MCP・エージェントの文言が混ざっていないか。
-  4. どのキーにも英語の訳が付いていて、state が translated か。
-  5. 訳の書式指定子（%@ や %lld）がキーと食い違っていないか。
-  6. カタログにあるのに Swift 側に見当たらないキー（警告どまり）。
+     引く表を取り違えると訳が出ない。
+  3. どのキーにも英語の訳が付いていて、state が translated か。
+  4. 訳の書式指定子（%@ や %lld）がキーと食い違っていないか。
+  5. カタログにあるのに Swift 側に見当たらないキー（警告どまり）。
 
 カタログにあることまでしか見ない。その文言が実際に訳を引く形で使われているか（Text("…") のリテラルか、
 L("…") で包んであるか）は見ていないので、String の変数に入れてから渡す文言は L() で包むこと。
@@ -32,10 +31,9 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESOURCES = os.path.join(ROOT, 'Resources')
-# 表の名前 → カタログ。Agent は直接配布版だけに入れる（scripts/build-app.sh）
+# 表の名前 → カタログ。Agent はエージェント連携の画面の訳（Mac 版だけに入れる。iPad 版には入れない）
 CATALOGS = {name: os.path.join(RESOURCES, name + '.xcstrings')
             for name in ('Localizable', 'Names', 'Agent')}
-APPSTORE_TABLES = ('Localizable', 'Names')
 
 # 画面に出す文言のあるソース
 SOURCES = ['Sources/Nanopic', 'Sources/NanopicCore', 'Sources/NanopicUI', 'iPad/Nanopic']
@@ -57,7 +55,6 @@ SPECIFIER = re.compile(r'%(?:\d+\$)?(?:lld|[@dioux]|[+]?\.?\d*l?[fgeEs])')
 INTERPOLATION = re.compile(r'(?<!\\)\\\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)')
 STRING_LITERAL = re.compile(r'"(?:[^"\\\n]|\\\((?:[^()"]|\((?:[^()"]|\([^()"]*\))*\))*\)|\\.)*"')
 WRAPPED = re.compile(r'\b(LA|L|LFormat|LName)\(\s*("(?:[^"\\\n]|\\\((?:[^()"]|\((?:[^()"]|\([^()"]*\))*\))*\)|\\.)*")')
-APPSTORE_FORBIDDEN = re.compile(r'MCP|エージェント|agent', re.IGNORECASE)
 
 
 def punch(text):
@@ -155,14 +152,7 @@ def main():
         for line in open(path, encoding='utf-8'):
             seen.update(punch(unescape(m.group(2))) for m in WRAPPED.finditer(line))
 
-    # 3. App Store 用にも入る表に MCP の文言が無いか
-    for name in APPSTORE_TABLES:
-        for key, entry in tables[name].items():
-            texts = [key] + [v for v, _ in translation_values((entry.get('localizations') or {}).get('en'))]
-            if any(APPSTORE_FORBIDDEN.search(t) for t in texts):
-                errors.append('%s の表に MCP・エージェントの文言があります（App Store 用にも入る表）: %r' % (name, key))
-
-    # 4 と 5. 訳の抜けと、書式指定子の食い違い
+    # 3 と 4. 訳の抜けと、書式指定子の食い違い
     for name, strings in tables.items():
         for key in sorted(strings):
             values = translation_values((strings[key].get('localizations') or {}).get('en'))
@@ -179,7 +169,7 @@ def main():
                 if key.replace('%%', '').count('%') != value.replace('%%', '').count('%'):
                     errors.append('%s: en の %% の数がキーと違います（%% は %%%% と書く）: %r -> %r' % (name, key, value))
 
-    # 6. 使われていないかもしれないキー（Names は保存する名前なので、リテラルと形が合わないものがある）
+    # 5. 使われていないかもしれないキー（Names は保存する名前なので、リテラルと形が合わないものがある）
     for name in ('Localizable', 'Agent'):
         for key in sorted(tables[name]):
             if punch(key) not in seen:

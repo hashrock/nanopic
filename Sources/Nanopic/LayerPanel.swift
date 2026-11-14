@@ -113,10 +113,9 @@ struct LayerPanel: View {
         let activeID = editor.doc.activeLayerID
         let focus = state.rigFocus
         return editor.doc.flattenedForDisplay().map { node, depth in
-            // リグモード（実験的な機能）を切っていれば、デフォーマは出さない
-            LayerRowModel(node: node, depth: depth, inSwitch: editor.isInSwitch(node.id), showsRig: state.rigEnabled,
+            LayerRowModel(node: node, depth: depth, inSwitch: editor.isInSwitch(node.id),
                           timelineOpen: state.timelineOpen, hasTrack: editor.hasTrack(node.id),
-                          deformers: state.rigEnabled ? editor.deformers(on: node.id).map(\.name) : [],
+                          deformers: editor.deformers(on: node.id).map(\.name),
                           rigLink: focus.map { $0.layers.contains(node.id) ? .target : $0.affectedLayers.contains(node.id) ? .affected : .none } ?? .none,
                           active: node.id == activeID,
                           selected: editor.selectedLayerIDs.contains(node.id), renaming: node.id == rename.id,
@@ -186,8 +185,6 @@ struct LayerRowModel: Equatable {
     let isSwitch: Bool
     /// 親がスイッチフォルダー（目のアイコンをラジオボタン風にする）
     let inSwitch: Bool
-    /// リグモードを使う（デフォーマのメニューを出す）
-    let showsRig: Bool
     /// タイムラインを出している（「タイムラインに足す」を出す）
     let timelineOpen: Bool
     /// タイムラインに行がある（スイッチの子ならそのフォルダーの行）
@@ -209,13 +206,12 @@ struct LayerRowModel: Equatable {
     let renaming: Bool
     let thumbnail: NSImage?
 
-    init(node: LayerNode, depth: Int, inSwitch: Bool, showsRig: Bool, timelineOpen: Bool, hasTrack: Bool, deformers: [String], rigLink: LayerRigLink, active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
+    init(node: LayerNode, depth: Int, inSwitch: Bool, timelineOpen: Bool, hasTrack: Bool, deformers: [String], rigLink: LayerRigLink, active: Bool, selected: Bool, renaming: Bool, thumbnail: NSImage?) {
         id = node.id
         name = node.name
         isFolder = node.isFolder
         isSwitch = node.isFolder && node.isSwitch
         self.inSwitch = inSwitch
-        self.showsRig = showsRig
         self.timelineOpen = timelineOpen
         self.hasTrack = hasTrack
         self.deformers = deformers
@@ -236,7 +232,7 @@ struct LayerRowModel: Equatable {
     }
 
     static func == (a: LayerRowModel, b: LayerRowModel) -> Bool {
-        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.isSwitch == b.isSwitch && a.inSwitch == b.inSwitch && a.showsRig == b.showsRig && a.timelineOpen == b.timelineOpen && a.hasTrack == b.hasTrack
+        a.id == b.id && a.name == b.name && a.isFolder == b.isFolder && a.isSwitch == b.isSwitch && a.inSwitch == b.inSwitch && a.timelineOpen == b.timelineOpen && a.hasTrack == b.hasTrack
             && a.deformers == b.deformers && a.rigLink == b.rigLink
             && a.expanded == b.expanded
             && a.visible == b.visible && a.clipping == b.clipping && a.lockAlpha == b.lockAlpha
@@ -543,16 +539,14 @@ struct LayerRowView: View, Equatable {
                     Button("タイムラインに足す") { editor.addTrack(editor.timelineTarget(m.id)) }
                 }
             }
-            if m.showsRig {
-                Menu("デフォーマ") {
-                    Button("移動・回転デフォーマを付ける") { editor.addDeformer(to: m.id, kind: .rotation) }
-                    Button("ワープデフォーマを付ける") { editor.addDeformer(to: m.id, kind: .warp) }
-                    let ds = editor.deformers(on: m.id)
-                    if !ds.isEmpty {
-                        Divider()
-                        ForEach(ds, id: \.id) { d in
-                            Button("「\(d.name)」を外す") { editor.removeDeformer(d.id) }
-                        }
+            Menu("デフォーマ") {
+                Button("移動・回転デフォーマを付ける") { editor.addDeformer(to: m.id, kind: .rotation) }
+                Button("ワープデフォーマを付ける") { editor.addDeformer(to: m.id, kind: .warp) }
+                let ds = editor.deformers(on: m.id)
+                if !ds.isEmpty {
+                    Divider()
+                    ForEach(ds, id: \.id) { d in
+                        Button("「\(d.name)」を外す") { editor.removeDeformer(d.id) }
                     }
                 }
             }

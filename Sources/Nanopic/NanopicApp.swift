@@ -88,8 +88,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let id = editor.activeLayerID { editor.setLayerProperty(id, label: L("クリッピング")) { $0.clipping.toggle() } }
             return nil
         }
-        // ⌥⌘T: リグモードの入り切り（設定で入れた直後はメニューのショートカットがまだ効かないことがあるので、ここでも受ける）
-        if flags == [.command, .option], e.charactersIgnoringModifiers?.lowercased() == "t", state.rigEnabled {
+        // ⌥⌘T: リグモードの入り切り（メニューのショートカットが効かないことがあるので、ここでも受ける）
+        if flags == [.command, .option], e.charactersIgnoringModifiers?.lowercased() == "t" {
             state.setMode(state.mode == .rig ? .draw : .rig)
             return nil
         }
@@ -258,9 +258,7 @@ struct NanopicApp: App {
             ContentView(state: state)
                 .onAppear {
                     delegate.state = state
-                    #if !APPSTORE
                     if state.mcpEnabled { state.applyMCPSetting() }
-                    #endif
                 }
         }
         .defaultSize(width: 1400, height: 900)
@@ -284,12 +282,10 @@ struct AppCommands: Commands {
     var body: some Commands {
         // ウィンドウがまだないとき（書類を渡されて起動したとき）に AppDelegate から開けるようにする
         let _ = { delegate.openMainWindow = { openWindow(id: "main") } }()
-        #if !APPSTORE
         CommandGroup(after: .appSettings) {
             Toggle(LA("エージェント連携（MCP）"), isOn: Binding(get: { _ = state.mcpSettingsVersion; return state.mcpEnabled },
                                                      set: { state.mcpEnabled = $0 }))
         }
-        #endif
         CommandGroup(replacing: .newItem) {
             Button("新規...") {
                 if state.confirmDiscardChanges() { state.showNewDocumentSheet = true }
@@ -411,10 +407,8 @@ struct AppCommands: Commands {
                 .keyboardShortcut("1")
             Button("回転をリセット") { state.canvasView?.resetRotation() }
             Divider()
-            if state.rigEnabled {
-                Toggle("リグモード（実験的）", isOn: Binding(get: { state.mode == .rig }, set: { state.setMode($0 ? .rig : .draw) }))
-                    .keyboardShortcut("t", modifiers: [.command, .option])
-            }
+            Toggle("リグモード", isOn: Binding(get: { state.mode == .rig }, set: { state.setMode($0 ? .rig : .draw) }))
+                .keyboardShortcut("t", modifiers: [.command, .option])
             Toggle("タイムラインを表示", isOn: Binding(get: { state.showsTimelineInDraw }, set: { state.showsTimelineInDraw = $0 }))
                 .keyboardShortcut("l", modifiers: [.command, .option])
             Divider()
