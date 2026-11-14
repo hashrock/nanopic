@@ -16,6 +16,11 @@ struct PadContentView: View {
     @State private var panelOffsets: [PanelKind: CGSize] = [:]
     @State private var panelDrag: (kind: PanelKind, translation: CGSize)?
     @AppStorage("pad.colorPickerCollapsed") private var colorsCollapsed = false
+    /// サイズ・不透明度のスライダーを右端に置く（持ち手をドラッグして左右の端に寄せる）
+    @AppStorage("pad.slidersRight") private var slidersRight = false
+    /// スライダーの上下の位置（画面の真ん中からのずれ）
+    @AppStorage("pad.slidersY") private var slidersY: Double = 0
+    @State private var slidersDrag: CGSize?
     /// ツールを切り替えたときに出す説明
     @State private var toolHint: Tool?
     @State private var toolHintToken: UUID?
@@ -53,11 +58,7 @@ struct PadContentView: View {
         ZStack {
             CanvasRepresentable(state: state)
                 .ignoresSafeArea()
-            HStack {
-                SideSliders(editor: editor)
-                    .padding(.leading, 10)
-                Spacer()
-            }
+            floatingSliders
             VStack {
                 Spacer()
                 if let t = state.toast {
@@ -356,6 +357,28 @@ struct PadContentView: View {
         .background(.bar)
     }
 
+    // MARK: - サイズ・不透明度のスライダー（浮かせて、左右の端に寄せる）
+
+    private var floatingSliders: some View {
+        GeometryReader { geo in
+            let drag = slidersDrag ?? .zero
+            // 上下ははみ出さないよう、真ん中から (高さ - スライダーの高さ) / 2 までに抑える
+            let limit = max(0, (geo.size.height - SideSliders.height) / 2 - 8)
+            let y = min(max(slidersY + drag.height, -limit), limit)
+            SideSliders(editor: editor,
+                        onDrag: { slidersDrag = $0 },
+                        onDragEnd: { t, location in
+                            slidersRight = location.x > geo.frame(in: .global).midX
+                            slidersY = min(max(slidersY + t.height, -limit), limit)
+                            slidersDrag = nil
+                        })
+                .offset(x: drag.width, y: y)
+                .padding(.horizontal, 10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: slidersRight ? .trailing : .leading)
+                .animation(.easeOut(duration: 0.2), value: slidersRight)
+        }
+    }
+
     // MARK: - ツールの説明
 
     private static func hint(for tool: Tool) -> String {
@@ -602,12 +625,40 @@ struct PadContentView: View {
     }
 }
 
-// MARK: - 左端のスライダー（サイズ・不透明度）
+// MARK: - 端のスライダー（サイズ・不透明度。左右どちらの端にも寄せられる）
 
 struct SideSliders: View {
     @Bindable var editor: Editor
+    /// 持ち手のドラッグ（動かした量）
+    var onDrag: (CGSize) -> Void = { _ in }
+    /// 離したとき（動かした量と、画面での指の位置）
+    var onDragEnd: (CGSize, CGPoint) -> Void = { _, _ in }
+
+    /// 全体のおおよその高さ（上下の位置をはみ出さないよう抑えるのに使う）
+    static let height: CGFloat = 520
 
     var body: some View {
+        VStack(spacing: 18) {
+            // 持ち手: ドラッグして動かす。左右は離したときに近いほうの端へ寄せる
+            Image(systemName: "line.3.horizontal")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 40, height: 22)
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                    .onChanged { onDrag($0.translation) }
+                    .onEnded { onDragEnd($0.translation, $0.location) })
+                .accessibilityLabel("ドラッグして動かす")
+                .padding(.bottom, -10)
+            sliders
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 6)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    /// ブラシ・消しゴムのときだけ使える（持ち手はいつでも動かせる）
+    private var sliders: some View {
         VStack(spacing: 18) {
             VerticalSlider(value: Binding(get: { log(max(Double(editor.currentBrush.size), 0.5)) },
                                           set: { editor.setBrushSize(Float((exp($0) * 10).rounded() / 10)) }),
@@ -620,9 +671,6 @@ struct SideSliders: View {
                            label: String(format: "%.0f%%", editor.currentBrush.opacity * 100))
                 .frame(height: 160)
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 6)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         .opacity([.brush, .eraser].contains(editor.tool) ? 1 : 0.4)
         .disabled(![.brush, .eraser].contains(editor.tool))
     }
