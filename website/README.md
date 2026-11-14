@@ -13,4 +13,4 @@
 リポジトリの Settings → Pages → Build and deployment → Source で **GitHub Actions** を選択してください。
 `main` に push すると `.github/workflows/pages.yml` が `website/` を公開します。Actions から手動実行も可能です。
 
-ダウンロードボタンは最新の GitHub Release にリンクしています。
+App Store のバッジ（公式の日本語・黒）は、App Store の製品ページへリンクしています。公証済みの Mac 版は、その下の文から最新の GitHub Release へリンクしています。
