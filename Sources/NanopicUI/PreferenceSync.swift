@@ -1,4 +1,7 @@
 import Foundation
+#if os(macOS)
+import Security
+#endif
 
 /// ブラシ・消しゴム・パレットの設定を iCloud（キー値ストア）で Mac と iPad の間で同期する。
 ///
@@ -18,9 +21,23 @@ public final class PreferenceSync {
 
     public private(set) var isEnabled: Bool
 
+    /// この版で同期が使えるか。iCloud のキー値ストアの entitlement が要る。
+    /// Mac はこの entitlement を配布用の署名（Mac App Store 版）のときだけ付けるので、サイトからダウンロードする版や
+    /// 手元のビルドでは使えない（オンにしても何も起きないので、スイッチを使えなくする）。iPad 版はいつも付いている
+    public static let isAvailable: Bool = {
+        #if os(macOS)
+        guard let task = SecTaskCreateFromSelf(nil) else { return false }
+        let value = SecTaskCopyValueForEntitlement(task, "com.apple.developer.ubiquity-kvstore-identifier" as CFString, nil)
+        return value != nil
+        #else
+        return true
+        #endif
+    }()
+
     public init(onRemoteChange: @escaping () -> Void) {
         self.onRemoteChange = onRemoteChange
-        isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
+        // 使えない版では、前にオンにしていても（同じ設定を読む別の版で入れた、など）オフとして扱う
+        isEnabled = Self.isAvailable && UserDefaults.standard.bool(forKey: Self.enabledKey)
         observer = NotificationCenter.default.addObserver(
             forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: store, queue: .main
         ) { [weak self] note in
@@ -43,7 +60,7 @@ public final class PreferenceSync {
 
     /// 同期をオン・オフする。オンにしたとき iCloud に値があればそちらを使い、なければ手元の値を上げる
     public func setEnabled(_ on: Bool) {
-        guard on != isEnabled else { return }
+        guard Self.isAvailable, on != isEnabled else { return }
         isEnabled = on
         defaults.set(on, forKey: Self.enabledKey)
         guard on else { return }

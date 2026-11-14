@@ -1,5 +1,6 @@
 import AppKit
 import NanopicCore
+import NanopicUI
 import SwiftUI
 
 /// クリックしてからキーを押すと、そのキーを target に割り当てる（Esc で取り消し、Delete で割り当てを外す）
@@ -166,6 +167,11 @@ struct SyncSettingsView: View {
         Form {
             Section {
                 Toggle("ブラシとパレットを iCloud で同期", isOn: Binding(get: { state.syncEnabled }, set: { state.setSyncEnabled($0) }))
+                    .disabled(!PreferenceSync.isAvailable)
+                if !PreferenceSync.isAvailable {
+                    Text("この版では使えません。iCloud での同期は Mac App Store 版で使えます。")
+                        .foregroundStyle(.secondary)
+                }
             } footer: {
                 Text("ブラシ・消しゴムのプリセットとパレットを、同じ Apple アカウントの Mac と iPad で同じにします。両方でオンにしてください。オンにしたとき iCloud に設定があればそちらを使います。両方で同時に変えたときは、あとから変えたほうが残ります。自分で登録したブラシ先端の画像は同期しません。")
                     .font(.caption).foregroundStyle(.secondary)
