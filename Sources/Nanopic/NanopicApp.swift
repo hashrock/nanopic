@@ -337,6 +337,16 @@ struct AppCommands: Commands {
                 state.canvasView?.fitToWindow()
             }
             .disabled(editor.doc.selection == nil)
+            Menu("画像を回転") {
+                Button("右に 90° 回転") {
+                    editor.rotateCanvas90(clockwise: true)
+                    state.canvasView?.fitToWindow()
+                }
+                Button("左に 90° 回転") {
+                    editor.rotateCanvas90(clockwise: false)
+                    state.canvasView?.fitToWindow()
+                }
+            }
         }
         CommandMenu("選択範囲") {
             Button("すべてを選択") { editor.selectAll() }
