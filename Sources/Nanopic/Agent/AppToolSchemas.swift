@@ -2,6 +2,23 @@
 
 let appToolSchemas = ##"""
 {
+  "close_document": {
+    "description": "書類（タブ）を閉じる。最後の 1 つは閉じられない。",
+    "inputSchema": {
+      "properties": {
+        "discard_changes": {
+          "description": "保存していない変更を捨ててよい（既定 false。変更があると失敗する）",
+          "type": "boolean"
+        },
+        "document_id": {
+          "description": "list_documents の document_id。省略すると今の書類",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    }
+  },
   "export_movie": {
     "description": "タイムラインを動画に書き出す。範囲・大きさ・透明な所の扱いは書き出しの設定（publish_settings）に合わせる。透明を持てる形式で透明にするには、用紙のレイヤーを隠しておく。",
     "inputSchema": {
@@ -73,14 +90,18 @@ let appToolSchemas = ##"""
       "type": "object"
     }
   },
+  "list_documents": {
+    "description": "開いている書類（タブ）の一覧。active が今操作している書類。ほかのツールはどれも今の書類に効く。",
+    "inputSchema": {
+      "properties": {},
+      "required": [],
+      "type": "object"
+    }
+  },
   "new_document": {
-    "description": "新しいキャンバスを作る（用紙と空のレイヤー 1 枚）。",
+    "description": "新しいキャンバスを新しいタブに作り、それに切り替える（用紙と空のレイヤー 1 枚）。ほかに開いている書類はそのまま残る。",
     "inputSchema": {
       "properties": {
-        "discard_changes": {
-          "description": "保存していない変更を捨ててよい（既定 false。変更があると失敗する）",
-          "type": "boolean"
-        },
         "height": {
           "type": "integer"
         },
@@ -96,13 +117,9 @@ let appToolSchemas = ##"""
     }
   },
   "open_file": {
-    "description": "PSD や画像ファイルを開く（今のキャンバスは閉じる）。",
+    "description": "PSD や画像ファイルを新しいタブで開き、それに切り替える（もう開いていれば、そのタブに切り替える）。ほかに開いている書類はそのまま残る。",
     "inputSchema": {
       "properties": {
-        "discard_changes": {
-          "description": "保存していない変更を捨ててよい（既定 false。変更があると失敗する）",
-          "type": "boolean"
-        },
         "path": {
           "description": "絶対パス",
           "type": "string"
@@ -153,6 +170,21 @@ let appToolSchemas = ##"""
         }
       },
       "required": [],
+      "type": "object"
+    }
+  },
+  "switch_document": {
+    "description": "操作する書類（タブ）を切り替える。ユーザーの画面の表示も切り替わる。",
+    "inputSchema": {
+      "properties": {
+        "document_id": {
+          "description": "list_documents の document_id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "document_id"
+      ],
       "type": "object"
     }
   }

@@ -208,6 +208,16 @@
         }
       }
     },
+    "Finder に表示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Finder"
+          }
+        }
+      }
+    },
     "GIF（SNS・チャット向け）" : {
       "localizations" : {
         "en" : {
@@ -385,6 +395,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Added the “%@” motion. Use File > Export Movie to make a GIF or other movie"
+          }
+        }
+      }
+    },
+    "「%@」の変更を保存しますか？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Do you want to save the changes made to “%@”?"
           }
         }
       }
@@ -1359,6 +1379,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pick the color you tap"
+          }
+        }
+      }
+    },
+    "タブを閉じる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Tab"
           }
         }
       }
@@ -2356,6 +2386,26 @@
         }
       }
     },
+    "保存しない" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don’t Save"
+          }
+        }
+      }
+    },
+    "保存しないと、変更は失われます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your changes will be lost if you don’t save them."
+          }
+        }
+      }
+    },
     "保存に失敗しました" : {
       "localizations" : {
         "en" : {
@@ -2514,6 +2564,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld before"
+          }
+        }
+      }
+    },
+    "前のタブを表示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Previous Tab"
           }
         }
       }
@@ -3663,6 +3723,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Columns: %lld"
+          }
+        }
+      }
+    },
+    "次のタブを表示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Next Tab"
           }
         }
       }

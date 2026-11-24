@@ -278,6 +278,27 @@ public final class Editor {
         canRedo = !redoStack.isEmpty
     }
 
+    /// ほかの書類のエディターから、書類によらない道具の状態（ツール・ブラシ・色・パレット・グリッドなど）を引き継ぐ。
+    /// 複数の書類を開いているとき、どの書類に切り替えても同じ道具で描けるようにする
+    public func adoptToolState(from other: Editor) {
+        guard other !== self else { return }
+        brushes = other.brushes
+        activeBrushIndex = other.activeBrushIndex
+        erasers = other.erasers
+        activeEraserIndex = other.activeEraserIndex
+        mainColor = other.mainColor
+        subColor = other.subColor
+        palette = other.palette
+        fillSettings = other.fillSettings
+        wandSettings = other.wandSettings
+        selectionAntialias = other.selectionAntialias
+        lassoFillAntialias = other.lassoFillAntialias
+        grid = other.grid
+        tips = other.tips
+        // 変形はこの書類のものなので、変形ツールは引き継がない（引き継ぐと切り替えただけで変形が始まる）
+        tool = other.tool == .transform ? .move : other.tool
+    }
+
     // MARK: - 描画更新
 
     public func markDirty(_ r: IntRect) {

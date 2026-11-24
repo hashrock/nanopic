@@ -42,19 +42,40 @@ extension AppState {
         tb.addSchemas(appToolSchemas)
         tb.extraTools = [
             tb.tool("new_document") { [unowned self] a in
-                try checkDiscard(a)
                 let w = try a.requireInt("width"), h = try a.requireInt("height")
                 guard (1...20000).contains(w), (1...20000).contains(h) else { throw AgentError("大きさは 1〜20000 px") }
                 newDocument(width: w, height: h)
-                canvasView?.window?.title = "Nanopic"
-                return [.text("作りました（\(w)×\(h)）")]
+                return [.text("新しいタブに作りました（\(w)×\(h)、document_id: \(activeDocument.id.uuidString)）")]
             },
             tb.tool("open_file") { [unowned self] a in
-                try checkDiscard(a)
                 let url = try fileURL(a)
                 guard Self.isOpenable(url) else { throw AgentError("開けない種類のファイルです: \(url.lastPathComponent)") }
                 try fileAccess(url) { try load(url: url) }
-                return [.text("開きました: \(url.path)（\(editor.doc.width)×\(editor.doc.height)）")]
+                return [.text("開きました: \(url.path)（\(editor.doc.width)×\(editor.doc.height)、document_id: \(activeDocument.id.uuidString)）")]
+            },
+            tb.tool("list_documents") { [unowned self] _ in
+                let list: [[String: Any]] = documents.map { d in
+                    var o: [String: Any] = ["document_id": d.id.uuidString, "title": d.title, "active": d === activeDocument,
+                                            "width": d.editor.doc.width, "height": d.editor.doc.height, "unsaved_changes": d.editor.isDirty]
+                    if let u = d.editor.fileURL { o["path"] = u.path }
+                    return o
+                }
+                return [.text(tb.json(["documents": list]))]
+            },
+            tb.tool("switch_document") { [unowned self] a in
+                let d = try document(a)
+                activate(d)
+                return [.text("切り替えました: \(d.title)")]
+            },
+            tb.tool("close_document") { [unowned self] a in
+                let d = try a.has("document_id") ? document(a) : activeDocument
+                guard documents.count > 1 else { throw AgentError("最後の書類は閉じられません（ウィンドウが閉じてアプリが終わるため）") }
+                let discard = try a.bool("discard_changes") ?? false
+                if d.editor.isDirty && !discard {
+                    throw AgentError("保存していない変更があります。ユーザーに確かめてから discard_changes: true で呼ぶか、先に save_psd で保存してください")
+                }
+                removeDocument(d)
+                return [.text("閉じました: \(d.title)")]
             },
             tb.tool("import_image") { [unowned self] a in
                 let url = try fileURL(a)
@@ -118,11 +139,12 @@ extension AppState {
         return tb
     }
 
-    private func checkDiscard(_ a: AgentArgs) throws {
-        let discard = try a.bool("discard_changes") ?? false
-        if editor.isDirty && !discard {
-            throw AgentError("保存していない変更があります。ユーザーに確かめてから discard_changes: true で呼ぶか、先に save_psd で保存してください")
+    private func document(_ a: AgentArgs) throws -> DocumentSession {
+        let id = try a.requireString("document_id")
+        guard let d = documents.first(where: { $0.id.uuidString.caseInsensitiveCompare(id) == .orderedSame }) else {
+            throw AgentError("その document_id の書類は開いていません（list_documents で確かめてください）")
         }
+        return d
     }
 
     private func fileURL(_ a: AgentArgs) throws -> URL {

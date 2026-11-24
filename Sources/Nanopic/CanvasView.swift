@@ -140,6 +140,17 @@ final class CanvasView: NSView, CanvasRenderHost {
 
     // MARK: - 表示変換
 
+    /// 表示の位置（書類を切り替えるときに覚えておいて、戻ったときに元に戻す）
+    var viewport: CanvasViewport {
+        get { CanvasViewport(zoom: zoom, rotation: rotation, offset: offset) }
+        set {
+            zoom = newValue.zoom
+            rotation = newValue.rotation
+            offset = newValue.offset
+            viewChanged()
+        }
+    }
+
     func fitToWindow() {
         let doc = editor.doc
         guard bounds.width > 0, bounds.height > 0 else { return }
