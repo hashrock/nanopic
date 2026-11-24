@@ -58,6 +58,13 @@ struct PadContentView: View {
         ZStack {
             CanvasRepresentable(state: state)
                 .ignoresSafeArea()
+            #if DEBUG
+            if RecentFilesDebugPreview.isEnabled {
+                RecentFilesDebugPreview(state: state)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(.top, 70).padding(.leading, 16)
+            }
+            #endif
             floatingSliders
             VStack {
                 Spacer()
@@ -799,3 +806,34 @@ struct NewDocumentSheet: View {
         }
     }
 }
+
+#if DEBUG
+/// 開発用: 書類のメニュー ＞ 最近開いたファイル の中身を、画面に縦に並べて見せる（メニューを開かずにスクリーンショットを撮るため）。
+/// デバッグビルドで `-debugRecentFilesPreview YES` を付けて起動したときだけ出る。リリースビルドには入らない
+struct RecentFilesDebugPreview: View {
+    let state: PadState
+    static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "debugRecentFilesPreview") }
+
+    var body: some View {
+        let entries = state.recentEntries
+        VStack(alignment: .leading, spacing: 0) {
+            Label("最近開いたファイル", systemImage: "clock").font(.footnote).foregroundStyle(.secondary)
+                .padding(.horizontal, 16).padding(.vertical, 8)
+            Divider()
+            ForEach(entries) { e in
+                let name = RecentFiles.displayName(e, in: entries)
+                Text(e.isAvailable ? name : "\(name)（見つかりません）")
+                    .foregroundStyle(e.isAvailable ? .primary : .tertiary)
+                    .padding(.horizontal, 16).padding(.vertical, 11)
+                Divider()
+            }
+            Label("履歴をクリア", systemImage: "trash")
+                .foregroundStyle(entries.isEmpty ? Color.secondary : Color.red)
+                .padding(.horizontal, 16).padding(.vertical, 11)
+        }
+        .frame(width: 320, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(radius: 10)
+    }
+}
+#endif
