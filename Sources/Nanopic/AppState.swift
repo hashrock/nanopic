@@ -8,7 +8,12 @@ import UniformTypeIdentifiers
 @MainActor
 @Observable
 final class AppState {
-    let editor = Editor()
+    /// 開いている書類（タブの並び順）。いつも 1 つ以上ある。足し引き・切り替えは Documents.swift の addDocument・closeDocument・activate で
+    var documents: [DocumentSession]
+    /// 表示・編集している書類
+    var activeDocument: DocumentSession
+    /// 表示・編集している書類のエディター。書類を切り替えると変わる
+    var editor: Editor { activeDocument.editor }
     /// 表示倍率（ステータスバー表示用。実体は CanvasView）
     var zoom: Double = 1
     var rotationDegrees: Double = 0
@@ -70,7 +75,7 @@ final class AppState {
         s.onStatusChange = { [weak self] in self?.mcpStatus = $0 }
         return s
     }()
-    @ObservationIgnored private var thumbCache: [UUID: (version: Int, image: NSImage)] = [:]
+    @ObservationIgnored var thumbCache: [UUID: (version: Int, image: NSImage)] = [:]
     /// ブラシ・消しゴム・パレットを iCloud で Mac と iPad の間で同期する
     var syncEnabled = false
     /// 最近開いたファイル（ファイル ＞ 最近使った項目を開く）。この Mac の中だけに持ち、iCloud では同期しない
@@ -81,6 +86,10 @@ final class AppState {
     @ObservationIgnored private var sync: PreferenceSync?
 
     init() {
+        let first = DocumentSession(editor: Editor(), name: L("無題"))
+        first.isLaunchPlaceholder = true
+        documents = [first]
+        activeDocument = first
         startSync()
         loadPreferences()
         loadUserTips()
@@ -232,27 +241,17 @@ final class AppState {
 
     // MARK: - ファイル
 
-    func confirmDiscardChanges() -> Bool {
-        guard editor.isDirty else { return true }
-        let alert = NSAlert()
-        alert.messageText = L("変更が保存されていません")
-        alert.informativeText = L("現在のドキュメントの変更を破棄しますか？")
-        alert.addButton(withTitle: L("破棄"))
-        alert.addButton(withTitle: L("キャンセル"))
-        return alert.runModal() == .alertFirstButtonReturn
-    }
-
+    /// 新しい書類をタブで作る
     func newDocument(width: Int, height: Int) {
-        editor.newDocument(width: width, height: height)
-        canvasView?.fitToWindow()
+        addDocument(DocumentSession(editor: Editor(width: width, height: height), name: nextUntitledName()))
     }
 
     func open() {
-        guard confirmDiscardChanges() else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "psd")!, UTType(filenameExtension: "psb") ?? .data, .png, .jpeg, .tiff, .bmp, .gif]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        open(url: url)
+        panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls { open(url: url) }
     }
 
     static let openableExtensions: Set<String> = ["psd", "psb", "png", "jpg", "jpeg", "tif", "tiff", "bmp", "gif", "heic", "webp"]
@@ -261,24 +260,26 @@ final class AppState {
         url.isFileURL && openableExtensions.contains(url.pathExtension.lowercased())
     }
 
-    /// ウィンドウにドロップされたファイルを開く。Option を押しながらなら画像を新規レイヤーとして追加。
+    /// ウィンドウにドロップされたファイルを開く（1 つずつタブで）。Option を押しながらなら画像を新規レイヤーとして追加。
     @discardableResult
     func openDropped(_ urls: [URL], asLayer: Bool) -> Bool {
-        guard let url = urls.first(where: Self.isOpenable) else { return false }
+        let urls = urls.filter(Self.isOpenable)
+        guard !urls.isEmpty else { return false }
         // ドラッグ操作の途中でモーダルを出さないよう、次のランループで処理する
         DispatchQueue.main.async { [self] in
             NSApp.activate(ignoringOtherApps: true)
-            let ext = url.pathExtension.lowercased()
-            if asLayer && ext != "psd" && ext != "psb" {
-                if let img = ImageUtil.loadImage(url: url) {
-                    editor.addImageLayer(name: url.deletingPathExtension().lastPathComponent, image: img)
+            for url in urls {
+                let ext = url.pathExtension.lowercased()
+                if asLayer && ext != "psd" && ext != "psb" {
+                    if let img = ImageUtil.loadImage(url: url) {
+                        editor.addImageLayer(name: url.deletingPathExtension().lastPathComponent, image: img)
+                    } else {
+                        showError(L("画像を読み込めませんでした"))
+                    }
                 } else {
-                    showError(L("画像を読み込めませんでした"))
+                    open(url: url)
                 }
-                return
             }
-            guard confirmDiscardChanges() else { return }
-            open(url: url)
         }
         return true
     }
@@ -300,50 +301,62 @@ final class AppState {
         }
     }
 
-    /// ファイルを開く（確認や警告は出さない）
+    /// ファイルを新しいタブで開く。もう開いていれば、そのタブに切り替える（確認や警告は出さない）
     func load(url: URL) throws {
+        if let open = document(openedFrom: url) {
+            activate(open)
+            noteRecentFile(url)
+            return
+        }
         let ext = url.pathExtension.lowercased()
+        // 中身はすぐ読み込んだ書類で置き換えるので、最初の書類は小さくしておく
+        let newEditor = Editor(width: 1, height: 1)
         if ext == "psd" || ext == "psb" {
             let data = try Data(contentsOf: url)
             let doc = try PSD.read(data)
             // サイドカー（作品.nanopic。なければ古い名前の 作品.nanopic.json）が読めなくても PSD は開く。
             // 壊れたサイドカーは、次に保存するとき書き直す
             let sidecar = (try? Sidecar.read(for: url)) ?? nil
-            editor.load(doc, url: url, sidecar: sidecar ?? Sidecar())
+            newEditor.load(doc, url: url, sidecar: sidecar ?? Sidecar())
         } else {
             guard let img = ImageUtil.loadImage(url: url),
                   let doc = Editor.document(from: img, name: url.deletingPathExtension().lastPathComponent) else {
                 throw NSError(domain: "Nanopic", code: 1, userInfo: [NSLocalizedDescriptionKey: L("画像を読み込めませんでした")])
             }
-            editor.load(doc, url: nil)
+            newEditor.load(doc, url: nil)
         }
-        thumbCache.removeAll()
-        canvasView?.fitToWindow()
-        canvasView?.window?.title = url.lastPathComponent
+        let session = DocumentSession(editor: newEditor, name: url.lastPathComponent)
+        session.openedFrom = url
+        addDocument(session)
         noteRecentFile(url)
     }
 
-    func save() {
+    @discardableResult
+    func save() -> Bool {
         if let url = editor.fileURL, url.pathExtension.lowercased() == "psd" {
-            write(to: url)
+            return write(to: url)
         } else {
-            saveAs()
+            return saveAs()
         }
     }
 
-    func saveAs() {
+    @discardableResult
+    func saveAs() -> Bool {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "psd")!]
-        panel.nameFieldStringValue = editor.fileURL?.deletingPathExtension().lastPathComponent ?? L("無題")
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        write(to: url)
+        panel.nameFieldStringValue = editor.fileURL?.deletingPathExtension().lastPathComponent
+            ?? (activeDocument.name as NSString).deletingPathExtension
+        guard panel.runModal() == .OK, let url = panel.url else { return false }
+        return write(to: url)
     }
 
-    private func write(to url: URL) {
+    private func write(to url: URL) -> Bool {
         do {
             try writePSD(to: url)
+            return true
         } catch {
             showError(L("保存に失敗しました: \(String(describing: error))"))
+            return false
         }
     }
 
@@ -355,7 +368,8 @@ final class AppState {
         try data.write(to: url, options: .atomic)
         try editor.sidecar.write(for: url)
         editor.markSaved(url: url)
-        canvasView?.window?.title = url.lastPathComponent
+        // 別の名前で保存した。同じファイルを開いているほかのタブがあっても、こちらを開いているものとして扱う
+        activeDocument.openedFrom = url
         noteRecentFile(url)
     }
 
@@ -377,7 +391,6 @@ final class AppState {
             refreshRecentFiles()
             return
         }
-        guard confirmDiscardChanges() else { return }
         if !recentAccess.contains(url), url.startAccessingSecurityScopedResource() { recentAccess.insert(url) }
         open(url: url)
     }

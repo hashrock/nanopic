@@ -5,12 +5,17 @@ import SwiftUI
 
 struct ContentView: View {
     let state: AppState
-    @Bindable var editor: Editor
 
-    init(state: AppState) {
-        self.state = state
-        self.editor = state.editor
+    var body: some View {
+        // タブで書類を切り替えると state.editor が変わる。下の画面は、そのとき表示している書類のエディターで作り直す
+        WorkspaceView(state: state, editor: state.editor)
+            .navigationTitle(state.activeDocument.title)
     }
+}
+
+struct WorkspaceView: View {
+    let state: AppState
+    @Bindable var editor: Editor
 
     var body: some View {
         HStack(spacing: 0) {
@@ -26,6 +31,8 @@ struct ContentView: View {
             .frame(width: 230)
             Divider()
             VStack(spacing: 0) {
+                DocumentTabBar(state: state)
+                Divider()
                 CanvasRepresentable(state: state)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     #if DEBUG
@@ -46,6 +53,7 @@ struct ContentView: View {
                 if state.timelineOpen {
                     Divider()
                     TimelineView(state: state, editor: editor)
+                        .id(ObjectIdentifier(editor))
                 }
                 Divider()
                 StatusBar(state: state, editor: editor)
@@ -62,6 +70,8 @@ struct ContentView: View {
                     Divider()
                 }
                 LayerPanel(state: state, editor: editor)
+                    // 名前の変更やドラッグの途中の状態は、書類ごとに捨てる
+                    .id(ObjectIdentifier(editor))
             }
             .frame(width: 270)
         }

@@ -7,12 +7,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var state: AppState? {
         didSet {
             // 書類を渡されて起動したときは、画面ができる前に application(_:open:) が来る。画面ができてから開く
-            guard let state, let url = pendingURL else { return }
-            pendingURL = nil
-            DispatchQueue.main.async { state.open(url: url) }
+            guard let state, !pendingURLs.isEmpty else { return }
+            let urls = pendingURLs
+            pendingURLs = []
+            DispatchQueue.main.async { for url in urls { state.open(url: url) } }
         }
     }
-    private var pendingURL: URL?
+    private var pendingURLs: [URL] = []
     /// メインウィンドウを開く（SwiftUI の openWindow。メニューを組み立てるときに AppCommands が入れる）
     var openMainWindow: (@MainActor @Sendable () -> Void)? {
         didSet {
@@ -53,14 +54,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let state else { return .terminateNow }
         state.savePreferences()
-        return state.confirmDiscardChanges() ? .terminateNow : .terminateCancel
+        return state.confirmCloseAll() ? .terminateNow : .terminateCancel
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        guard let url = urls.first else { return }
+        guard !urls.isEmpty else { return }
         guard let state else {
             // 書類を渡されて起動した。開くイベントを SwiftUI に渡していないので、ウィンドウは自分で開く
-            pendingURL = url
+            pendingURLs += urls
             if let openMainWindow {
                 DispatchQueue.main.async { openMainWindow() }
             } else {
@@ -68,7 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
-        if state.confirmDiscardChanges() { state.open(url: url) }
+        // 1 つずつタブで開く（開いているものはそのタブに切り替える）
+        for url in urls { state.open(url: url) }
     }
 
     /// 単キーのショートカット（テキスト入力中は無視）
@@ -227,7 +229,7 @@ final class WindowCloseGuard: NSObject, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard state.editor.isDirty else { return original?.windowShouldClose?(sender) ?? true }
+        guard state.hasUnsavedDocuments else { return original?.windowShouldClose?(sender) ?? true }
         // ウィンドウを閉じるとアプリも終了するので、確認は applicationShouldTerminate に任せる
         NSApp.terminate(nil)
         return false
@@ -292,14 +294,23 @@ struct AppCommands: Commands {
                                                      set: { state.mcpEnabled = $0 }))
         }
         CommandGroup(replacing: .newItem) {
-            Button("新規...") {
-                if state.confirmDiscardChanges() { state.showNewDocumentSheet = true }
-            }
-            .keyboardShortcut("n")
+            Button("新規...") { state.showNewDocumentSheet = true }
+                .keyboardShortcut("n")
             Button("開く...") { state.open() }
                 .keyboardShortcut("o")
             // 一覧は AppCommands の body で読む（メニューの中の View で読んでも、変わったときに作り直されない）
             RecentFilesMenu(state: state, entries: state.recentEntries)
+            Divider()
+            // 書類が 1 つだけのときはウィンドウを閉じる（アプリも終わる）。
+            // 設定などほかのウィンドウが前にあれば、そのウィンドウを閉じる
+            Button("閉じる") {
+                if let key = NSApp.keyWindow, key !== state.canvasView?.window {
+                    key.performClose(nil)
+                } else {
+                    state.closeDocument(state.activeDocument)
+                }
+            }
+            .keyboardShortcut("w")
         }
         CommandGroup(replacing: .saveItem) {
             Button("保存") { state.save() }
@@ -435,6 +446,16 @@ struct AppCommands: Commands {
                 state.canvasView?.requestDisplay()
             }
             .keyboardShortcut("'")
+            Divider()
+        }
+        // ウィンドウ ＞ 次のタブ・前のタブ（書類のタブを順に切り替える）
+        CommandGroup(before: .windowList) {
+            Button("次のタブを表示") { state.activateAdjacentDocument(forward: true) }
+                .keyboardShortcut(.tab, modifiers: [.control])
+                .disabled(state.documents.count < 2)
+            Button("前のタブを表示") { state.activateAdjacentDocument(forward: false) }
+                .keyboardShortcut(.tab, modifiers: [.control, .shift])
+                .disabled(state.documents.count < 2)
             Divider()
         }
     }
