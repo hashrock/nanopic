@@ -467,6 +467,27 @@ final class CanvasView: NSView, CanvasRenderHost {
         overlay.needsDisplay = true
     }
 
+    // MARK: - ホイールクリック（中ボタン）のドラッグでパン。どのツールを選んでいても使える
+
+    override func otherMouseDown(with e: NSEvent) {
+        // 描いている途中など、ほかのドラッグの最中は割り込まない
+        guard e.buttonNumber == 2, case .none = drag else { return super.otherMouseDown(with: e) }
+        window?.makeFirstResponder(self)
+        drag = .pan(start: viewPoint(e), startOffset: offset)
+        NSCursor.closedHand.set()
+    }
+
+    override func otherMouseDragged(with e: NSEvent) {
+        guard e.buttonNumber == 2, case .pan = drag else { return super.otherMouseDragged(with: e) }
+        mouseDragged(with: e)
+    }
+
+    override func otherMouseUp(with e: NSEvent) {
+        guard e.buttonNumber == 2, case .pan = drag else { return super.otherMouseUp(with: e) }
+        drag = .none
+        cursorUpdate(with: e)
+    }
+
     override func rightMouseDown(with e: NSEvent) {
         // リグモードでワープの点かハンドルを右クリックしたら、その点のハンドルを自動に戻す
         if state.mode == .rig, let h = hitDeformerHandle(viewPoint(e)) {
