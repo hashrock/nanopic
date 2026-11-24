@@ -148,6 +148,10 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
+            LayoutSettingsView(state: state)
+                .tabItem { Label("画面", systemImage: "rectangle.split.3x1") }
+            NewDocumentSettingsView(state: state)
+                .tabItem { Label("新規作成", systemImage: "doc.badge.plus") }
             ShortcutSettingsView(state: state, editor: state.editor)
                 .tabItem { Label("ショートカット", systemImage: "keyboard") }
             AgentSettingsView(state: state)

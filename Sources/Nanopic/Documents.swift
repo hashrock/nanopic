@@ -62,8 +62,10 @@ extension AppState {
     }
 
     /// 書類をタブに足して表示する。起動したときの白紙をまだ触っていなければ、そのタブは閉じる
-    func addDocument(_ session: DocumentSession) {
-        let placeholder = activeDocument.isPristinePlaceholder ? activeDocument : nil
+    /// replacesPlaceholder: 起動したときの白紙のタブ（何も描いていない）を閉じて差し替える。
+    /// ファイルを開いたときだけ差し替える。新規作成で差し替えると、作ったはずのタブが 1 つ消えたように見える
+    func addDocument(_ session: DocumentSession, replacesPlaceholder: Bool) {
+        let placeholder = replacesPlaceholder && activeDocument.isPristinePlaceholder ? activeDocument : nil
         let index = documents.firstIndex { $0 === activeDocument }.map { $0 + 1 } ?? documents.count
         documents.insert(session, at: index)
         activate(session)
@@ -167,18 +169,58 @@ struct DocumentTabBar: View {
     let state: AppState
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                ForEach(state.documents) { doc in
-                    DocumentTab(document: doc, isActive: doc === state.activeDocument, canClose: state.documents.count > 1,
-                                select: { state.activate(doc) }, close: { state.closeDocument(doc) })
-                    Divider().frame(height: 16)
+        HStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(state.documents) { doc in
+                        DocumentTab(document: doc, isActive: doc === state.activeDocument, canClose: state.documents.count > 1,
+                                    select: { state.activate(doc) }, close: { state.closeDocument(doc) })
+                        Divider().frame(height: 16)
+                    }
+                    NewDocumentTabButton(state: state)
                 }
             }
+            // 「描く｜リグ」の切り替え。ウィンドウのツールバーに置くと、それだけのために一段使ってしまうので、タブの並びの右端に置く
+            Picker("モード", selection: Binding(get: { state.mode }, set: { state.setMode($0) })) {
+                Text(WorkMode.draw.title).tag(WorkMode.draw)
+                Text(WorkMode.rig.title).tag(WorkMode.rig)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .controlSize(.small)
+            .fixedSize()
+            .padding(.horizontal, 8)
+            .help("描くモードとリグモードを切り替える（⌥⌘T）")
         }
         .frame(height: 28)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
+/// タブの並びの後ろの＋。押すと設定（設定 ＞ 新規作成）に従って作る。長押しでサイズを選ぶ
+private struct NewDocumentTabButton: View {
+    let state: AppState
+
+    var body: some View {
+        Menu {
+            ForEach(NewDocumentSheet.presets, id: \.0) { p in
+                Button(p.0) { state.newDocument(width: p.1, height: p.2) }
+            }
+            Divider()
+            Button("サイズを指定…") { state.showNewDocumentSheet = true }
+        } label: {
+            Image(systemName: "plus")
+        } primaryAction: {
+            state.newDocumentFromCommand()
+        }
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
+        .buttonStyle(.borderless)
+        .fixedSize()
+        .padding(.horizontal, 8)
+        .frame(height: 28)
+        .help(L("新規キャンバス。長押しでサイズを選ぶ"))
     }
 }
 

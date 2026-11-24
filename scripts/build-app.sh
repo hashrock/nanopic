@@ -22,6 +22,12 @@ BIN="$("${BUILD[@]}" --show-bin-path)/Nanopic"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Nanopic"
+# いまの SwiftPM（Swift Build）は、リンクした SDK の版を最低動作版（14.0）のまま書いてしまう。
+# macOS は SDK 14 で作ったアプリとみなし、macOS 26 の見た目（角の丸いウィンドウ・新しいコントロール）を使わない。
+# 実際にリンクした SDK の版に書き直す
+SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
+MIN_VERSION="$(vtool -show-build "$BIN" | awk '/minos/ { print $2; exit }')"
+vtool -set-build-version macos "$MIN_VERSION" "$SDK_VERSION" -replace -output "$APP/Contents/MacOS/Nanopic" "$APP/Contents/MacOS/Nanopic"
 swift scripts/make-icon.swift Resources/AppIcon.svg "$APP/Contents/Resources/AppIcon.icns"
 cp Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
 # 表示言語（日本語・英語）。訳を .lproj にして入れる

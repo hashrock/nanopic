@@ -2,7 +2,7 @@ import NanopicCore
 import NanopicUI
 import SwiftUI
 
-// MARK: - ツールバー（左端）
+// MARK: - ツールバー（ウィンドウの端。左右は設定で選ぶ）
 
 struct ToolBarView: View {
     let state: AppState
@@ -43,7 +43,7 @@ struct ToolBarView: View {
                         }
                     }
                     .popover(isPresented: Binding(get: { editingShortcut == tool }, set: { if !$0 { editingShortcut = nil } }),
-                             arrowEdge: .trailing) {
+                             arrowEdge: state.panelLayout[.tools].side == .left ? .trailing : .leading) {
                         ShortcutPopover(state: state, title: tool.displayName, target: .tool(tool))
                     }
                 }

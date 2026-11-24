@@ -19,17 +19,7 @@ struct WorkspaceView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            ToolBarView(state: state, editor: editor)
-            Divider()
-            Group {
-                if state.mode == .rig {
-                    RigPanel(state: state, editor: editor)
-                } else {
-                    ToolOptionsView(state: state, editor: editor)
-                }
-            }
-            .frame(width: 230)
-            Divider()
+            SidePanels(state: state, editor: editor, side: .left)
             VStack(spacing: 0) {
                 DocumentTabBar(state: state)
                 Divider()
@@ -55,36 +45,12 @@ struct WorkspaceView: View {
                     TimelineView(state: state, editor: editor)
                         .id(ObjectIdentifier(editor))
                 }
-                Divider()
-                StatusBar(state: state, editor: editor)
-            }
-            Divider()
-            VStack(spacing: 0) {
-                // リグモードでは描かないので、色は出さない
-                if state.mode == .draw {
-                    ColorPickerView(editor: editor)
-                        .padding(10)
-                    PaletteView(state: state, editor: editor)
-                        .padding(.horizontal, 10)
-                        .padding(.bottom, 10)
+                if state.panelLayout.showsStatusBar {
                     Divider()
+                    StatusBar(state: state, editor: editor)
                 }
-                LayerPanel(state: state, editor: editor)
-                    // 名前の変更やドラッグの途中の状態は、書類ごとに捨てる
-                    .id(ObjectIdentifier(editor))
             }
-            .frame(width: 270)
-        }
-        .toolbar {
-            // 「描く｜リグ」の切り替え
-            ToolbarItem(placement: .principal) {
-                Picker("モード", selection: Binding(get: { state.mode }, set: { state.setMode($0) })) {
-                    Text(WorkMode.draw.title).tag(WorkMode.draw)
-                    Text(WorkMode.rig.title).tag(WorkMode.rig)
-                }
-                .pickerStyle(.segmented)
-                .help("描くモードとリグモードを切り替える（⌥⌘T）")
-            }
+            SidePanels(state: state, editor: editor, side: .right)
         }
         // キャンバス以外（パネル）へのドロップでも開けるように
         .dropDestination(for: URL.self) { urls, _ in
@@ -186,14 +152,22 @@ struct GridSettingsView: View {
 
 struct NewDocumentSheet: View {
     let state: AppState
-    @State private var width = 1920
-    @State private var height = 1080
+    @State private var width: Int
+    @State private var height: Int
     @Environment(\.dismiss) private var dismiss
 
-    private let presets: [(String, Int, Int)] = [
+    init(state: AppState) {
+        self.state = state
+        let s = state.newDocumentSize
+        _width = State(initialValue: s.width)
+        _height = State(initialValue: s.height)
+    }
+
+    static let presets: [(String, Int, Int)] = [
         ("1920 × 1080", 1920, 1080), ("2048 × 2048", 2048, 2048), ("A4 350dpi", 2894, 4093),
         ("B5 350dpi", 2508, 3541), ("1280 × 720", 1280, 720), ("4096 × 4096", 4096, 4096),
     ]
+    private var presets: [(String, Int, Int)] { Self.presets }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

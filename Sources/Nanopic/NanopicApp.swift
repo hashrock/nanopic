@@ -294,8 +294,9 @@ struct AppCommands: Commands {
                                                      set: { state.mcpEnabled = $0 }))
         }
         CommandGroup(replacing: .newItem) {
-            Button("新規...") { state.showNewDocumentSheet = true }
+            Button(state.newDocumentPreferences.asksSize ? L("新規...") : L("新規")) { state.newDocumentFromCommand() }
                 .keyboardShortcut("n")
+            Button("サイズを指定して新規…") { state.showNewDocumentSheet = true }
             Button("開く...") { state.open() }
                 .keyboardShortcut("o")
             // 一覧は AppCommands の body で読む（メニューの中の View で読んでも、変わったときに作り直されない）
@@ -439,6 +440,14 @@ struct AppCommands: Commands {
                 .keyboardShortcut("t", modifiers: [.command, .option])
             Toggle("タイムラインを表示", isOn: Binding(get: { state.showsTimelineInDraw }, set: { state.showsTimelineInDraw = $0 }))
                 .keyboardShortcut("l", modifiers: [.command, .option])
+            Menu("パネル") {
+                ForEach(PanelKind.allCases) { kind in
+                    Toggle(kind.title, isOn: Binding(get: { state.panelLayout[kind].visible }, set: { state.panelLayout[kind].visible = $0 }))
+                }
+                Toggle("ステータスバー", isOn: Binding(get: { state.panelLayout.showsStatusBar }, set: { state.panelLayout.showsStatusBar = $0 }))
+                Divider()
+                SettingsLink { Text("並びを設定…") }
+            }
             Divider()
             Button(editor.grid.visible ? L("グリッドを隠す") : L("グリッドを表示")) {
                 editor.grid.visible.toggle()
