@@ -155,6 +155,7 @@ struct PadContentView: View {
         .onOpenURL { url in state.open(url: url) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background || phase == .inactive { state.autosave() }
+            if phase == .active { state.refreshRecentFiles() }
         }
         .onChange(of: state.showColorPanelRequest) { _, _ in
             if !isPinned(.colors) { showColors = true }
@@ -233,6 +234,30 @@ struct PadContentView: View {
         .frame(width: 360)
     }
 
+    /// 書類のメニュー ＞ 最近開いたファイル。末尾の「履歴をクリア」で一覧を消す（確認はしない）
+    private var recentFilesMenu: some View {
+        let entries = state.recentEntries
+        return Menu {
+            ForEach(entries) { e in
+                Button {
+                    if let url = state.recentFileURL(e) { requestDiscard(.openFile(url, scoped: false)) }
+                } label: {
+                    if e.isAvailable {
+                        Text(RecentFiles.displayName(e, in: entries))
+                    } else {
+                        Text("\(RecentFiles.displayName(e, in: entries))（見つかりません）")
+                    }
+                }
+                .disabled(!e.isAvailable)
+            }
+            if !entries.isEmpty { Divider() }
+            Button(role: .destructive) { state.clearRecentFiles() } label: { Label("履歴をクリア", systemImage: "trash") }
+                .disabled(entries.isEmpty)
+        } label: {
+            Label("最近開いたファイル", systemImage: "clock")
+        }
+    }
+
     // MARK: - ツールバー
 
     private var toolbar: some View {
@@ -242,6 +267,7 @@ struct PadContentView: View {
                     .keyboardShortcut("n")
                 Button { requestDiscard(.open) } label: { Label("開く…", systemImage: "folder") }
                     .keyboardShortcut("o")
+                recentFilesMenu
                 Button { requestDiscard(.close) } label: { Label("閉じる", systemImage: "xmark.circle") }
                     .disabled(editor.fileURL == nil && !editor.isDirty)
                     .keyboardShortcut("w")

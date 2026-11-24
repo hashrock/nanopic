@@ -73,12 +73,18 @@ final class AppState {
     @ObservationIgnored private var thumbCache: [UUID: (version: Int, image: NSImage)] = [:]
     /// ブラシ・消しゴム・パレットを iCloud で Mac と iPad の間で同期する
     var syncEnabled = false
+    /// 最近開いたファイル（ファイル ＞ 最近使った項目を開く）。この Mac の中だけに持ち、iCloud では同期しない
+    var recentEntries: [RecentFiles.Entry] = []
+    @ObservationIgnored let recentFiles = RecentFiles()
+    /// 最近使った項目から開いたファイルのアクセス権（Sandbox の中で上書き保存できるよう、終了するまで持つ）
+    @ObservationIgnored private var recentAccess: Set<URL> = []
     @ObservationIgnored private var sync: PreferenceSync?
 
     init() {
         startSync()
         loadPreferences()
         loadUserTips()
+        refreshRecentFiles()
     }
 
     // MARK: - サムネイル
@@ -314,6 +320,7 @@ final class AppState {
         thumbCache.removeAll()
         canvasView?.fitToWindow()
         canvasView?.window?.title = url.lastPathComponent
+        noteRecentFile(url)
     }
 
     func save() {
@@ -349,6 +356,35 @@ final class AppState {
         try editor.sidecar.write(for: url)
         editor.markSaved(url: url)
         canvasView?.window?.title = url.lastPathComponent
+        noteRecentFile(url)
+    }
+
+    // MARK: - 最近使った項目
+
+    /// 一覧と、それぞれ開けるかを読み直す（アプリが前に来たときにも呼ぶ。Finder で消した・動かしたファイルを反映する）
+    func refreshRecentFiles() {
+        recentEntries = recentFiles.entries()
+    }
+
+    func noteRecentFile(_ url: URL) {
+        recentFiles.add(url)
+        refreshRecentFiles()
+    }
+
+    func openRecentFile(_ entry: RecentFiles.Entry) {
+        guard let url = recentFiles.resolve(entry.item) else {
+            showError(L("「\(entry.item.name)」が見つかりません。移動したか削除された可能性があります"))
+            refreshRecentFiles()
+            return
+        }
+        guard confirmDiscardChanges() else { return }
+        if !recentAccess.contains(url), url.startAccessingSecurityScopedResource() { recentAccess.insert(url) }
+        open(url: url)
+    }
+
+    func clearRecentFiles() {
+        recentFiles.clear()
+        refreshRecentFiles()
     }
 
     func exportPNG() {

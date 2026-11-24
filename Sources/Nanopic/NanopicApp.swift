@@ -43,6 +43,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // ほかのアプリ（Finder）でファイルを消したり動かしたりしたかもしれないので、最近使った項目を見直す
+        state?.refreshRecentFiles()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -293,6 +298,8 @@ struct AppCommands: Commands {
             .keyboardShortcut("n")
             Button("開く...") { state.open() }
                 .keyboardShortcut("o")
+            // 一覧は AppCommands の body で読む（メニューの中の View で読んでも、変わったときに作り直されない）
+            RecentFilesMenu(state: state, entries: state.recentEntries)
         }
         CommandGroup(replacing: .saveItem) {
             Button("保存") { state.save() }
@@ -430,5 +437,29 @@ struct AppCommands: Commands {
             .keyboardShortcut("'")
             Divider()
         }
+    }
+}
+
+/// ファイル ＞ 最近使った項目を開く。末尾の「メニューを消去」で一覧を消す（確認はしない）
+struct RecentFilesMenu: View {
+    let state: AppState
+    let entries: [RecentFiles.Entry]
+
+    var body: some View {
+        Menu("最近使った項目を開く") {
+            ForEach(entries) { e in
+                Button(title(e, in: entries)) { state.openRecentFile(e) }
+                    .disabled(!e.isAvailable)
+            }
+            if !entries.isEmpty { Divider() }
+            Button("メニューを消去") { state.clearRecentFiles() }
+                .disabled(entries.isEmpty)
+        }
+    }
+
+    /// 開けないものには印を付ける
+    private func title(_ e: RecentFiles.Entry, in entries: [RecentFiles.Entry]) -> String {
+        let t = RecentFiles.displayName(e, in: entries)
+        return e.isAvailable ? t : L("\(t)（見つかりません）")
     }
 }
