@@ -254,7 +254,7 @@ final class AppState {
         let w = min(max(width, 1), 12000), h = min(max(height, 1), 12000)
         // 設定で「前回作ったサイズ」にしていれば、次はこのサイズで作る
         UserDefaults.standard.set([w, h], forKey: "newDocumentSize.v1")
-        addDocument(DocumentSession(editor: Editor(width: w, height: h), name: nextUntitledName()))
+        addDocument(DocumentSession(editor: Editor(width: w, height: h), name: nextUntitledName()), replacesPlaceholder: false)
     }
 
     /// 最後に新規作成したサイズ（はじめは 1920 × 1080）
@@ -344,7 +344,7 @@ final class AppState {
         }
         let session = DocumentSession(editor: newEditor, name: url.lastPathComponent)
         session.openedFrom = url
-        addDocument(session)
+        addDocument(session, replacesPlaceholder: true)
         noteRecentFile(url)
     }
 

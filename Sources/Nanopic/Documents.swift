@@ -62,8 +62,10 @@ extension AppState {
     }
 
     /// 書類をタブに足して表示する。起動したときの白紙をまだ触っていなければ、そのタブは閉じる
-    func addDocument(_ session: DocumentSession) {
-        let placeholder = activeDocument.isPristinePlaceholder ? activeDocument : nil
+    /// replacesPlaceholder: 起動したときの白紙のタブ（何も描いていない）を閉じて差し替える。
+    /// ファイルを開いたときだけ差し替える。新規作成で差し替えると、作ったはずのタブが 1 つ消えたように見える
+    func addDocument(_ session: DocumentSession, replacesPlaceholder: Bool) {
+        let placeholder = replacesPlaceholder && activeDocument.isPristinePlaceholder ? activeDocument : nil
         let index = documents.firstIndex { $0 === activeDocument }.map { $0 + 1 } ?? documents.count
         documents.insert(session, at: index)
         activate(session)
