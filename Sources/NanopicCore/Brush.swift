@@ -128,34 +128,35 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
 
     public static var defaultPresets: [BrushSettings] {
         var pen = BrushSettings(name: "Gペン")
-        pen.size = 8; pen.hardness = 1; pen.minSizeRatio = 0; pen.smoothing = 0.35
+        pen.size = 5; pen.hardness = 1; pen.minSizeRatio = 0; pen.smoothing = 0.2
+        pen.spacing = 0.1; pen.pressureSmoothing = 0.45; pen.liftTaper = 0.45
 
         var mapping = BrushSettings(name: "丸ペン")
         mapping.size = 3; mapping.hardness = 1; mapping.minSizeRatio = 0.2; mapping.smoothing = 0.45
 
         var pencil = BrushSettings(name: "鉛筆")
-        pencil.size = 6; pencil.tipID = "pencil"; pencil.hardness = 1; pencil.minSizeRatio = 0.5
-        pencil.opacityPressure = true; pencil.minOpacityRatio = 0.1; pencil.spacing = 0.12; pencil.smoothing = 0.15
-        pencil.angleJitter = 1
+        pencil.size = 3.5; pencil.tipID = "pencil"; pencil.hardness = 1; pencil.minSizeRatio = 0.5
+        pencil.opacityPressure = true; pencil.minOpacityRatio = 0.1; pencil.spacing = 0.15; pencil.smoothing = 0.15
+        pencil.angleJitter = 1; pencil.pressureGamma = 1.05; pencil.pressureSlope = 0.65
 
         var airbrush = BrushSettings(name: "エアブラシ")
         airbrush.size = 120; airbrush.hardness = 0; airbrush.sizePressure = false
         airbrush.opacityPressure = true; airbrush.flow = 0.08; airbrush.spacing = 0.05; airbrush.smoothing = 0.2
 
         var watercolor = BrushSettings(name: "水彩")
-        watercolor.size = 40; watercolor.hardness = 0.3; watercolor.minSizeRatio = 0.4
-        watercolor.opacityPressure = true; watercolor.minOpacityRatio = 0.2; watercolor.mixEnabled = true
-        watercolor.paintAmount = 0.35; watercolor.colorStretch = 0.7; watercolor.flow = 0.5
+        watercolor.size = 30; watercolor.hardness = 0.7; watercolor.minSizeRatio = 0.4
+        watercolor.opacityPressure = true; watercolor.minOpacityRatio = 0.15; watercolor.mixEnabled = true
+        watercolor.paintAmount = 0.3; watercolor.colorStretch = 0.45
 
         var oil = BrushSettings(name: "油彩")
-        oil.size = 30; oil.tipID = "bristle"; oil.hardness = 1; oil.minSizeRatio = 0.5
-        oil.followDirection = true; oil.mixEnabled = true; oil.paintAmount = 0.7; oil.colorStretch = 0.5
-        oil.spacing = 0.06
+        oil.size = 16; oil.hardness = 1; oil.minSizeRatio = 0.5
+        oil.followDirection = true; oil.mixEnabled = true; oil.paintAmount = 0.7; oil.colorStretch = 0.7
+        oil.spacing = 0.06; oil.flow = 0.75; oil.smoothing = 0
 
         var blender = BrushSettings(name: "色混ぜ")
         blender.size = 40; blender.hardness = 0.2; blender.minSizeRatio = 0.5
-        blender.mixEnabled = true; blender.paintAmount = 0; blender.colorStretch = 0.85
-        blender.opacityPressure = true
+        blender.mixEnabled = true; blender.paintAmount = 0; blender.colorStretch = 0.1
+        blender.opacityPressure = true; blender.warpPush = 0.3
 
         var chalk = BrushSettings(name: "チョーク")
         chalk.size = 24; chalk.tipID = "chalk"; chalk.minSizeRatio = 0.6; chalk.angleJitter = 1
@@ -173,12 +174,12 @@ public struct BrushSettings: Codable, Identifiable, Equatable, Sendable {
         finger.blurAmount = 0.35; finger.smoothing = 0.2
 
         var blur = BrushSettings(name: "ぼかし")
-        blur.size = 60; blur.hardness = 0; blur.sizePressure = false
-        blur.opacityPressure = true; blur.blurAmount = 0.8; blur.smoothing = 0.1
+        blur.size = 45; blur.hardness = 0; blur.sizePressure = false
+        blur.opacityPressure = true; blur.blurAmount = 1; blur.smoothing = 0.1
 
         var warp = BrushSettings(name: "ゆがみ")
         warp.size = 100; warp.hardness = 0; warp.sizePressure = false
-        warp.opacityPressure = true; warp.minOpacityRatio = 0.3
+        warp.minOpacityRatio = 0.3
         warp.warpPush = 0.5; warp.spacing = 0.05; warp.smoothing = 0.3
         return [finger, blur, warp]
     }
