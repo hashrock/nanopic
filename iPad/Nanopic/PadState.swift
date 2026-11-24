@@ -48,11 +48,15 @@ final class PadState {
     /// ブラシ・消しゴム・パレットを iCloud で Mac と iPad の間で同期する
     var syncEnabled = false
     @ObservationIgnored private var sync: PreferenceSync?
+    /// 最近開いたファイル（書類のメニュー）。この iPad の中だけに持ち、iCloud では同期しない
+    var recentEntries: [RecentFiles.Entry] = []
+    @ObservationIgnored let recentFiles = RecentFiles()
 
     init() {
         startSync()
         loadPreferences()
         locateICloudContainer()
+        refreshRecentFiles()
         #if targetEnvironment(simulator)
         // 検証用（シミュレーターだけ）: `xcrun simctl launch booted com.hashrock.nanopic -open <パス>` で書類を開く
         if let path = UserDefaults.standard.string(forKey: "open") {
@@ -212,6 +216,7 @@ final class PadState {
                 let sidecar = inside ? ((try? Sidecar.read(for: url)) ?? nil) : nil
                 editor.load(doc, url: url, sidecar: sidecar ?? Sidecar())
                 isOutsideDocument = !inside
+                noteRecentFile(url)
                 // 上書き保存できるよう、閉じるまでアクセス権を持っておく
                 if scoped { accessedURL = url }
             } else {
@@ -222,6 +227,8 @@ final class PadState {
                 }
                 editor.load(doc, url: nil)
                 isOutsideDocument = false
+                // アクセス権のあるうちに覚える（bookmark を作るのに要る）
+                noteRecentFile(url)
             }
             thumbCache.removeAll()
             documentName = url.deletingPathExtension().lastPathComponent
@@ -230,6 +237,33 @@ final class PadState {
             if scoped { url.stopAccessingSecurityScopedResource() }
             showFailure(L("開けませんでした"), error)
         }
+    }
+
+    // MARK: - 最近開いたファイル
+
+    /// 一覧と、それぞれ開けるかを読み直す（アプリに戻ってきたときにも呼ぶ。ファイル App で消した・動かしたファイルを反映する）
+    func refreshRecentFiles() {
+        recentEntries = recentFiles.entries()
+    }
+
+    func noteRecentFile(_ url: URL) {
+        recentFiles.add(url)
+        refreshRecentFiles()
+    }
+
+    /// 開く場所（bookmark を解いたもの）。見つからなければ知らせて nil
+    func recentFileURL(_ entry: RecentFiles.Entry) -> URL? {
+        guard let url = recentFiles.resolve(entry.item) else {
+            show(L("「\(entry.item.name)」が見つかりません。移動したか削除された可能性があります"))
+            refreshRecentFiles()
+            return nil
+        }
+        return url
+    }
+
+    func clearRecentFiles() {
+        recentFiles.clear()
+        refreshRecentFiles()
     }
 
     /// ドロップされたファイルを受け取る。元の場所のまま開ければそのまま（scoped = true で受け取り側がアクセス権を手放す）、
@@ -312,6 +346,7 @@ final class PadState {
             }
             try writePSD(to: url)
             documentName = url.deletingPathExtension().lastPathComponent
+            noteRecentFile(url)
             if !quiet { show(L("「\(url.lastPathComponent)」に保存しました")) }
             checkUpload(url)
             return true
@@ -337,6 +372,7 @@ final class PadState {
         // 上書き保存できるよう、閉じるまでアクセス権を持っておく
         if scoped { accessedURL = url }
         documentName = url.deletingPathExtension().lastPathComponent
+        noteRecentFile(url)
         checkUpload(url)
         if let sidecarError {
             showFailure(L("「\(url.lastPathComponent)」に保存しましたが、追加の情報を書けませんでした"), sidecarError)
@@ -364,6 +400,7 @@ final class PadState {
             releaseAccess()
             isOutsideDocument = false
             documentName = url.deletingPathExtension().lastPathComponent
+            noteRecentFile(url)
             show(L("「このiPad内 › Nanopic」に「\(url.lastPathComponent)」を作りました"))
             return true
         } catch {

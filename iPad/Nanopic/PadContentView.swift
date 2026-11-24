@@ -58,6 +58,13 @@ struct PadContentView: View {
         ZStack {
             CanvasRepresentable(state: state)
                 .ignoresSafeArea()
+            #if DEBUG
+            if RecentFilesDebugPreview.isEnabled {
+                RecentFilesDebugPreview(state: state)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(.top, 70).padding(.leading, 16)
+            }
+            #endif
             floatingSliders
             VStack {
                 Spacer()
@@ -155,6 +162,7 @@ struct PadContentView: View {
         .onOpenURL { url in state.open(url: url) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background || phase == .inactive { state.autosave() }
+            if phase == .active { state.refreshRecentFiles() }
         }
         .onChange(of: state.showColorPanelRequest) { _, _ in
             if !isPinned(.colors) { showColors = true }
@@ -233,6 +241,30 @@ struct PadContentView: View {
         .frame(width: 360)
     }
 
+    /// 書類のメニュー ＞ 最近開いたファイル。末尾の「履歴をクリア」で一覧を消す（確認はしない）
+    private var recentFilesMenu: some View {
+        let entries = state.recentEntries
+        return Menu {
+            ForEach(entries) { e in
+                Button {
+                    if let url = state.recentFileURL(e) { requestDiscard(.openFile(url, scoped: false)) }
+                } label: {
+                    if e.isAvailable {
+                        Text(RecentFiles.displayName(e, in: entries))
+                    } else {
+                        Text("\(RecentFiles.displayName(e, in: entries))（見つかりません）")
+                    }
+                }
+                .disabled(!e.isAvailable)
+            }
+            if !entries.isEmpty { Divider() }
+            Button(role: .destructive) { state.clearRecentFiles() } label: { Label("履歴をクリア", systemImage: "trash") }
+                .disabled(entries.isEmpty)
+        } label: {
+            Label("最近開いたファイル", systemImage: "clock")
+        }
+    }
+
     // MARK: - ツールバー
 
     private var toolbar: some View {
@@ -242,6 +274,7 @@ struct PadContentView: View {
                     .keyboardShortcut("n")
                 Button { requestDiscard(.open) } label: { Label("開く…", systemImage: "folder") }
                     .keyboardShortcut("o")
+                recentFilesMenu
                 Button { requestDiscard(.close) } label: { Label("閉じる", systemImage: "xmark.circle") }
                     .disabled(editor.fileURL == nil && !editor.isDirty)
                     .keyboardShortcut("w")
@@ -773,3 +806,34 @@ struct NewDocumentSheet: View {
         }
     }
 }
+
+#if DEBUG
+/// 開発用: 書類のメニュー ＞ 最近開いたファイル の中身を、画面に縦に並べて見せる（メニューを開かずにスクリーンショットを撮るため）。
+/// デバッグビルドで `-debugRecentFilesPreview YES` を付けて起動したときだけ出る。リリースビルドには入らない
+struct RecentFilesDebugPreview: View {
+    let state: PadState
+    static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "debugRecentFilesPreview") }
+
+    var body: some View {
+        let entries = state.recentEntries
+        VStack(alignment: .leading, spacing: 0) {
+            Label("最近開いたファイル", systemImage: "clock").font(.footnote).foregroundStyle(.secondary)
+                .padding(.horizontal, 16).padding(.vertical, 8)
+            Divider()
+            ForEach(entries) { e in
+                let name = RecentFiles.displayName(e, in: entries)
+                Text(e.isAvailable ? name : "\(name)（見つかりません）")
+                    .foregroundStyle(e.isAvailable ? .primary : .tertiary)
+                    .padding(.horizontal, 16).padding(.vertical, 11)
+                Divider()
+            }
+            Label("履歴をクリア", systemImage: "trash")
+                .foregroundStyle(entries.isEmpty ? Color.secondary : Color.red)
+                .padding(.horizontal, 16).padding(.vertical, 11)
+        }
+        .frame(width: 320, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(radius: 10)
+    }
+}
+#endif

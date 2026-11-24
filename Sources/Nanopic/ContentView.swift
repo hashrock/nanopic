@@ -35,6 +35,11 @@ struct WorkspaceView: View {
                 Divider()
                 CanvasRepresentable(state: state)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    #if DEBUG
+                    .overlay(alignment: .topLeading) {
+                        if RecentFilesDebugPreview.isEnabled { RecentFilesDebugPreview(state: state).padding(16) }
+                    }
+                    #endif
                     .overlay(alignment: .topTrailing) {
                         if let kind = state.adjustmentKind {
                             AdjustmentPanel(state: state, kind: kind)

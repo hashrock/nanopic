@@ -1,12 +1,5 @@
-#if os(macOS)
 import Foundation
 
-/// ユーザーが保存パネルで選んだ場所を、次の起動でも書けるように覚えておく（security-scoped bookmark）。
-///
-/// App Sandbox の中では、パスの文字列だけ持っていても書けない。保存パネルで選んでもらったファイルの bookmark を
-/// アプリの設定（UserDefaults）に持ち、次からはそれを解いて書く（entitlement は files.bookmarks.app-scope）。
-/// bookmark は実在するファイルにしか作れないので、初回は書いたあとで覚える。
-/// Sandbox の外では要らない（パスの文字列だけで書ける）。
 /// bookmark の置き場。本物は UserDefaults。テストでは実際の設定に触らないよう、メモリー上の入れ物を渡す
 public protocol BookmarkStorage {
     func data(forKey key: String) -> Data?
@@ -15,6 +8,13 @@ public protocol BookmarkStorage {
 
 extension UserDefaults: BookmarkStorage {}
 
+#if os(macOS)
+/// ユーザーが保存パネルで選んだ場所を、次の起動でも書けるように覚えておく（security-scoped bookmark）。
+///
+/// App Sandbox の中では、パスの文字列だけ持っていても書けない。保存パネルで選んでもらったファイルの bookmark を
+/// アプリの設定（UserDefaults）に持ち、次からはそれを解いて書く（entitlement は files.bookmarks.app-scope）。
+/// bookmark は実在するファイルにしか作れないので、初回は書いたあとで覚える。
+/// Sandbox の外では要らない（パスの文字列だけで書ける）。
 public struct ScopedBookmarks {
     /// App Sandbox の中で動いているか
     public static var isSandboxed: Bool { ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil }

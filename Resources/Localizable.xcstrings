@@ -145,6 +145,16 @@
         }
       }
     },
+    "%@（見つかりません）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (Not Found)"
+          }
+        }
+      }
+    },
     "%lld / %lld コマ" : {
       "localizations" : {
         "en" : {
@@ -335,6 +345,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : ", "
+          }
+        }
+      }
+    },
+    "「%@」が見つかりません。移動したか削除された可能性があります" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” couldn’t be found. It may have been moved or deleted."
           }
         }
       }
@@ -1985,6 +2005,16 @@
         }
       }
     },
+    "メニューを消去" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Menu"
+          }
+        }
+      }
+    },
     "モード" : {
       "localizations" : {
         "en" : {
@@ -3051,6 +3081,16 @@
         }
       }
     },
+    "履歴をクリア" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear History"
+          }
+        }
+      }
+    },
     "左に 90° 回転" : {
       "localizations" : {
         "en" : {
@@ -3681,6 +3721,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Minimum Opacity"
+          }
+        }
+      }
+    },
+    "最近使った項目を開く" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Recent"
+          }
+        }
+      }
+    },
+    "最近開いたファイル" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent Files"
           }
         }
       }

@@ -78,6 +78,11 @@ final class AppState {
     @ObservationIgnored var thumbCache: [UUID: (version: Int, image: NSImage)] = [:]
     /// ブラシ・消しゴム・パレットを iCloud で Mac と iPad の間で同期する
     var syncEnabled = false
+    /// 最近開いたファイル（ファイル ＞ 最近使った項目を開く）。この Mac の中だけに持ち、iCloud では同期しない
+    var recentEntries: [RecentFiles.Entry] = []
+    @ObservationIgnored let recentFiles = RecentFiles()
+    /// 最近使った項目から開いたファイルのアクセス権（Sandbox の中で上書き保存できるよう、終了するまで持つ）
+    @ObservationIgnored private var recentAccess: Set<URL> = []
     @ObservationIgnored private var sync: PreferenceSync?
 
     init() {
@@ -88,6 +93,7 @@ final class AppState {
         startSync()
         loadPreferences()
         loadUserTips()
+        refreshRecentFiles()
     }
 
     // MARK: - サムネイル
@@ -299,6 +305,7 @@ final class AppState {
     func load(url: URL) throws {
         if let open = document(openedFrom: url) {
             activate(open)
+            noteRecentFile(url)
             return
         }
         let ext = url.pathExtension.lowercased()
@@ -321,6 +328,7 @@ final class AppState {
         let session = DocumentSession(editor: newEditor, name: url.lastPathComponent)
         session.openedFrom = url
         addDocument(session)
+        noteRecentFile(url)
     }
 
     @discardableResult
@@ -362,6 +370,34 @@ final class AppState {
         editor.markSaved(url: url)
         // 別の名前で保存した。同じファイルを開いているほかのタブがあっても、こちらを開いているものとして扱う
         activeDocument.openedFrom = url
+        noteRecentFile(url)
+    }
+
+    // MARK: - 最近使った項目
+
+    /// 一覧と、それぞれ開けるかを読み直す（アプリが前に来たときにも呼ぶ。Finder で消した・動かしたファイルを反映する）
+    func refreshRecentFiles() {
+        recentEntries = recentFiles.entries()
+    }
+
+    func noteRecentFile(_ url: URL) {
+        recentFiles.add(url)
+        refreshRecentFiles()
+    }
+
+    func openRecentFile(_ entry: RecentFiles.Entry) {
+        guard let url = recentFiles.resolve(entry.item) else {
+            showError(L("「\(entry.item.name)」が見つかりません。移動したか削除された可能性があります"))
+            refreshRecentFiles()
+            return
+        }
+        if !recentAccess.contains(url), url.startAccessingSecurityScopedResource() { recentAccess.insert(url) }
+        open(url: url)
+    }
+
+    func clearRecentFiles() {
+        recentFiles.clear()
+        refreshRecentFiles()
     }
 
     func exportPNG() {

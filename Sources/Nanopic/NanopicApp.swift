@@ -44,6 +44,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // ほかのアプリ（Finder）でファイルを消したり動かしたりしたかもしれないので、最近使った項目を見直す
+        state?.refreshRecentFiles()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -293,6 +298,8 @@ struct AppCommands: Commands {
                 .keyboardShortcut("n")
             Button("開く...") { state.open() }
                 .keyboardShortcut("o")
+            // 一覧は AppCommands の body で読む（メニューの中の View で読んでも、変わったときに作り直されない）
+            RecentFilesMenu(state: state, entries: state.recentEntries)
             Divider()
             // 書類が 1 つだけのときはウィンドウを閉じる（アプリも終わる）。
             // 設定などほかのウィンドウが前にあれば、そのウィンドウを閉じる
@@ -453,3 +460,58 @@ struct AppCommands: Commands {
         }
     }
 }
+
+/// ファイル ＞ 最近使った項目を開く。末尾の「メニューを消去」で一覧を消す（確認はしない）
+struct RecentFilesMenu: View {
+    let state: AppState
+    let entries: [RecentFiles.Entry]
+
+    var body: some View {
+        Menu("最近使った項目を開く") {
+            ForEach(entries) { e in
+                Button(title(e, in: entries)) { state.openRecentFile(e) }
+                    .disabled(!e.isAvailable)
+            }
+            if !entries.isEmpty { Divider() }
+            Button("メニューを消去") { state.clearRecentFiles() }
+                .disabled(entries.isEmpty)
+        }
+    }
+
+    /// 開けないものには印を付ける
+    private func title(_ e: RecentFiles.Entry, in entries: [RecentFiles.Entry]) -> String {
+        let t = RecentFiles.displayName(e, in: entries)
+        return e.isAvailable ? t : L("\(t)（見つかりません）")
+    }
+}
+
+#if DEBUG
+/// 開発用: ファイル ＞ 最近使った項目を開く の中身を、ウィンドウの中に縦に並べて見せる（メニューを開かずにスクリーンショットを撮るため）。
+/// デバッグビルドで `-debugRecentFilesPreview YES` を付けて起動したときだけ出る。リリースビルドには入らない
+struct RecentFilesDebugPreview: View {
+    let state: AppState
+    static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "debugRecentFilesPreview") }
+
+    var body: some View {
+        let entries = state.recentEntries
+        VStack(alignment: .leading, spacing: 0) {
+            Text("最近使った項目を開く").font(.caption).foregroundStyle(.secondary)
+                .padding(.horizontal, 12).padding(.vertical, 4)
+            ForEach(entries) { e in
+                let name = RecentFiles.displayName(e, in: entries)
+                Text(e.isAvailable ? name : L("\(name)（見つかりません）"))
+                    .foregroundStyle(e.isAvailable ? .primary : .tertiary)
+                    .padding(.horizontal, 12).padding(.vertical, 3)
+            }
+            if !entries.isEmpty { Divider().padding(.vertical, 4) }
+            Text("メニューを消去")
+                .foregroundStyle(entries.isEmpty ? .tertiary : .primary)
+                .padding(.horizontal, 12).padding(.vertical, 3)
+        }
+        .padding(.vertical, 6)
+        .frame(width: 300, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .shadow(radius: 8)
+    }
+}
+#endif
