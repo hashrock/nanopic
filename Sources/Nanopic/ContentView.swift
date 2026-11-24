@@ -19,17 +19,7 @@ struct WorkspaceView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            ToolBarView(state: state, editor: editor)
-            Divider()
-            Group {
-                if state.mode == .rig {
-                    RigPanel(state: state, editor: editor)
-                } else {
-                    ToolOptionsView(state: state, editor: editor)
-                }
-            }
-            .frame(width: 230)
-            Divider()
+            SidePanels(state: state, editor: editor, side: .left)
             VStack(spacing: 0) {
                 DocumentTabBar(state: state)
                 Divider()
@@ -55,25 +45,12 @@ struct WorkspaceView: View {
                     TimelineView(state: state, editor: editor)
                         .id(ObjectIdentifier(editor))
                 }
-                Divider()
-                StatusBar(state: state, editor: editor)
-            }
-            Divider()
-            VStack(spacing: 0) {
-                // リグモードでは描かないので、色は出さない
-                if state.mode == .draw {
-                    ColorPickerView(editor: editor)
-                        .padding(10)
-                    PaletteView(state: state, editor: editor)
-                        .padding(.horizontal, 10)
-                        .padding(.bottom, 10)
+                if state.panelLayout.showsStatusBar {
                     Divider()
+                    StatusBar(state: state, editor: editor)
                 }
-                LayerPanel(state: state, editor: editor)
-                    // 名前の変更やドラッグの途中の状態は、書類ごとに捨てる
-                    .id(ObjectIdentifier(editor))
             }
-            .frame(width: 270)
+            SidePanels(state: state, editor: editor, side: .right)
         }
         // キャンバス以外（パネル）へのドロップでも開けるように
         .dropDestination(for: URL.self) { urls, _ in

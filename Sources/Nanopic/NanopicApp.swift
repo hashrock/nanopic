@@ -439,6 +439,14 @@ struct AppCommands: Commands {
                 .keyboardShortcut("t", modifiers: [.command, .option])
             Toggle("タイムラインを表示", isOn: Binding(get: { state.showsTimelineInDraw }, set: { state.showsTimelineInDraw = $0 }))
                 .keyboardShortcut("l", modifiers: [.command, .option])
+            Menu("パネル") {
+                ForEach(PanelKind.allCases) { kind in
+                    Toggle(kind.title, isOn: Binding(get: { state.panelLayout[kind].visible }, set: { state.panelLayout[kind].visible = $0 }))
+                }
+                Toggle("ステータスバー", isOn: Binding(get: { state.panelLayout.showsStatusBar }, set: { state.panelLayout.showsStatusBar = $0 }))
+                Divider()
+                SettingsLink { Text("並びを設定…") }
+            }
             Divider()
             Button(editor.grid.visible ? L("グリッドを隠す") : L("グリッドを表示")) {
                 editor.grid.visible.toggle()

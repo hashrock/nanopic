@@ -1223,6 +1223,16 @@
         }
       }
     },
+    "ステータスバー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status Bar"
+          }
+        }
+      }
+    },
     "スポイト" : {
       "localizations" : {
         "en" : {
@@ -1423,6 +1433,16 @@
         }
       }
     },
+    "ツール設定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tool Options"
+          }
+        }
+      }
+    },
     "ディザ合成" : {
       "localizations" : {
         "en" : {
@@ -1609,6 +1629,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hard Light"
+          }
+        }
+      }
+    },
+    "パネル" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panels"
           }
         }
       }
@@ -2326,6 +2356,16 @@
         }
       }
     },
+    "並びを設定…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrange Panels…"
+          }
+        }
+      }
+    },
     "中心を描かれている所に合わせる" : {
       "localizations" : {
         "en" : {
@@ -2811,6 +2851,16 @@
         }
       }
     },
+    "右" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Right"
+          }
+        }
+      }
+    },
     "右に 90° 回転" : {
       "localizations" : {
         "en" : {
@@ -3087,6 +3137,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clear History"
+          }
+        }
+      }
+    },
+    "左" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Left"
           }
         }
       }
@@ -3695,6 +3755,16 @@
         }
       }
     },
+    "最初の並びに戻す" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Default Layout"
+          }
+        }
+      }
+    },
     "最小サイズ" : {
       "localizations" : {
         "en" : {
@@ -3927,6 +3997,16 @@
         }
       }
     },
+    "片側に置いたパネルは、ウィンドウの端から「ツール」「ツール設定」「カラー・パレット・レイヤー」の順に並びます。リグモードでは、ツール設定の場所にリグパネルが出ます（隠していても出ます）。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panels on the same side are arranged from the window edge inward: Tools, Tool Options, then Color, Palette and Layers. In rig mode, the rig panel appears where Tool Options is placed (even if Tool Options is hidden)."
+          }
+        }
+      }
+    },
     "現在のドキュメントの変更を破棄しますか？" : {
       "localizations" : {
         "en" : {
@@ -4004,6 +4084,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load the image"
+          }
+        }
+      }
+    },
+    "画面" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Layout"
           }
         }
       }

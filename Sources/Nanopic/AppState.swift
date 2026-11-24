@@ -39,6 +39,10 @@ final class AppState {
         }
     }
     var timelineOpen: Bool { mode == .rig || showsTimelineInDraw }
+    /// パネルの出し入れと左右の配置（設定 ＞ 画面）
+    var panelLayout = AppState.loadPanelLayout() {
+        didSet { if panelLayout != oldValue { savePanelLayout() } }
+    }
     /// 最後に触ったのがタイムライン（このときは ⌘C・⌘V・Delete がキーに効く）。キャンバスを触ると外れる
     @ObservationIgnored var timelineFocused = false
     @ObservationIgnored var toolBeforeRig: Tool?
