@@ -167,14 +167,27 @@ struct DocumentTabBar: View {
     let state: AppState
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                ForEach(state.documents) { doc in
-                    DocumentTab(document: doc, isActive: doc === state.activeDocument, canClose: state.documents.count > 1,
-                                select: { state.activate(doc) }, close: { state.closeDocument(doc) })
-                    Divider().frame(height: 16)
+        HStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(state.documents) { doc in
+                        DocumentTab(document: doc, isActive: doc === state.activeDocument, canClose: state.documents.count > 1,
+                                    select: { state.activate(doc) }, close: { state.closeDocument(doc) })
+                        Divider().frame(height: 16)
+                    }
                 }
             }
+            // 「描く｜リグ」の切り替え。ウィンドウのツールバーに置くと、それだけのために一段使ってしまうので、タブの並びの右端に置く
+            Picker("モード", selection: Binding(get: { state.mode }, set: { state.setMode($0) })) {
+                Text(WorkMode.draw.title).tag(WorkMode.draw)
+                Text(WorkMode.rig.title).tag(WorkMode.rig)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .controlSize(.small)
+            .fixedSize()
+            .padding(.horizontal, 8)
+            .help("描くモードとリグモードを切り替える（⌥⌘T）")
         }
         .frame(height: 28)
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -75,17 +75,6 @@ struct WorkspaceView: View {
             }
             .frame(width: 270)
         }
-        .toolbar {
-            // 「描く｜リグ」の切り替え
-            ToolbarItem(placement: .principal) {
-                Picker("モード", selection: Binding(get: { state.mode }, set: { state.setMode($0) })) {
-                    Text(WorkMode.draw.title).tag(WorkMode.draw)
-                    Text(WorkMode.rig.title).tag(WorkMode.rig)
-                }
-                .pickerStyle(.segmented)
-                .help("描くモードとリグモードを切り替える（⌥⌘T）")
-            }
-        }
         // キャンバス以外（パネル）へのドロップでも開けるように
         .dropDestination(for: URL.self) { urls, _ in
             state.openDropped(urls, asLayer: NSEvent.modifierFlags.contains(.option))
