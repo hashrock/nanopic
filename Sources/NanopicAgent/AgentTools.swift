@@ -96,7 +96,16 @@ public struct AgentArgs {
 
 /// エディターを操作するツールの一式
 public final class AgentToolbox {
-    public let editor: Editor
+    /// 操作する書類のエディター。書類を切り替えたら差し替える（前の書類について調べた結果は捨てる）
+    public var editor: Editor {
+        didSet {
+            guard editor !== oldValue else { return }
+            regionMap = nil
+            gaps = []
+            gapReference = nil
+            lastReference = nil
+        }
+    }
     /// アプリ側で足すツール（ファイルの読み書きなど）
     public var extraTools: [AgentTool] = []
     /// 直前の find_regions の結果
