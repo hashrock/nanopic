@@ -39,6 +39,10 @@ final class AppState {
         }
     }
     var timelineOpen: Bool { mode == .rig || showsTimelineInDraw }
+    /// 新規作成のしかた（設定 ＞ 新規作成）
+    var newDocumentPreferences = NewDocumentPreferences.load() {
+        didSet { if newDocumentPreferences != oldValue { newDocumentPreferences.save() } }
+    }
     /// パネルの出し入れと左右の配置（設定 ＞ 画面）
     var panelLayout = AppState.loadPanelLayout() {
         didSet { if panelLayout != oldValue { savePanelLayout() } }
@@ -247,7 +251,16 @@ final class AppState {
 
     /// 新しい書類をタブで作る
     func newDocument(width: Int, height: Int) {
-        addDocument(DocumentSession(editor: Editor(width: width, height: height), name: nextUntitledName()))
+        let w = min(max(width, 1), 12000), h = min(max(height, 1), 12000)
+        // 設定で「前回作ったサイズ」にしていれば、次はこのサイズで作る
+        UserDefaults.standard.set([w, h], forKey: "newDocumentSize.v1")
+        addDocument(DocumentSession(editor: Editor(width: w, height: h), name: nextUntitledName()))
+    }
+
+    /// 最後に新規作成したサイズ（はじめは 1920 × 1080）
+    static var lastNewDocumentSize: (width: Int, height: Int) {
+        let a = UserDefaults.standard.array(forKey: "newDocumentSize.v1") as? [Int] ?? []
+        return a.count == 2 ? (a[0], a[1]) : (1920, 1080)
     }
 
     func open() {

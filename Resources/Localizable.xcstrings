@@ -328,6 +328,16 @@
         }
       }
     },
+    "⌘N と、タブの並びの＋に効きます。＋を長押しするか、ファイル ＞ サイズを指定して新規… を選ぶと、そのたびにサイズを選べます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies to ⌘N and the + button after the tabs. To choose a size each time, press and hold +, or choose File > New with Size…."
+          }
+        }
+      }
+    },
     "⌘・⌃ との組み合わせや、文字のないキーは使えません" : {
       "localizations" : {
         "en" : {
@@ -1129,6 +1139,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Size Jitter"
+          }
+        }
+      }
+    },
+    "サイズを指定…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom Size…"
+          }
+        }
+      }
+    },
+    "サイズを指定して新規…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New with Size…"
+          }
+        }
+      }
+    },
+    "サイズを聞かずにすぐ作る" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create immediately without asking"
+          }
+        }
+      }
+    },
+    "サイズを聞く" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask for the size"
           }
         }
       }
@@ -2426,6 +2476,16 @@
         }
       }
     },
+    "作るサイズ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size"
+          }
+        }
+      }
+    },
     "作成" : {
       "localizations" : {
         "en" : {
@@ -2644,6 +2704,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Previous Tab"
+          }
+        }
+      }
+    },
+    "前回作ったサイズ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last used size"
           }
         }
       }
@@ -3221,6 +3291,16 @@
         }
       }
     },
+    "幅 × 高さ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Width × Height"
+          }
+        }
+      }
+    },
     "形を記録" : {
       "localizations" : {
         "en" : {
@@ -3494,6 +3574,16 @@
         }
       }
     },
+    "新規" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New"
+          }
+        }
+      }
+    },
     "新規..." : {
       "localizations" : {
         "en" : {
@@ -3520,6 +3610,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New Canvas"
+          }
+        }
+      }
+    },
+    "新規キャンバス。長押しでサイズを選ぶ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New canvas. Press and hold to choose a size"
           }
         }
       }
@@ -3570,6 +3670,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New Layer Folder"
+          }
+        }
+      }
+    },
+    "新規作成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Canvas"
+          }
+        }
+      }
+    },
+    "新規作成のとき" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When creating a new canvas"
           }
         }
       }
@@ -3745,6 +3865,16 @@
         }
       }
     },
+    "最初に入れておくサイズ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Initial size"
+          }
+        }
+      }
+    },
     "最初のコマへ" : {
       "localizations" : {
         "en" : {
@@ -3913,6 +4043,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Darken"
+          }
+        }
+      }
+    },
+    "決まったサイズ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fixed size"
           }
         }
       }

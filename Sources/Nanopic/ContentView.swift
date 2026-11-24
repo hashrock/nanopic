@@ -152,14 +152,22 @@ struct GridSettingsView: View {
 
 struct NewDocumentSheet: View {
     let state: AppState
-    @State private var width = 1920
-    @State private var height = 1080
+    @State private var width: Int
+    @State private var height: Int
     @Environment(\.dismiss) private var dismiss
 
-    private let presets: [(String, Int, Int)] = [
+    init(state: AppState) {
+        self.state = state
+        let s = state.newDocumentSize
+        _width = State(initialValue: s.width)
+        _height = State(initialValue: s.height)
+    }
+
+    static let presets: [(String, Int, Int)] = [
         ("1920 × 1080", 1920, 1080), ("2048 × 2048", 2048, 2048), ("A4 350dpi", 2894, 4093),
         ("B5 350dpi", 2508, 3541), ("1280 × 720", 1280, 720), ("4096 × 4096", 4096, 4096),
     ]
+    private var presets: [(String, Int, Int)] { Self.presets }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

@@ -175,6 +175,7 @@ struct DocumentTabBar: View {
                                     select: { state.activate(doc) }, close: { state.closeDocument(doc) })
                         Divider().frame(height: 16)
                     }
+                    NewDocumentTabButton(state: state)
                 }
             }
             // 「描く｜リグ」の切り替え。ウィンドウのツールバーに置くと、それだけのために一段使ってしまうので、タブの並びの右端に置く
@@ -192,6 +193,32 @@ struct DocumentTabBar: View {
         .frame(height: 28)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
+/// タブの並びの後ろの＋。押すと設定（設定 ＞ 新規作成）に従って作る。長押しでサイズを選ぶ
+private struct NewDocumentTabButton: View {
+    let state: AppState
+
+    var body: some View {
+        Menu {
+            ForEach(NewDocumentSheet.presets, id: \.0) { p in
+                Button(p.0) { state.newDocument(width: p.1, height: p.2) }
+            }
+            Divider()
+            Button("サイズを指定…") { state.showNewDocumentSheet = true }
+        } label: {
+            Image(systemName: "plus")
+        } primaryAction: {
+            state.newDocumentFromCommand()
+        }
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
+        .buttonStyle(.borderless)
+        .fixedSize()
+        .padding(.horizontal, 8)
+        .frame(height: 28)
+        .help(L("新規キャンバス。長押しでサイズを選ぶ"))
     }
 }
 

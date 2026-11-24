@@ -294,8 +294,9 @@ struct AppCommands: Commands {
                                                      set: { state.mcpEnabled = $0 }))
         }
         CommandGroup(replacing: .newItem) {
-            Button("新規...") { state.showNewDocumentSheet = true }
+            Button(state.newDocumentPreferences.asksSize ? L("新規...") : L("新規")) { state.newDocumentFromCommand() }
                 .keyboardShortcut("n")
+            Button("サイズを指定して新規…") { state.showNewDocumentSheet = true }
             Button("開く...") { state.open() }
                 .keyboardShortcut("o")
             // 一覧は AppCommands の body で読む（メニューの中の View で読んでも、変わったときに作り直されない）
