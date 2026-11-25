@@ -1,5 +1,7 @@
-// SVG からアプリアイコン (.icns) を作る
-// 使い方: swift scripts/make-icon.swift Resources/AppIcon.svg build/AppIcon.icns
+// SVG からアプリアイコンを作る。書き出す形は出力の拡張子で決まる
+//   swift scripts/make-icon.swift Resources/AppIcon.svg build/AppIcon.icns   # Mac（白い角丸の板にロゴ、影つき）
+//   swift scripts/make-icon.swift Resources/AppIcon.svg <…>/AppIcon.png      # iPad（1024px、白地いっぱい、透明なし）
+// iPad 用は、iPad のビルドの最初に Xcode が呼ぶ（iPad/project.yml の preBuildScripts）。手で作り直さなくてよい
 import AppKit
 
 let args = CommandLine.arguments
@@ -34,6 +36,30 @@ func render(_ px: Int) -> Data {
     svg.draw(in: logo, from: .zero, operation: .sourceOver, fraction: 1)
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])!
+}
+
+/// iPad（iOS）のアイコン。角は OS が丸めるので白地いっぱいに描く。App Store は透明のあるアイコンを受け付けないので、透明なしで書く。
+/// ロゴは、アイコンに対して Mac 版の板に対するのと同じ割合（644 / 824 ≒ 78%）。1024 の中の 112〜912
+func renderIOS() -> CGImage {
+    let px = 1024
+    let ctx = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+    ctx.fill(CGRect(x: 0, y: 0, width: px, height: px))
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+    svg.draw(in: NSRect(x: 112, y: 112, width: 800, height: 800), from: .zero, operation: .sourceOver, fraction: 1)
+    NSGraphicsContext.restoreGraphicsState()
+    return ctx.makeImage()!
+}
+
+if out.pathExtension.lowercased() == "png" {
+    guard let dest = CGImageDestinationCreateWithURL(out as CFURL, "public.png" as CFString, 1, nil) else {
+        FileHandle.standardError.write("cannot create \(out.path)\n".data(using: .utf8)!)
+        exit(1)
+    }
+    CGImageDestinationAddImage(dest, renderIOS(), nil)
+    exit(CGImageDestinationFinalize(dest) ? 0 : 1)
 }
 
 // iconutil は使わない（macOS 26 の iconutil は、正しい iconset でも「Invalid Iconset」で失敗する）。ImageIO で .icns を直に書く

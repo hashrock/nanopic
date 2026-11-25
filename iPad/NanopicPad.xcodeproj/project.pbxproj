@@ -115,6 +115,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7336AA04E9025F82111EF27D /* Build configuration list for PBXNativeTarget "NanopicPad" */;
 			buildPhases = (
+				BCF5F1FCB629BF3E42569556 /* アプリアイコンを SVG から作る */,
 				351DEF4A80C5FCA625904F1A /* Sources */,
 				5A768E36E88944E4808A8E73 /* Resources */,
 				C65092B54B4F0C22E87412E3 /* Frameworks */,
@@ -182,6 +183,30 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		BCF5F1FCB629BF3E42569556 /* アプリアイコンを SVG から作る */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../Resources/AppIcon.svg",
+				"$(SRCROOT)/../scripts/make-icon.swift",
+			);
+			name = "アプリアイコンを SVG から作る";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Nanopic/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "env -i PATH=/usr/bin:/bin HOME=\"$HOME\" DEVELOPER_DIR=\"$DEVELOPER_DIR\" \\\n  xcrun --sdk macosx swift \"$SRCROOT/../scripts/make-icon.swift\" \\\n  \"$SRCROOT/../Resources/AppIcon.svg\" \"$SRCROOT/Nanopic/Assets.xcassets/AppIcon.appiconset/AppIcon.png\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		351DEF4A80C5FCA625904F1A /* Sources */ = {
@@ -285,6 +310,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5WLLZHK49R;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Nanopic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Nanopic;
@@ -314,6 +340,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5WLLZHK49R;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Nanopic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Nanopic;

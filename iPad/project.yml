@@ -38,6 +38,19 @@ targets:
     dependencies:
       - package: Nanopic
         product: NanopicKit
+    # アプリアイコン（Assets.xcassets の AppIcon.png）は Mac 版と同じ Resources/AppIcon.svg から作る。
+    # SVG かスクリプトが PNG より新しいときだけ動く。Xcode のビルドの環境は iOS 向けなので、Mac の SDK でスクリプトを動かす
+    preBuildScripts:
+      - name: アプリアイコンを SVG から作る
+        script: |
+          env -i PATH=/usr/bin:/bin HOME="$HOME" DEVELOPER_DIR="$DEVELOPER_DIR" \
+            xcrun --sdk macosx swift "$SRCROOT/../scripts/make-icon.swift" \
+            "$SRCROOT/../Resources/AppIcon.svg" "$SRCROOT/Nanopic/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
+        inputFiles:
+          - $(SRCROOT)/../Resources/AppIcon.svg
+          - $(SRCROOT)/../scripts/make-icon.swift
+        outputFiles:
+          - $(SRCROOT)/Nanopic/Assets.xcassets/AppIcon.appiconset/AppIcon.png
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hashrock.nanopic
@@ -46,6 +59,8 @@ targets:
         PRODUCT_NAME: Nanopic
         TARGETED_DEVICE_FAMILY: "2"
         CODE_SIGN_ENTITLEMENTS: Nanopic/Nanopic.entitlements
+        # アイコンを作るスクリプト（swift の実行）がキャッシュを書くので、スクリプトのサンドボックスは使わない
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Nanopic
