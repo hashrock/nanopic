@@ -170,7 +170,7 @@ Sources/NanopicUI/     Mac 版と iPad 版で共有する表示部品（Metal �
 Sources/Nanopic/       macOS アプリ（SwiftUI パネル + AppKit/Metal キャンバス）
   Agent/               エージェント連携（MCP サーバー、設定画面、アプリ側のツール）
 iPad/                  iPad アプリ（XcodeGen の project.yml、UIKit/Metal キャンバス + SwiftUI パネル）
-Resources/             訳のカタログ（*.xcstrings）、アイコン、プライバシーマニフェスト
+Resources/             訳のカタログ（*.xcstrings）、アイコン（AppIcon.svg。Mac・iPad・サイトのアイコンはここから作る）、プライバシーマニフェスト
 ```
 
 ## 表示言語

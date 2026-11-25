@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'website/**'
+      # サイトのロゴはアプリのアイコンから作る
+      - 'Resources/AppIcon.svg'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -27,6 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # サイトのロゴ（ファビコン・ページのロゴ）は、アプリのアイコン Resources/AppIcon.svg から作る。白い版は黒（塗りと線）を白に置き換えたもの
+      - name: Logo from the app icon
+        run: |
+          cp Resources/AppIcon.svg website/assets/nanopic.svg
+          sed -e 's/fill="black"/fill="white"/g' -e 's/stroke="black"/stroke="white"/g' Resources/AppIcon.svg > website/assets/nanopic-white.svg
       - uses: actions/upload-pages-artifact@v3
         with:
           path: website
