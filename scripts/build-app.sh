@@ -49,7 +49,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleLocalizations</key><array><string>ja</string><string>en</string></array>
     <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
     <key>CFBundleShortVersionString</key><string>1.3.0</string>
-    <key>CFBundleVersion</key><string>15</string>
+    <key>CFBundleVersion</key><string>16</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSPrincipalClass</key><string>NSApplication</string>
