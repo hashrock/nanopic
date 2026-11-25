@@ -48,8 +48,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <!-- 表示言語。Resources の ja.lproj・en.lproj と合わせる（App Store の「言語」に出る） -->
     <key>CFBundleLocalizations</key><array><string>ja</string><string>en</string></array>
     <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
-    <key>CFBundleShortVersionString</key><string>1.2.0</string>
-    <key>CFBundleVersion</key><string>14</string>
+    <key>CFBundleShortVersionString</key><string>1.3.0</string>
+    <key>CFBundleVersion</key><string>15</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSPrincipalClass</key><string>NSApplication</string>
