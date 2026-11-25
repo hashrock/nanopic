@@ -429,6 +429,16 @@
         }
       }
     },
+    "「%@」の変更が保存されていません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes to “%@” haven't been saved"
+          }
+        }
+      }
+    },
     "「%@」の変更を保存しますか？" : {
       "localizations" : {
         "en" : {
@@ -2506,12 +2516,22 @@
         }
       }
     },
-    "保存してから続ける" : {
+    "保存していない変更があります" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save and Continue"
+            "value" : "Has unsaved changes"
+          }
+        }
+      }
+    },
+    "保存してから閉じる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save and Close"
           }
         }
       }
@@ -3167,16 +3187,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "There is nothing to transform"
-          }
-        }
-      }
-    },
-    "変更が保存されていません" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You have unsaved changes"
           }
         }
       }

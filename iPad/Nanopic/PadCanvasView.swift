@@ -202,6 +202,32 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
 
     // MARK: - 表示変換
 
+    /// 表示の位置（タブを切り替えるときに書類ごとに覚えて戻す）
+    var viewport: PadViewport {
+        get { PadViewport(zoom: zoom, rotation: rotation, offset: offset) }
+        set {
+            zoom = newValue.zoom
+            rotation = newValue.rotation
+            offset = newValue.offset
+            viewChanged()
+        }
+    }
+
+    /// 描いている途中・選択の途中の操作を、確定せずにやめる（タブを切り替えるとき）
+    func cancelInteraction() {
+        pendingFinger = nil
+        if action == .stroke { editor.endStroke() }
+        drag = nil
+        lassoPoints = []
+        shapePreview = nil
+        clearPrediction()
+        activeTouch = nil
+        action = nil
+        fingerStroke = false
+        cursor.isHidden = true
+        overlay.refresh()
+    }
+
     func fitToView() {
         let doc = editor.doc
         guard bounds.width > 0, bounds.height > 0 else { return }
