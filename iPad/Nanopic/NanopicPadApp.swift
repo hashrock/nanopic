@@ -6,8 +6,17 @@ struct NanopicPadApp: App {
 
     var body: some Scene {
         WindowGroup {
-            PadContentView(state: state)
+            PadRootView(state: state)
                 .preferredColorScheme(.dark)
         }
+    }
+}
+
+/// タブで書類を切り替えると state.editor が変わる。下の画面は、そのとき表示している書類のエディターで作り直す
+struct PadRootView: View {
+    let state: PadState
+
+    var body: some View {
+        PadContentView(state: state, editor: state.editor)
     }
 }

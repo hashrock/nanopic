@@ -34,7 +34,8 @@ struct PadContentView: View {
     @State private var showExporter = false
     /// 書き出しではなく「名前を付けて保存」として保存先を選んでいる
     @State private var savingAs = false
-    @State private var confirmDiscard: PendingAction?
+    /// 保存していない変更があるのに閉じようとしている書類（保存するか聞く）
+    @State private var confirmClose: PadDocument?
     @State private var showOutsideInfo = false
 
     enum ImportKind: Identifiable {
@@ -42,16 +43,10 @@ struct PadContentView: View {
         var id: Self { self }
     }
 
-    enum PendingAction: Hashable, Identifiable {
-        /// ドロップされたファイル。scoped なら開いたあとアクセス権を手放す
-        case openFile(URL, scoped: Bool)
-        case new, open, close
-        var id: Self { self }
-    }
-
-    init(state: PadState) {
+    /// state.editor は、タブを切り替えると変わる。画面は PadRootView が、そのとき表示している書類のエディターで作り直す
+    init(state: PadState, editor: Editor) {
         self.state = state
-        editor = state.editor
+        self.editor = editor
     }
 
     var body: some View {
@@ -113,10 +108,17 @@ struct PadContentView: View {
         }
         .onDrop(of: PadState.openableTypes, isTargeted: $dropTargeted) { providers in
             state.receiveDropped(providers) { url, scoped in
-                requestDiscard(.openFile(url, scoped: scoped))
+                // 新しいタブで開くので、いまの書類の変更は聞かなくてよい
+                state.open(url: url)
+                if scoped { url.stopAccessingSecurityScopedResource() }
             }
         }
-        .safeAreaInset(edge: .top, spacing: 0) { toolbar }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            VStack(spacing: 0) {
+                toolbar
+                PadDocumentTabBar(state: state, close: closeTab, showNewDocument: { showNewDocument = true })
+            }
+        }
         .sheet(isPresented: $showNewDocument) {
             NewDocumentSheet { w, h in state.newDocument(width: w, height: h) }
         }
@@ -143,15 +145,14 @@ struct PadContentView: View {
             }
             exportFile = nil
         }
-        .confirmationDialog("変更が保存されていません", isPresented: Binding(get: { confirmDiscard != nil }, set: { if !$0 { confirmDiscard = nil } }),
-                            titleVisibility: .visible, presenting: confirmDiscard) { action in
-            Button("保存してから続ける") {
-                if state.save() { perform(action) }
+        .confirmationDialog(confirmClose.map { L("「\($0.name)」の変更が保存されていません") } ?? "",
+                            isPresented: Binding(get: { confirmClose != nil }, set: { if !$0 { confirmClose = nil } }),
+                            titleVisibility: .visible, presenting: confirmClose) { doc in
+            Button("保存してから閉じる") {
+                if state.save(doc) { state.closeDocument(doc) }
             }
-            Button("変更を破棄", role: .destructive) { perform(action) }
-            Button("キャンセル", role: .cancel) {
-                if case let .openFile(url, scoped: true) = action { url.stopAccessingSecurityScopedResource() }
-            }
+            Button("変更を破棄", role: .destructive) { state.closeDocument(doc) }
+            Button("キャンセル", role: .cancel) {}
         }
         .alert(state.failure?.title ?? "", isPresented: Binding(get: { state.failure != nil }, set: { if !$0 { state.failure = nil } }),
                presenting: state.failure) { _ in
@@ -167,28 +168,19 @@ struct PadContentView: View {
         .onChange(of: state.showColorPanelRequest) { _, _ in
             if !isPinned(.colors) { showColors = true }
         }
-        .onChange(of: state.isOutsideDocument) { _, outside in
-            // 名前を付けて保存で外に置いたときは、保存の知らせのほうで伝える
-            if outside && !savingAs { state.show(L("アプリのフォルダーの外の書類です。素の PSD として開きました")) }
-        }
         .onChange(of: editor.tool) { _, tool in showToolHint(tool) }
         .onChange(of: editor.brushes) { _, _ in state.savePreferences() }
         .onChange(of: editor.erasers) { _, _ in state.savePreferences() }
         .onChange(of: editor.palette) { _, _ in state.savePreferences() }
     }
 
-    private func requestDiscard(_ action: PendingAction) {
-        if editor.isDirty { confirmDiscard = action } else { perform(action) }
-    }
-
-    private func perform(_ action: PendingAction) {
-        switch action {
-        case .new: showNewDocument = true
-        case .open: importing = .open
-        case .close: state.closeDocument()
-        case let .openFile(url, scoped):
-            state.open(url: url)
-            if scoped { url.stopAccessingSecurityScopedResource() }
+    /// タブを閉じる。保存していない変更があれば、そのタブに切り替えてから聞く
+    private func closeTab(_ doc: PadDocument) {
+        if doc.editor.isDirty {
+            state.activate(doc)
+            confirmClose = doc
+        } else {
+            state.closeDocument(doc)
         }
     }
 
@@ -247,7 +239,7 @@ struct PadContentView: View {
         return Menu {
             ForEach(entries) { e in
                 Button {
-                    if let url = state.recentFileURL(e) { requestDiscard(.openFile(url, scoped: false)) }
+                    if let url = state.recentFileURL(e) { state.open(url: url) }
                 } label: {
                     if e.isAvailable {
                         Text(RecentFiles.displayName(e, in: entries))
@@ -270,13 +262,13 @@ struct PadContentView: View {
     private var toolbar: some View {
         HStack(spacing: 6) {
             Menu {
-                Button { requestDiscard(.new) } label: { Label("新規…", systemImage: "doc.badge.plus") }
+                Button { showNewDocument = true } label: { Label("新規…", systemImage: "doc.badge.plus") }
                     .keyboardShortcut("n")
-                Button { requestDiscard(.open) } label: { Label("開く…", systemImage: "folder") }
+                Button { importing = .open } label: { Label("開く…", systemImage: "folder") }
                     .keyboardShortcut("o")
                 recentFilesMenu
-                Button { requestDiscard(.close) } label: { Label("閉じる", systemImage: "xmark.circle") }
-                    .disabled(editor.fileURL == nil && !editor.isDirty)
+                Button { closeTab(state.activeDocument) } label: { Label("閉じる", systemImage: "xmark.circle") }
+                    .disabled(state.documents.count == 1 && state.activeDocument.isPristinePlaceholder)
                     .keyboardShortcut("w")
                 Divider()
                 Button { state.save() } label: { Label("保存", systemImage: "square.and.arrow.down") }
@@ -750,13 +742,94 @@ struct VerticalSlider: View {
 
 // MARK: - 新規作成
 
+/// 上のバーの下に並ぶ書類のタブ。後ろの＋で新しい書類を作る
+struct PadDocumentTabBar: View {
+    let state: PadState
+    let close: (PadDocument) -> Void
+    let showNewDocument: () -> Void
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(state.documents) { doc in
+                        tab(doc).id(doc.id)
+                        Divider().frame(height: 18)
+                    }
+                    newButton
+                }
+            }
+            .onChange(of: state.activeDocument.id) { _, id in
+                withAnimation { proxy.scrollTo(id) }
+            }
+        }
+        .frame(height: 40)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private func tab(_ doc: PadDocument) -> some View {
+        let active = doc === state.activeDocument
+        return HStack(spacing: 6) {
+            Text(doc.name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            if doc.editor.isDirty {
+                Circle().frame(width: 7, height: 7).foregroundStyle(.secondary)
+                    .accessibilityLabel("保存していない変更があります")
+            }
+            // 指で押しやすいよう、閉じるボタンはいつも出す
+            Button { close(doc) } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("タブを閉じる")
+        }
+        .font(.subheadline)
+        .foregroundStyle(active ? .primary : .secondary)
+        .padding(.leading, 14)
+        .padding(.trailing, 4)
+        .frame(minWidth: 110, maxWidth: 240, maxHeight: .infinity)
+        .background(active ? Color.primary.opacity(0.1) : Color.clear)
+        .overlay(alignment: .bottom) {
+            if active { Rectangle().fill(Color.accentColor).frame(height: 2) }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { state.activate(doc) }
+    }
+
+    /// ＋: 押すと前回と同じサイズですぐ作る。長押しでサイズを選ぶ
+    private var newButton: some View {
+        Menu {
+            ForEach(NewDocumentSheet.presets, id: \.0) { p in
+                Button("\(p.0)  \(p.1) × \(p.2)") { state.newDocument(width: p.1, height: p.2) }
+            }
+            Divider()
+            Button { showNewDocument() } label: { Label("サイズを指定…", systemImage: "slider.horizontal.3") }
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 16, weight: .medium))
+                .frame(width: 44, height: 40)
+                .contentShape(Rectangle())
+        } primaryAction: {
+            let s = PadState.lastNewDocumentSize
+            state.newDocument(width: s.width, height: s.height)
+        }
+        .accessibilityLabel("新規キャンバス")
+    }
+}
+
 struct NewDocumentSheet: View {
     var onCreate: (Int, Int) -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var width = 2048
-    @State private var height = 2048
+    @State private var width = PadState.lastNewDocumentSize.width
+    @State private var height = PadState.lastNewDocumentSize.height
 
-    private let presets: [(String, Int, Int)] = [
+    static let presets: [(String, Int, Int)] = [
         (L("正方形 2048"), 2048, 2048),
         (L("フル HD（横）"), 1920, 1080),
         (L("フル HD（縦）"), 1080, 1920),
@@ -769,7 +842,7 @@ struct NewDocumentSheet: View {
         NavigationStack {
             Form {
                 Section("プリセット") {
-                    ForEach(presets, id: \.0) { p in
+                    ForEach(Self.presets, id: \.0) { p in
                         Button {
                             width = p.1
                             height = p.2

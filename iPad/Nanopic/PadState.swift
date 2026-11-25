@@ -8,11 +8,61 @@ extension UTType {
     static let psd = UTType("com.adobe.photoshop-image") ?? UTType(filenameExtension: "psd")!
 }
 
+/// 開いている書類 1 つ（タブ 1 つ）。
+///
+/// ブラシ・色・パレットのような道具はどの書類でも同じものを使い、書類ごとに持つのは中身・取り消しの履歴・保存先・表示の位置だけ。
+/// 道具の状態は Editor に入っているので、切り替えるときに前の書類のエディターから引き継ぐ（Editor.adoptToolState）。Mac 版と同じ作り
+@MainActor
+@Observable
+final class PadDocument: Identifiable {
+    let id = UUID()
+    let editor: Editor
+    /// 開いているファイル名（タイトル表示用）
+    var name: String
+    /// アプリのフォルダー（書類フォルダー・iCloud container）の外にある書類を開いている。
+    /// このときはサイドカー（作品.nanopic）を読まず・書かず、素の PSD として扱う
+    fileprivate(set) var isOutsideDocument = false
+    /// 開いたファイル（同じファイルをもう一度開こうとしたら、このタブに切り替える）
+    @ObservationIgnored fileprivate(set) var openedFrom: URL?
+    /// 外の場所（ファイル App で選んだ場所）のファイルを開いている間のアクセス権
+    @ObservationIgnored fileprivate var accessedURL: URL?
+    /// 起動したときに作った白紙。触らないうちにファイルを開いたら、このタブは閉じる
+    @ObservationIgnored var isLaunchPlaceholder = false
+    /// ほかのタブに切り替えたときの表示の位置（戻ったときに元に戻す）。nil なら全体を表示する
+    @ObservationIgnored var viewport: PadViewport?
+
+    init(editor: Editor, name: String) {
+        self.editor = editor
+        self.name = name
+    }
+
+    /// 起動したときの白紙のまま（何も描いていない）
+    var isPristinePlaceholder: Bool {
+        isLaunchPlaceholder && !editor.isDirty && !editor.canUndo && !editor.canRedo && editor.fileURL == nil
+    }
+
+    fileprivate func releaseAccess() {
+        accessedURL?.stopAccessingSecurityScopedResource()
+        accessedURL = nil
+    }
+}
+
+/// キャンバスの表示の位置（倍率・回転・ずらし）
+struct PadViewport {
+    var zoom: CGFloat
+    var rotation: CGFloat
+    var offset: CGPoint
+}
+
 /// iPad 版のアプリの状態（ドキュメント・設定・ファイル操作）
 @MainActor
 @Observable
 final class PadState {
-    let editor = Editor()
+    /// 開いている書類（タブの並び順）
+    private(set) var documents: [PadDocument]
+    /// いま表示・編集している書類
+    private(set) var activeDocument: PadDocument
+    var editor: Editor { activeDocument.editor }
     /// 表示倍率と回転（表示用。実体は PadCanvasView）
     var zoom: Double = 1
     var rotationDegrees: Double = 0
@@ -35,15 +85,12 @@ final class PadState {
     /// Apple Pencil のダブルタップで色のパネルを開く（増えたら開く）
     var showColorPanelRequest = 0
     /// 開いているファイル名（タイトル表示用）
-    var documentName = L("無題")
-    /// アプリのフォルダー（書類フォルダー・iCloud container）の外にある書類を開いている。
-    /// このときはサイドカー（作品.nanopic）を読まず・書かず、素の PSD として扱う
-    private(set) var isOutsideDocument = false
+    var documentName: String { activeDocument.name }
+    /// いまの書類がアプリのフォルダーの外にある（素の PSD として扱っている）
+    var isOutsideDocument: Bool { activeDocument.isOutsideDocument }
     /// iCloud container の書類フォルダー（ファイル App の「iCloud Drive › Nanopic」）。iCloud を使っていなければ nil
     private(set) var iCloudDocuments: URL?
     @ObservationIgnored weak var canvas: PadCanvasView?
-    /// 外の場所（ファイル App で選んだ場所）のファイルを開いている間のアクセス権
-    @ObservationIgnored private var accessedURL: URL?
     @ObservationIgnored private var thumbCache: [UUID: (version: Int, image: CGImage)] = [:]
     /// ブラシ・消しゴム・パレットを iCloud で Mac と iPad の間で同期する
     var syncEnabled = false
@@ -53,6 +100,10 @@ final class PadState {
     @ObservationIgnored let recentFiles = RecentFiles()
 
     init() {
+        let first = PadDocument(editor: Editor(), name: L("無題"))
+        first.isLaunchPlaceholder = true
+        documents = [first]
+        activeDocument = first
         startSync()
         loadPreferences()
         locateICloudContainer()
@@ -172,9 +223,10 @@ final class PadState {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.iCloudDocuments = docs
-                // 探している間に開いた書類が iCloud container の中だったら、扱いを直す
-                if self.isOutsideDocument, let u = self.editor.fileURL, self.appFolders.contains(u), !self.editor.isDirty {
-                    self.open(url: u)
+                // 探している間に開いた書類が iCloud container の中だったら、扱いを直す（開き直してサイドカーを読む）
+                for d in self.documents where d.isOutsideDocument && !d.editor.isDirty {
+                    guard let u = d.editor.fileURL, self.appFolders.contains(u) else { continue }
+                    try? self.load(u, into: d)
                 }
             }
         }
@@ -187,55 +239,150 @@ final class PadState {
 
     static let openableTypes: [UTType] = [.psd, .png, .jpeg, .heic, .tiff, .bmp, .gif, .webP]
 
-    func newDocument(width: Int, height: Int) {
-        releaseAccess()
-        isOutsideDocument = false
-        editor.newDocument(width: width, height: height)
+    // MARK: - 書類（タブ）
+
+    /// 新しい書類に付ける名前（「無題」「無題 2」…）
+    private func nextUntitledName() -> String {
+        let base = L("無題")
+        let names = Set(documents.map(\.name))
+        if !names.contains(base) { return base }
+        var n = 2
+        while names.contains("\(base) \(n)") { n += 1 }
+        return "\(base) \(n)"
+    }
+
+    /// 道具（ブラシ・色など）をいまの書類から引き継いだ、空の書類
+    private func makeDocument(name: String) -> PadDocument {
+        let e = Editor()
+        e.adoptToolState(from: editor)
+        return PadDocument(editor: e, name: name)
+    }
+
+    /// 書類をいまのタブの右に足して表示する。
+    /// replacesPlaceholder: 起動したときの白紙のタブ（何も描いていない）を閉じて差し替える（ファイルを開いたときだけ）
+    private func addDocument(_ doc: PadDocument, replacesPlaceholder: Bool) {
+        let placeholder = replacesPlaceholder && activeDocument.isPristinePlaceholder ? activeDocument : nil
+        let index = documents.firstIndex { $0 === activeDocument }.map { $0 + 1 } ?? documents.count
+        documents.insert(doc, at: index)
+        activate(doc)
+        if let placeholder { documents.removeAll { $0 === placeholder } }
+    }
+
+    /// 表示・編集する書類を切り替える
+    func activate(_ doc: PadDocument) {
+        guard doc !== activeDocument, documents.contains(where: { $0 === doc }) else { return }
+        let old = activeDocument
+        canvas?.cancelInteraction()
+        old.editor.commitTransform()
+        old.viewport = canvas?.viewport
+        old.editor.onNeedsDisplay = nil
+
+        let e = doc.editor
+        e.adoptToolState(from: old.editor)
         thumbCache.removeAll()
-        documentName = L("無題")
-        canvas?.fitToView()
+        activeDocument = doc
+        if let canvas {
+            e.onNeedsDisplay = { [weak canvas] in canvas?.requestDisplay() }
+            if let v = doc.viewport { canvas.viewport = v } else { canvas.fitToView() }
+        }
+        e.markAllDirty()
     }
 
-    /// 今の書類を閉じて、起動したときと同じ白紙に戻す
-    func closeDocument() {
-        let blank = Editor().doc
-        newDocument(width: blank.width, height: blank.height)
+    /// タブを閉じる（確かめない。保存していない変更の確認は画面の側でする）。
+    /// 最後の 1 つを閉じたら、起動したときと同じ白紙を開く
+    func closeDocument(_ doc: PadDocument) {
+        guard let i = documents.firstIndex(where: { $0 === doc }) else { return }
+        if documents.count == 1 {
+            let blank = makeDocument(name: L("無題"))
+            blank.isLaunchPlaceholder = true
+            documents.append(blank)
+            activate(blank)
+        } else if doc === activeDocument {
+            activate(documents[i + 1 < documents.count ? i + 1 : i - 1])
+        }
+        documents.removeAll { $0 === doc }
+        doc.editor.onNeedsDisplay = nil
+        doc.releaseAccess()
     }
 
-    /// ファイル App などから渡されたファイルを開く
+    /// 新しい書類をタブで作る
+    func newDocument(width: Int, height: Int) {
+        let w = min(max(width, 16), 8000), h = min(max(height, 16), 8000)
+        // 次にタブバーの＋ですぐ作るときは、このサイズで作る（Mac 版と同じキー）
+        UserDefaults.standard.set([w, h], forKey: "newDocumentSize.v1")
+        let doc = makeDocument(name: nextUntitledName())
+        doc.editor.newDocument(width: w, height: h)
+        addDocument(doc, replacesPlaceholder: false)
+    }
+
+    /// 最後に新規作成したサイズ（はじめは 2048 × 2048）
+    static var lastNewDocumentSize: (width: Int, height: Int) {
+        let a = UserDefaults.standard.array(forKey: "newDocumentSize.v1") as? [Int] ?? []
+        return a.count == 2 ? (a[0], a[1]) : (2048, 2048)
+    }
+
+    /// このファイルを開いているタブ
+    private func document(openedFrom url: URL) -> PadDocument? {
+        let path = url.standardizedFileURL.resolvingSymlinksInPath().path
+        return documents.first { d in
+            [d.editor.fileURL, d.openedFrom].contains { $0?.standardizedFileURL.resolvingSymlinksInPath().path == path }
+        }
+    }
+
+    /// ファイル App などから渡されたファイルを、新しいタブで開く。もう開いていればそのタブに切り替える
     func open(url: URL) {
-        releaseAccess()
+        if let d = document(openedFrom: url) {
+            activate(d)
+            return
+        }
+        let doc = makeDocument(name: url.deletingPathExtension().lastPathComponent)
+        do {
+            try load(url, into: doc)
+        } catch {
+            showFailure(L("開けませんでした"), error)
+            return
+        }
+        addDocument(doc, replacesPlaceholder: true)
+    }
+
+    /// ファイルを書類に読み込む
+    private func load(_ url: URL, into doc: PadDocument) throws {
+        doc.releaseAccess()
         let scoped = url.startAccessingSecurityScopedResource()
         do {
             let ext = url.pathExtension.lowercased()
             if ext == "psd" || ext == "psb" {
                 // iCloud Drive やほかのアプリのフォルダーの書類もあるので、調停（NSFileCoordinator）を通して読む
-                let doc = try PSD.read(try CoordinatedFile.read(url))
+                let psd = try PSD.read(try CoordinatedFile.read(url))
                 // サイドカー（作品.nanopic）はアプリのフォルダーの中でだけ読む。外の書類は素の PSD として開く
                 let inside = appFolders.contains(url)
                 let sidecar = inside ? ((try? Sidecar.read(for: url)) ?? nil) : nil
-                editor.load(doc, url: url, sidecar: sidecar ?? Sidecar())
-                isOutsideDocument = !inside
+                doc.editor.load(psd, url: url, sidecar: sidecar ?? Sidecar())
+                doc.isOutsideDocument = !inside
+                if !inside { show(L("アプリのフォルダーの外の書類です。素の PSD として開きました")) }
                 noteRecentFile(url)
                 // 上書き保存できるよう、閉じるまでアクセス権を持っておく
-                if scoped { accessedURL = url }
+                if scoped { doc.accessedURL = url }
             } else {
                 defer { if scoped { url.stopAccessingSecurityScopedResource() } }
                 guard let img = ImageUtil.loadImage(url: url),
-                      let doc = Editor.document(from: img, name: url.deletingPathExtension().lastPathComponent) else {
+                      let d = Editor.document(from: img, name: url.deletingPathExtension().lastPathComponent) else {
                     throw NSError(domain: "Nanopic", code: 1, userInfo: [NSLocalizedDescriptionKey: L("画像を読み込めませんでした")])
                 }
-                editor.load(doc, url: nil)
-                isOutsideDocument = false
+                doc.editor.load(d, url: nil)
+                doc.isOutsideDocument = false
                 // アクセス権のあるうちに覚える（bookmark を作るのに要る）
                 noteRecentFile(url)
             }
-            thumbCache.removeAll()
-            documentName = url.deletingPathExtension().lastPathComponent
-            canvas?.fitToView()
+            doc.openedFrom = url
+            doc.name = url.deletingPathExtension().lastPathComponent
+            if doc === activeDocument {
+                thumbCache.removeAll()
+                canvas?.fitToView()
+            }
         } catch {
             if scoped { url.stopAccessingSecurityScopedResource() }
-            showFailure(L("開けませんでした"), error)
+            throw error
         }
     }
 
@@ -325,30 +472,28 @@ final class PadState {
         editor.addImageLayer(name: url.deletingPathExtension().lastPathComponent, image: img)
     }
 
-    private func releaseAccess() {
-        accessedURL?.stopAccessingSecurityScopedResource()
-        accessedURL = nil
-    }
-
     var hasFile: Bool {
         editor.fileURL.map { $0.pathExtension.lowercased() == "psd" } ?? false
     }
 
     /// 上書き保存。まだファイルがなければアプリの書類フォルダーに新しく作る
     @discardableResult
-    func save(quiet: Bool = false) -> Bool {
+    func save(quiet: Bool = false) -> Bool { save(activeDocument, quiet: quiet) }
+
+    @discardableResult
+    func save(_ doc: PadDocument, quiet: Bool = false) -> Bool {
         do {
             let url: URL
-            if let u = editor.fileURL, u.pathExtension.lowercased() == "psd" {
+            if let u = doc.editor.fileURL, u.pathExtension.lowercased() == "psd" {
                 url = u
             } else {
-                url = uniqueURL(name: documentName)
+                url = uniqueURL(name: doc.name)
             }
-            try writePSD(to: url)
-            documentName = url.deletingPathExtension().lastPathComponent
+            try writePSD(doc, to: url)
+            doc.name = url.deletingPathExtension().lastPathComponent
             noteRecentFile(url)
             if !quiet { show(L("「\(url.lastPathComponent)」に保存しました")) }
-            checkUpload(url)
+            checkUpload(url, doc: doc)
             return true
         } catch {
             // 自動保存（quiet）の失敗も、戻ってきたときに分かるよう閉じるまで出しておく
@@ -359,7 +504,8 @@ final class PadState {
 
     /// 「名前を付けて保存」で書いたファイルを、今の書類として扱う（以後の上書き保存先になる）
     func adoptSavedAs(_ url: URL) {
-        releaseAccess()
+        let doc = activeDocument
+        doc.releaseAccess()
         let scoped = url.startAccessingSecurityScopedResource()
         let inside = appFolders.contains(url)
         var sidecarError: Error?
@@ -368,12 +514,12 @@ final class PadState {
             do { try editor.sidecar.write(for: url) } catch { sidecarError = error }
         }
         editor.markSaved(url: url)
-        isOutsideDocument = !inside
+        doc.isOutsideDocument = !inside
         // 上書き保存できるよう、閉じるまでアクセス権を持っておく
-        if scoped { accessedURL = url }
-        documentName = url.deletingPathExtension().lastPathComponent
+        if scoped { doc.accessedURL = url }
+        doc.name = url.deletingPathExtension().lastPathComponent
         noteRecentFile(url)
-        checkUpload(url)
+        checkUpload(url, doc: doc)
         if let sidecarError {
             showFailure(L("「\(url.lastPathComponent)」に保存しましたが、追加の情報を書けませんでした"), sidecarError)
         } else if inside {
@@ -383,23 +529,25 @@ final class PadState {
         }
     }
 
-    /// アプリを離れるとき、アプリのフォルダーの書類だけ自動で保存する（外の場所のファイルは勝手に上書きしない）
+    /// アプリを離れるとき、開いているどの書類も、アプリのフォルダーのものだけ自動で保存する（外の場所のファイルは勝手に上書きしない）
     func autosave() {
-        guard editor.isDirty, !editor.isStroking else { return }
-        if let u = editor.fileURL, !appFolders.contains(u) { return }
-        save(quiet: true)
+        for doc in documents where doc.editor.isDirty && !doc.editor.isStroking {
+            if let u = doc.editor.fileURL, !appFolders.contains(u) { continue }
+            save(doc, quiet: true)
+        }
     }
 
     /// 外の場所の書類を、アプリの書類フォルダーに複製して、そちらを開いた状態にする（いまの絵を新しい PSD として書く）。
     /// 元の書類には触らない。元の隣にサイドカーがあっても、それは読めないので付いてこない
     @discardableResult
     func duplicateIntoAppFolder() -> Bool {
+        let doc = activeDocument
         do {
-            let url = uniqueURL(name: documentName)
-            try writePSD(to: url)
-            releaseAccess()
-            isOutsideDocument = false
-            documentName = url.deletingPathExtension().lastPathComponent
+            let url = uniqueURL(name: doc.name)
+            try writePSD(doc, to: url)
+            doc.releaseAccess()
+            doc.isOutsideDocument = false
+            doc.name = url.deletingPathExtension().lastPathComponent
             noteRecentFile(url)
             show(L("「このiPad内 › Nanopic」に「\(url.lastPathComponent)」を作りました"))
             return true
@@ -411,12 +559,12 @@ final class PadState {
 
     /// ネットワークドライブやクラウドの場所（ファイルプロバイダー）は、書けたあとに裏で送る。
     /// 送るのに失敗するとファイル App 側にしか出ないので、少しの間ようすを見て、失敗していたら知らせる
-    private func checkUpload(_ url: URL) {
+    private func checkUpload(_ url: URL, doc: PadDocument) {
         guard !url.path.hasPrefix(Self.documentsDirectory.path) else { return }
         Task { [weak self] in
             for _ in 0..<10 {
                 try? await Task.sleep(for: .seconds(1.5))
-                guard let self, self.editor.fileURL == url else { return }
+                guard let self, doc.editor.fileURL == url else { return }
                 var u = url
                 u.removeAllCachedResourceValues()
                 guard let v = try? u.resourceValues(forKeys: [.ubiquitousItemUploadingErrorKey, .ubiquitousItemIsUploadedKey]) else { return }
@@ -441,18 +589,20 @@ final class PadState {
         return url
     }
 
-    private func writePSD(to url: URL) throws {
-        let data = try psdData()
+    private func writePSD(_ doc: PadDocument, to url: URL) throws {
+        let data = try psdData(doc.editor)
         try CoordinatedFile.write(data, to: url)
         // サイドカー（作品.nanopic）はアプリのフォルダーの中でだけ書く。外の場所では隣に手を出せないので、素の PSD だけを書く
-        if appFolders.contains(url) { try editor.sidecar.write(for: url) }
-        editor.markSaved(url: url)
+        if appFolders.contains(url) { try doc.editor.sidecar.write(for: url) }
+        doc.editor.markSaved(url: url)
     }
 
-    func psdData() throws -> Data {
-        editor.commitTransform()
-        editor.prepareForSave()
-        return try PSD.write(editor.doc)
+    func psdData() throws -> Data { try psdData(editor) }
+
+    private func psdData(_ e: Editor) throws -> Data {
+        e.commitTransform()
+        e.prepareForSave()
+        return try PSD.write(e.doc)
     }
 
     func pngData() -> Data? {
