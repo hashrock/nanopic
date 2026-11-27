@@ -20,7 +20,7 @@ open build/Nanopic.app
 ./scripts/release.sh        # Developer ID で署名・公証して dist/Nanopic-<版>.zip を作る（配布用）
 ```
 
-- 必要なもの: macOS 14 以降、Xcode 16 以降（Swift 5.10+）
+- 必要なもの: macOS 26 以降、Xcode 26 以降（Swift 6.2+）
 - 表示言語: 日本語・英語（システムの言語に従います。[表示言語](#表示言語)）
 
 ### App Store 用のビルド
@@ -91,7 +91,7 @@ open NanopicPad.xcodeproj    # スキーム NanopicPad を iPad／シミュレ�
 - TestFlight に出す（Mac App Store 版と同じくクラウド署名。手元に配布用の証明書は要らない）: `./scripts/package-ipad.sh --upload`。Archive してクラウド署名で書き出し、`dist/appstore/ipad/Nanopic-<版>-<ビルド番号>.ipa` を検査（配布用の署名、iCloud の書類と同期、版、プライバシーマニフェスト、表示言語）してから、同じアーカイブを App Store Connect に上げる。`--upload` なしなら書き出して検査するだけ。Xcode で手で出すときは実行先を「Any iOS Device (arm64)」にして Product > Archive → Organizer で Distribute App > App Store Connect（TestFlight だけなら TestFlight Internal Only）。署名は自動（Automatically manage signing）のままにすると、Xcode が Cloud Managed Apple Distribution で署名し、iCloud container 入りのプロファイルを作ります。版は `project.yml` の `MARKETING_VERSION`・`CURRENT_PROJECT_VERSION`（上げたら `xcodegen`）
 - Archive（署名なしで通ることの確認）: `cd iPad && xcodebuild archive -project NanopicPad.xcodeproj -scheme NanopicPad -destination 'generic/platform=iOS' -archivePath ../.build-ipad/NanopicPad.xcarchive CODE_SIGNING_ALLOWED=NO`
 - 表示言語は Mac 版と同じ日本語・英語。訳のカタログ（`Resources/Localizable.xcstrings`・`Names.xcstrings`）を Xcode がビルドのときに変換して入れます。Xcode は元の言語（日本語）の表を作らないので、`iPad/Nanopic/ja.lproj/InfoPlist.strings` を置いて、バンドルに `ja.lproj` と `en.lproj` の両方が入るようにしています（App Store の対応言語は `.lproj` から決まります）
-- iPadOS 17 以降。描画エンジン（NanopicCore）と表示部品（NanopicUI）を Mac 版と共有しています
+- iPadOS 26 以降。描画エンジン（NanopicCore）と表示部品（NanopicUI）を Mac 版と共有しています
 - Apple Pencil で描く（筆圧つき、ホバーでブラシの大きさを表示、ダブルタップでブラシ⇄消しゴム）
 - 指 1 本で移動、2 本で移動・拡大・回転、2 本指タップで取り消し、3 本指タップでやり直し（ファイルメニューの「指で描く」で指 1 本でも描ける）
 - ブラシ・消しゴム・塗りつぶし・スポイト、ブラシ設定、レイヤー（フォルダー・合成モード・不透明度・クリッピング・ロック）、色とパレット

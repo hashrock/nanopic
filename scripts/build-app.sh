@@ -22,8 +22,8 @@ BIN="$("${BUILD[@]}" --show-bin-path)/Nanopic"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Nanopic"
-# いまの SwiftPM（Swift Build）は、リンクした SDK の版を最低動作版（14.0）のまま書いてしまう。
-# macOS は SDK 14 で作ったアプリとみなし、macOS 26 の見た目（角の丸いウィンドウ・新しいコントロール）を使わない。
+# いまの SwiftPM（Swift Build）は、リンクした SDK の版を最低動作版（26.0）のまま書いてしまう。
+# macOS はその SDK で作ったアプリとみなし、それより新しい SDK の見た目や振る舞いを使わない。
 # 実際にリンクした SDK の版に書き直す
 SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
 MIN_VERSION="$(vtool -show-build "$BIN" | awk '/minos/ { print $2; exit }')"
@@ -50,7 +50,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
     <key>CFBundleShortVersionString</key><string>1.3.0</string>
     <key>CFBundleVersion</key><string>16</string>
-    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>LSMinimumSystemVersion</key><string>26.0</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSPrincipalClass</key><string>NSApplication</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.graphics-design</string>

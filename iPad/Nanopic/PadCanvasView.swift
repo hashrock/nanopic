@@ -690,11 +690,6 @@ final class PadCanvasView: UIView, CanvasRenderHost, UIGestureRecognizerDelegate
         cursor.setNeedsDisplay()
     }
 
-    func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
-        handlePencilTap(UIPencilInteraction.preferredTapAction)
-    }
-
-    @available(iOS 17.5, *)
     func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveTap tap: UIPencilInteraction.Tap) {
         handlePencilTap(UIPencilInteraction.preferredTapAction)
     }
