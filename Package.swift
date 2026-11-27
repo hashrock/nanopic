@@ -1,9 +1,9 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.2
 import PackageDescription
 
 let package = Package(
     name: "Nanopic",
-    platforms: [.macOS(.v14), .iOS(.v17)],
+    platforms: [.macOS(.v26), .iOS(.v26)],
     products: [
         .executable(name: "Nanopic", targets: ["Nanopic"]),
         // iPad 版（App Store で配る）が使う。エージェント連携は入れない
@@ -32,5 +32,7 @@ let package = Package(
             name: "NanopicCoreTests",
             dependencies: ["NanopicCore", "NanopicAgent"]
         ),
-    ]
+    ],
+    // 言語モードは Swift 5 のまま（Swift 6 の厳しい並行性チェックにはまだ移らない）
+    swiftLanguageModes: [.v5]
 )
