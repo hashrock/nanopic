@@ -229,8 +229,9 @@ final class WindowCloseGuard: NSObject, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard state.hasUnsavedDocuments else { return original?.windowShouldClose?(sender) ?? true }
-        // ウィンドウを閉じるとアプリも終了するので、確認は applicationShouldTerminate に任せる
+        if original?.windowShouldClose?(sender) == false { return false }
+        // メインウィンドウを閉じたらアプリを終了する（未保存の確認は applicationShouldTerminate に任せる）。
+        // ウィンドウだけ閉じると、設定ウィンドウが開いていたときにそれだけが残ってアプリが終わらない
         NSApp.terminate(nil)
         return false
     }
