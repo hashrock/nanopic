@@ -73,6 +73,10 @@ final class PadState {
             canvas?.updateGestureConfiguration()
         }
     }
+    /// アプリを離れるとき（ほかのアプリに切り替えた・コントロールセンターを出したなど）に、開いている書類を自動で保存する
+    var autosaveEnabled = UserDefaults.standard.object(forKey: "pad.autosave") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(autosaveEnabled, forKey: "pad.autosave") }
+    }
     /// 選択範囲を作るときの、今の選択範囲との組み合わせ方
     var selectionOp: SelectionOp = .replace
     /// 性能を計測して画面に出す（開発用。画面には出さず、起動の引数 `-perf` を付けたときだけ）
@@ -86,8 +90,6 @@ final class PadState {
     var showColorPanelRequest = 0
     /// 開いているファイル名（タイトル表示用）
     var documentName: String { activeDocument.name }
-    /// いまの書類がアプリのフォルダーの外にある（素の PSD として扱っている）
-    var isOutsideDocument: Bool { activeDocument.isOutsideDocument }
     /// iCloud container の書類フォルダー（ファイル App の「iCloud Drive › Nanopic」）。iCloud を使っていなければ nil
     private(set) var iCloudDocuments: URL?
     @ObservationIgnored weak var canvas: PadCanvasView?
@@ -359,7 +361,6 @@ final class PadState {
                 let sidecar = inside ? ((try? Sidecar.read(for: url)) ?? nil) : nil
                 doc.editor.load(psd, url: url, sidecar: sidecar ?? Sidecar())
                 doc.isOutsideDocument = !inside
-                if !inside { show(L("アプリのフォルダーの外の書類です。素の PSD として開きました")) }
                 noteRecentFile(url)
                 // 上書き保存できるよう、閉じるまでアクセス権を持っておく
                 if scoped { doc.accessedURL = url }
@@ -522,38 +523,16 @@ final class PadState {
         checkUpload(url, doc: doc)
         if let sidecarError {
             showFailure(L("「\(url.lastPathComponent)」に保存しましたが、追加の情報を書けませんでした"), sidecarError)
-        } else if inside {
-            show(L("「\(url.lastPathComponent)」に保存しました"))
         } else {
-            show(L("「\(url.lastPathComponent)」に保存しました。アプリのフォルダーの外なので、素の PSD として扱います"))
+            show(L("「\(url.lastPathComponent)」に保存しました"))
         }
     }
 
-    /// アプリを離れるとき、開いているどの書類も、アプリのフォルダーのものだけ自動で保存する（外の場所のファイルは勝手に上書きしない）
+    /// アプリを離れるとき、開いているどの書類も自動で保存する（ファイル App で選んだ外の場所の書類も、その場で上書きする）
     func autosave() {
+        guard autosaveEnabled else { return }
         for doc in documents where doc.editor.isDirty && !doc.editor.isStroking {
-            if let u = doc.editor.fileURL, !appFolders.contains(u) { continue }
             save(doc, quiet: true)
-        }
-    }
-
-    /// 外の場所の書類を、アプリの書類フォルダーに複製して、そちらを開いた状態にする（いまの絵を新しい PSD として書く）。
-    /// 元の書類には触らない。元の隣にサイドカーがあっても、それは読めないので付いてこない
-    @discardableResult
-    func duplicateIntoAppFolder() -> Bool {
-        let doc = activeDocument
-        do {
-            let url = uniqueURL(name: doc.name)
-            try writePSD(doc, to: url)
-            doc.releaseAccess()
-            doc.isOutsideDocument = false
-            doc.name = url.deletingPathExtension().lastPathComponent
-            noteRecentFile(url)
-            show(L("「このiPad内 › Nanopic」に「\(url.lastPathComponent)」を作りました"))
-            return true
-        } catch {
-            showFailure(L("複製に失敗しました"), error)
-            return false
         }
     }
 

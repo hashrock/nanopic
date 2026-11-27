@@ -36,7 +36,6 @@ struct PadContentView: View {
     @State private var savingAs = false
     /// 保存していない変更があるのに閉じようとしている書類（保存するか聞く）
     @State private var confirmClose: PadDocument?
-    @State private var showOutsideInfo = false
 
     enum ImportKind: Identifiable {
         case open, layer
@@ -211,28 +210,6 @@ struct PadContentView: View {
         state.canvas?.fitToView()
     }
 
-    /// 外の場所の書類を開いているときの案内
-    private var outsideInfo: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("アプリのフォルダーの外にある書類です").font(.headline)
-            Text("素の PSD として開いています。スイッチフォルダー・タイムライン・リグ・書き出し設定（隣の「\(state.documentName).nanopic」の情報）は読まず、保存しても書きません。")
-            Text("Nanopic のフォルダー（ファイル App の「このiPad内 › Nanopic」か「iCloud Drive › Nanopic」）に移すと全部使えます。「\(state.documentName).nanopic」があるときは、ファイル App で PSD と一緒に移してください。")
-            Button {
-                showOutsideInfo = false
-                state.duplicateIntoAppFolder()
-            } label: {
-                Label("Nanopic のフォルダーに複製して開く", systemImage: "doc.on.doc")
-            }
-            .buttonStyle(.borderedProminent)
-            Text("複製は、いまの絵を新しい PSD として作ります。元の書類はそのまま残ります。")
-                .font(.caption).foregroundStyle(.secondary)
-        }
-        .font(.callout)
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(16)
-        .frame(width: 360)
-    }
-
     /// 書類のメニュー ＞ 最近開いたファイル。末尾の「履歴をクリア」で一覧を消す（確認はしない）
     private var recentFilesMenu: some View {
         let entries = state.recentEntries
@@ -289,6 +266,9 @@ struct PadContentView: View {
                 Toggle(isOn: Binding(get: { state.fingerDrawing }, set: { state.fingerDrawing = $0 })) {
                     Label("指で描く", systemImage: "hand.point.up.left")
                 }
+                Toggle(isOn: Binding(get: { state.autosaveEnabled }, set: { state.autosaveEnabled = $0 })) {
+                    Label("アプリを離れるときに自動保存", systemImage: "clock.arrow.circlepath")
+                }
                 Toggle(isOn: Binding(get: { state.syncEnabled }, set: { state.setSyncEnabled($0) })) {
                     Label("ブラシとパレットを iCloud で同期", systemImage: "icloud")
                 }
@@ -318,20 +298,6 @@ struct PadContentView: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut("0")
-
-            if state.isOutsideDocument {
-                Button { showOutsideInfo = true } label: {
-                    // ツールバーは縦向きだと狭いので、印だけ出す（説明は押すと出る）
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.yellow)
-                        .frame(width: 36, height: 30)
-                        .background(Color.yellow.opacity(0.2), in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .fixedSize()
-                .accessibilityLabel("アプリのフォルダーの外にある書類です")
-                .popover(isPresented: $showOutsideInfo) { outsideInfo }
-            }
 
             Spacer(minLength: 8)
 

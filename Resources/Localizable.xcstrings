@@ -258,26 +258,6 @@
         }
       }
     },
-    "Nanopic のフォルダーに複製して開く" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Duplicate to the Nanopic Folder and Open"
-          }
-        }
-      }
-    },
-    "Nanopic のフォルダー（ファイル App の「このiPad内 › Nanopic」か「iCloud Drive › Nanopic」）に移すと全部使えます。「%@.nanopic」があるときは、ファイル App で PSD と一緒に移してください。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Move it into the Nanopic folder (“On My iPad › Nanopic” or “iCloud Drive › Nanopic” in the Files app) to use everything. If there is a “%@.nanopic” file, move it together with the PSD in the Files app."
-          }
-        }
-      }
-    },
     "PNG として書き出し..." : {
       "localizations" : {
         "en" : {
@@ -379,16 +359,6 @@
         }
       }
     },
-    "「%@」に保存しました。アプリのフォルダーの外なので、素の PSD として扱います" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saved to “%@”. It is outside the app’s folder, so it is treated as a plain PSD"
-          }
-        }
-      }
-    },
     "「%@」に保存しましたが、追加の情報を書けませんでした" : {
       "localizations" : {
         "en" : {
@@ -476,16 +446,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove “%@”"
-          }
-        }
-      }
-    },
-    "「このiPad内 › Nanopic」に「%@」を作りました" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Created “%@” in “On My iPad › Nanopic”"
           }
         }
       }
@@ -812,22 +772,12 @@
         }
       }
     },
-    "アプリのフォルダーの外にある書類です" : {
+    "アプリを離れるときに自動保存" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This document is outside the app’s folder"
-          }
-        }
-      }
-    },
-    "アプリのフォルダーの外の書類です。素の PSD として開きました" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This document is outside the app’s folder. Opened as a plain PSD"
+            "value" : "Autosave When Leaving the App"
           }
         }
       }
@@ -4459,16 +4409,6 @@
         }
       }
     },
-    "素の PSD として開いています。スイッチフォルダー・タイムライン・リグ・書き出し設定（隣の「%@.nanopic」の情報）は読まず、保存しても書きません。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "It is open as a plain PSD. Switch folders, the timeline, rigs, and export settings (the information in “%@.nanopic” next to it) are not read, and are not written when you save."
-          }
-        }
-      }
-    },
     "組み合わせ" : {
       "localizations" : {
         "en" : {
@@ -4737,26 +4677,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Duplicate"
-          }
-        }
-      }
-    },
-    "複製に失敗しました" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't Duplicate"
-          }
-        }
-      }
-    },
-    "複製は、いまの絵を新しい PSD として作ります。元の書類はそのまま残ります。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Duplicating saves the current artwork as a new PSD. The original document is left as it is."
           }
         }
       }
